@@ -266,7 +266,7 @@ namespace Advanced_Graphics
         public bool ReloadRoadTexture { set { if (value) Mod.RoadAsphalt?.ReloadCustomTexture(); } }
 
         [SettingsUISection(RoadSection, RoadUvGroup)]
-        [SettingsUISlider(min = 100, max = 1000, step = 25, scalarMultiplier = 1)]
+        [SettingsUISlider(min = 50, max = 1000, step = 25, scalarMultiplier = 1)]
         public int RoadUvSizePercent { get; set; }
 
         [SettingsUISection(RoadSection, RoadUvGroup)]
@@ -456,7 +456,7 @@ namespace Advanced_Graphics
         public bool ReloadRailTexture { set { if (value) Mod.RailGravel?.ReloadCustomTexture(); } }
 
         [SettingsUISection(RailSection, RailUvGroup)]
-        [SettingsUISlider(min = 100, max = 1000, step = 25, scalarMultiplier = 1)]
+        [SettingsUISlider(min = 50, max = 1000, step = 25, scalarMultiplier = 1)]
         public int RailGravelUvSizePercent { get; set; }
 
         [SettingsUISection(RailSection, RailUvGroup)]
@@ -488,7 +488,7 @@ namespace Advanced_Graphics
         }
 
         [SettingsUISection(SidewalkSection, SidewalkUvGroup)]
-        [SettingsUISlider(min = 100, max = 1000, step = 25, scalarMultiplier = 1)]
+        [SettingsUISlider(min = 50, max = 1000, step = 25, scalarMultiplier = 1)]
         public int SidewalkUvSizePercent { get; set; }
 
         [SettingsUISection(SidewalkSection, SidewalkUvGroup)]
@@ -583,7 +583,7 @@ namespace Advanced_Graphics
         public bool ReloadAlleySidewalkTexture { set { if (value) Mod.AlleySidewalk?.ReloadCustomTexture(); } }
 
         [SettingsUISection(AlleySidewalkSection, AlleySidewalkUvGroup)]
-        [SettingsUISlider(min = 100, max = 1000, step = 25, scalarMultiplier = 1)]
+        [SettingsUISlider(min = 50, max = 1000, step = 25, scalarMultiplier = 1)]
         public int AlleySidewalkUvSizePercent { get; set; }
 
         [SettingsUISection(AlleySidewalkSection, AlleySidewalkUvGroup)]
