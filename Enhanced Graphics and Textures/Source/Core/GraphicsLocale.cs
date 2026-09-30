@@ -25,7 +25,7 @@ namespace Advanced_Graphics
             switch (m_Language)
             {
                 case "de":
-                    t = new[] { "Enhanced Graphics and Textures", "Allgemein", "Bäume", "Details", "Cache", "Terrain", "Schatten", "Zurücksetzen",
+                    t = new[] { "Enhanced Graphics & Textures", "Allgemein", "Bäume", "Details", "Cache", "Terrain", "Schatten", "Zurücksetzen",
                         "Baum-LOD-Distanz", "Standard: 100 %. Höher: detaillierte Bäume auch weiter entfernt, meist weniger FPS. Niedriger: frühere Vereinfachung, meist mehr FPS. Verbessert keine vereinfachten Modelle der Assets.",
                         "Globale Objektdetails", $"Standard: 100 % (Spielwert {detail}). Höher: mehr Details an allen Objekten einschließlich Bäumen, meist weniger FPS. Niedriger: weniger Details, meist mehr FPS. Werte über der Spielgrenze sind experimentell.",
                         "Geometrie-Cache (MB)", "Standard: 4096 MB. Höher: mehr Geometriedaten im Speicher, mehr VRAM-Bedarf; nicht automatisch bessere Grafik oder mehr FPS. Niedriger: weniger VRAM-Bedarf, bei zu wenig Cache möglicherweise Ruckler. Spielmenü bis 4096 MB, Mod bis 16384 MB.",
@@ -44,7 +44,7 @@ namespace Advanced_Graphics
                         "Schwellenwert für kleine Schattenwerfer auf die Spielwerte zurücksetzen.", "TAA-Schärfe auf den ursprünglichen Kamerawert zurücksetzen." };
                     break;
                 case "es":
-                    t = new[] { "Enhanced Graphics and Textures", "General", "Árboles", "Detalles", "Caché", "Terreno", "Sombras", "Restablecer",
+                    t = new[] { "Enhanced Graphics & Textures", "General", "Árboles", "Detalles", "Caché", "Terreno", "Sombras", "Restablecer",
                         "Distancia LOD de árboles", "Predeterminado: 100 %. Más alto: árboles detallados más lejos, normalmente menos FPS. Más bajo: se simplifican antes, normalmente más FPS. No mejora los modelos simplificados del propio recurso.",
                         "Detalle global de objetos", $"Predeterminado: 100 % (juego {detail}). Más alto: más detalle en todos los objetos, incluidos árboles, normalmente menos FPS. Más bajo: menos detalle, normalmente más FPS. Por encima del juego es experimental.",
                         "Caché de geometría (MB)", "Predeterminado: 4096 MB. Más alto: más geometría en memoria y mayor uso de VRAM; no garantiza mejor imagen ni más FPS. Más bajo: menos VRAM, pero un caché insuficiente puede provocar tirones. Juego hasta 4096 MB; mod hasta 16384 MB.",
@@ -62,7 +62,7 @@ namespace Advanced_Graphics
                         "Restablecer los objetos pequeños que proyectan sombras al juego.", "Restablecer la nitidez TAA al valor original de la cámara." };
                     break;
                 case "fr":
-                    t = new[] { "Enhanced Graphics and Textures", "Général", "Arbres", "Détails", "Cache", "Terrain", "Ombres", "Réinitialiser",
+                    t = new[] { "Enhanced Graphics & Textures", "Général", "Arbres", "Détails", "Cache", "Terrain", "Ombres", "Réinitialiser",
                         "Distance LOD des arbres", "Défaut : 100 %. Plus élevé : arbres détaillés plus loin, généralement moins de FPS. Plus bas : simplification plus tôt, généralement plus de FPS. Ne modifie pas les modèles simplifiés des ressources.",
                         "Détails globaux des objets", $"Défaut : 100 % (jeu {detail}). Plus élevé : plus de détails sur tous les objets, arbres compris, généralement moins de FPS. Plus bas : moins de détails, généralement plus de FPS. Au-delà du jeu : expérimental.",
                         "Cache de géométrie (Mo)", "Défaut : 4096 Mo. Plus élevé : plus de géométrie en mémoire et plus de VRAM ; ni meilleure image ni plus de FPS garantis. Plus bas : moins de VRAM, mais un cache insuffisant peut causer des saccades. Jeu jusqu'à 4096 Mo ; mod jusqu'à 16384 Mo.",
@@ -80,7 +80,7 @@ namespace Advanced_Graphics
                         "Rétablir le seuil des petits objets projetant des ombres au jeu.", "Rétablir la netteté TAA à la valeur initiale de la caméra." };
                     break;
                 case "it":
-                    t = new[] { "Enhanced Graphics and Textures", "Generale", "Alberi", "Dettagli", "Cache", "Terreno", "Ombre", "Ripristina",
+                    t = new[] { "Enhanced Graphics & Textures", "Generale", "Alberi", "Dettagli", "Cache", "Terreno", "Ombre", "Ripristina",
                         "Distanza LOD degli alberi", "Predefinito: 100%. Più alto: alberi dettagliati più lontano, di solito meno FPS. Più basso: semplificazione anticipata, di solito più FPS. Non migliora i modelli semplificati degli asset.",
                         "Dettagli globali degli oggetti", $"Predefinito: 100% (gioco {detail}). Più alto: più dettaglio per tutti gli oggetti, alberi inclusi, di solito meno FPS. Più basso: meno dettaglio, di solito più FPS. Oltre il limite del gioco è sperimentale.",
                         "Cache geometria (MB)", "Predefinito: 4096 MB. Più alto: più geometria in memoria e più VRAM; qualità e FPS non migliorano automaticamente. Più basso: meno VRAM, ma una cache insufficiente può causare scatti. Gioco fino a 4096 MB; mod fino a 16384 MB.",
@@ -98,7 +98,7 @@ namespace Advanced_Graphics
                         "Ripristina la soglia per le ombre piccole al valore del gioco.", "Ripristina la nitidezza TAA al valore iniziale della camera." };
                     break;
                 default:
-                    t = new[] { "Enhanced Graphics and Textures", "General", "Trees", "Details", "Cache", "Terrain", "Shadows", "Reset",
+                    t = new[] { "Enhanced Graphics & Textures", "General", "Trees", "Details", "Cache", "Terrain", "Shadows", "Reset",
                         "Tree LOD distance", "Default: 100%. Higher: detailed trees farther away, usually fewer FPS. Lower: trees simplify sooner, usually more FPS. Cannot improve an asset's simplified model.",
                         "Global object detail", $"Default: 100% (game value {detail}). Higher: more detail on all objects including trees, usually fewer FPS. Lower: less detail, usually more FPS. Beyond the game range is experimental.",
                         "Geometry cache (MB)", "Default: 4096 MB. Higher: more geometry kept in memory and more VRAM used; neither better image quality nor more FPS is guaranteed. Lower: less VRAM, but too little cache may cause stutter. Game menu up to 4096 MB; mod up to 16384 MB.",
@@ -615,6 +615,40 @@ namespace Advanced_Graphics
                 case "it": launcherTooltip = "Enhanced Graphics and Textures – apri editor delle texture"; break;
                 default: launcherTooltip = "Enhanced Graphics and Textures – open texture editor"; break;
             }
+            string interfaceLabel;
+            string appButtonLabel;
+            string appButtonDescription;
+            switch (m_Language)
+            {
+                case "de":
+                    interfaceLabel = "Benutzeroberfläche";
+                    appButtonLabel = "App-Button anzeigen";
+                    appButtonDescription = "Zeigt den App-Button für den Textur-Editor in der Ingame-UI an. Alle Oberflächen-Tabs sind verfügbar; die gespeicherten Reglerprofile bleiben erhalten.";
+                    break;
+                case "es":
+                    interfaceLabel = "Interfaz";
+                    appButtonLabel = "Mostrar botón de la aplicación";
+                    appButtonDescription = "Muestra el botón del editor de texturas en el juego. Todas las pestañas están disponibles y se conservan los perfiles guardados.";
+                    break;
+                case "fr":
+                    interfaceLabel = "Interface";
+                    appButtonLabel = "Afficher le bouton de l’application";
+                    appButtonDescription = "Affiche le bouton de l’éditeur de textures dans le jeu. Tous les onglets sont disponibles et les profils enregistrés sont conservés.";
+                    break;
+                case "it":
+                    interfaceLabel = "Interfaccia";
+                    appButtonLabel = "Mostra pulsante dell’app";
+                    appButtonDescription = "Mostra il pulsante dell’editor di texture nel gioco. Tutte le schede sono disponibili e i profili salvati vengono mantenuti.";
+                    break;
+                default:
+                    interfaceLabel = "Interface";
+                    appButtonLabel = "Show app button";
+                    appButtonDescription = "Shows the in-game texture editor app button. All surface tabs are available and saved slider profiles are retained.";
+                    break;
+            }
+            entries.Add(m_Setting.GetOptionGroupLocaleID(Setting.LauncherGroup), interfaceLabel);
+            entries.Add(m_Setting.GetOptionLabelLocaleID(nameof(Setting.ShowAppButton)), appButtonLabel);
+            entries.Add(m_Setting.GetOptionDescLocaleID(nameof(Setting.ShowAppButton)), appButtonDescription);
             entries["AdvancedGraphics.UI.OpenTextureEditor"] = launcherTooltip;
             return entries;
         }

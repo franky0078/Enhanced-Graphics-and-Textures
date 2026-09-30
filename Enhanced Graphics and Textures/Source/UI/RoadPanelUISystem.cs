@@ -77,7 +77,7 @@ namespace Advanced_Graphics
         private static string BuildState(Setting s)
         {
             if (s == null) return "{}";
-            return "{\"show\":" + (s.ShowRoadPanelButton ? "true" : "false") +
+            return "{\"show\":" + (s.ShowAppButton ? "true" : "false") +
                 ",\"enabled\":" + (s.RoadAsphaltEnabled ? "true" : "false") +
                 ",\"detail\":" + s.RoadAsphaltDetail +
                 ",\"uv\":" + s.RoadUvSizePercent +
@@ -96,7 +96,7 @@ namespace Advanced_Graphics
         private static string BuildSidewalkState(Setting s)
         {
             if (s == null) return "{}";
-            return "{\"show\":" + (s.ShowSidewalkPanelButton ? "true" : "false") +
+            return "{\"show\":" + (s.ShowAppButton ? "true" : "false") +
                 ",\"enabled\":" + (s.SidewalkEnabled ? "true" : "false") +
                 ",\"detail\":" + s.SidewalkDetail +
                 ",\"uv\":" + s.SidewalkUvSizePercent +
@@ -115,7 +115,7 @@ namespace Advanced_Graphics
         private static string BuildAlleySidewalkState(Setting s)
         {
             if (s == null) return "{}";
-            return "{\"show\":" + (s.ShowAlleySidewalkPanelButton ? "true" : "false") +
+            return "{\"show\":" + (s.ShowAppButton ? "true" : "false") +
                 ",\"enabled\":" + (s.AlleySidewalkEnabled ? "true" : "false") +
                 ",\"detail\":" + s.AlleySidewalkDetail +
                 ",\"uv\":" + s.AlleySidewalkUvSizePercent +
@@ -134,7 +134,7 @@ namespace Advanced_Graphics
         private static string BuildRailState(Setting s)
         {
             if (s == null) return "{}";
-            return "{\"show\":" + (s.ShowRailPanelButton ? "true" : "false") +
+            return "{\"show\":" + (s.ShowAppButton ? "true" : "false") +
                 ",\"enabled\":" + (s.RailGravelEnabled ? "true" : "false") +
                 ",\"detail\":" + s.RailGravelDetail +
                 ",\"uv\":" + s.RailGravelUvSizePercent +
@@ -148,7 +148,7 @@ namespace Advanced_Graphics
         private static string BuildGravelState(Setting s, bool shoulder)
         {
             if (s == null) return "{}";
-            return "{\"show\":" + (s.ShowGravelPanelButton ? "true" : "false") +
+            return "{\"show\":" + (s.ShowAppButton ? "true" : "false") +
                 ",\"enabled\":" + ((shoulder ? s.GravelShoulderEnabled : s.RoadGravelEnabled) ? "true" : "false") +
                 ",\"detail\":" + (shoulder ? s.GravelShoulderDetail : s.RoadGravelDetail) +
                 ",\"uv\":" + (shoulder ? s.GravelShoulderUvSizePercent : s.RoadGravelUvSizePercent) +

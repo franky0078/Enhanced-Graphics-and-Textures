@@ -100,11 +100,11 @@
 		Report issues in the project's GitHub repository.
 	</LongDescription>
 	
-	<Thumbnail Value="Properties/Thumbnail.png" />
+	<Thumbnail Value="Properties/Thumbnail.jpg" />
 
 	<!-- Screenshots -->
-	<!--<Screenshot Value="Properties/Screenshot01.jpg" />
-	<Screenshot Value="Properties/Screenshot02.jpg" />
+	<Screenshot Value="Properties/Screenshot01.jpg" />
+	<!--<Screenshot Value="Properties/Screenshot02.jpg" />
 	<Screenshot Value="Properties/Screenshot03.jpg" />
 	<Screenshot Value="Properties/Screenshot04.jpg" />
 	<Screenshot Value="Properties/Screenshot05.jpg" />

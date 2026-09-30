@@ -2,7 +2,13 @@
 
 Enhanced Graphics and Textures adds extended graphics controls and an in-game surface texture editor to **Cities: Skylines II**.
 
-<img src="Enhanced%20Graphics%20and%20Textures/Properties/Thumbnail.png" alt="Enhanced Graphics and Textures thumbnail" width="420" />
+
+<p align="center">
+  <img src="Enhanced%20Graphics%20and%20Textures/Properties/Screenshot01.jpg"
+       alt="Enhanced Graphics and Textures"
+       width="600">
+</p>
+
 
 ## Graphics controls
 
@@ -103,3 +109,11 @@ Open `Enhanced Graphics and Textures.slnx` in Visual Studio with the Cities: Sky
 The internal `Advanced_Graphics` identifier is retained for settings and UI compatibility. Install the DLL and UI together and remove duplicate older mod installations.
 
 [GitHub repository](https://github.com/franky0078/Enhanced-Graphics-and-Textures)
+
+
+## License
+
+
+This project is licensed under the GNU General Public License v3.0.
+
+Copyright © 2026 franky0078

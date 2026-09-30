@@ -10,11 +10,12 @@ namespace Advanced_Graphics
 {
     [FileLocation(nameof(Advanced_Graphics))]
     [SettingsUITabOrder(MainSection, RoadSection, SidewalkSection, AlleySidewalkSection, GravelSection, GravelSidewalkSection, RailSection)]
-    [SettingsUIGroupOrder(TreeGroup, DetailGroup, CacheGroup, TerrainGroup, ShadowsGroup, SharpnessGroup, RoadGroup, RoadUvGroup, RoadCrackGroup, RoadPanelGroup, SidewalkGroup, SidewalkUvGroup, SidewalkCrackGroup, AlleySidewalkGroup, AlleySidewalkUvGroup, AlleySidewalkCrackGroup, GravelGroup, ShoulderGroup, RailGroup, RailUvGroup, ResetGroup, AboutGroup)]
-    [SettingsUIShowGroupName(TreeGroup, DetailGroup, CacheGroup, TerrainGroup, ShadowsGroup, SharpnessGroup, RoadGroup, RoadUvGroup, RoadCrackGroup, RoadPanelGroup, SidewalkGroup, SidewalkUvGroup, SidewalkCrackGroup, AlleySidewalkGroup, AlleySidewalkUvGroup, AlleySidewalkCrackGroup, GravelGroup, ShoulderGroup, RailGroup, RailUvGroup, ResetGroup, AboutGroup)]
-    public sealed class Setting : ModSetting
+    [SettingsUIGroupOrder(LauncherGroup, TreeGroup, DetailGroup, CacheGroup, TerrainGroup, ShadowsGroup, SharpnessGroup, RoadGroup, RoadUvGroup, RoadCrackGroup, RoadPanelGroup, SidewalkGroup, SidewalkUvGroup, SidewalkCrackGroup, AlleySidewalkGroup, AlleySidewalkUvGroup, AlleySidewalkCrackGroup, GravelGroup, ShoulderGroup, RailGroup, RailUvGroup, ResetGroup, AboutGroup)]
+    [SettingsUIShowGroupName(LauncherGroup, TreeGroup, DetailGroup, CacheGroup, TerrainGroup, ShadowsGroup, SharpnessGroup, RoadGroup, RoadUvGroup, RoadCrackGroup, RoadPanelGroup, SidewalkGroup, SidewalkUvGroup, SidewalkCrackGroup, AlleySidewalkGroup, AlleySidewalkUvGroup, AlleySidewalkCrackGroup, GravelGroup, ShoulderGroup, RailGroup, RailUvGroup, ResetGroup, AboutGroup)]
+    public sealed partial class Setting : ModSetting
     {
         public const string AboutGroup = "About";
+        public const string LauncherGroup = "Interface";
         public const string MainSection = "Main";
         public const string RoadSection = "Road";
         public const string SidewalkSection = "Sidewalk";
@@ -51,12 +52,16 @@ namespace Advanced_Graphics
 
         public Setting(IMod mod) : base(mod) { SetDefaults(); }
 
+        // A separate first group provides the native divider before graphics controls.
+        [SettingsUISection(MainSection, LauncherGroup)]
+        public bool ShowAppButton { get; set; } = true;
+
         [SettingsUISection(MainSection, TreeGroup)]
-        [SettingsUISlider(min = 10, max = 400, step = 10, scalarMultiplier = 1)]
+        [SettingsUISlider(min = 10, max = 500, step = 10, scalarMultiplier = 1)]
         public int TreeLodDistance { get; set; }
 
         [SettingsUISection(MainSection, DetailGroup)]
-        [SettingsUISlider(min = 10, max = 400, step = 10, scalarMultiplier = 1)]
+        [SettingsUISlider(min = 10, max = 500, step = 10, scalarMultiplier = 1)]
         public int GlobalDetailScalePercent { get; set; }
 
         // The game's own slider stops at 4096 MB. Values beyond it are experimental.
@@ -115,11 +120,16 @@ namespace Advanced_Graphics
 
         [SettingsUISection(GravelSection, GravelGroup)]
         public bool RoadGravelEnabled { get; set; }
-        [SettingsUISection(GravelSection, GravelGroup)]
+        [SettingsUIHidden]
         public bool ShowGravelPanelButton { get; set; } = true;
+        private int m_RoadGravelDetail;
         [SettingsUISection(GravelSection, GravelGroup)]
         [SettingsUISlider(min = 0, max = 2, step = 1, scalarMultiplier = 1)]
-        public int RoadGravelDetail { get; set; }
+        public int RoadGravelDetail
+        {
+            get => m_RoadGravelDetail;
+            set => SwitchTextureMode(3, ref m_RoadGravelDetail, value);
+        }
         [SettingsUISection(GravelSection, GravelGroup)]
         [SettingsUISlider(min = 50, max = 1000, step = 25, scalarMultiplier = 1)]
         public int RoadGravelUvSizePercent { get; set; } = 100;
@@ -165,9 +175,14 @@ namespace Advanced_Graphics
         [SettingsUISection(GravelSidewalkSection, ShoulderGroup)]
         [SettingsUISlider(min = 0, max = 1000, step = 25, scalarMultiplier = 1)]
         public int GravelShoulderDepthStrengthPercent { get; set; }
+        private int m_GravelShoulderDetail;
         [SettingsUISection(GravelSidewalkSection, ShoulderGroup)]
         [SettingsUISlider(min = 0, max = 2, step = 1, scalarMultiplier = 1)]
-        public int GravelShoulderDetail { get; set; }
+        public int GravelShoulderDetail
+        {
+            get => m_GravelShoulderDetail;
+            set => SwitchTextureMode(4, ref m_GravelShoulderDetail, value);
+        }
         [SettingsUISection(GravelSidewalkSection, ShoulderGroup)]
         [SettingsUISlider(min = 0, max = 100, step = 5, scalarMultiplier = 1)]
         public int GravelShoulderUvOffsetX { get; set; }
@@ -199,7 +214,7 @@ namespace Advanced_Graphics
         [SettingsUIButton]
         public bool ResetGravelShoulder
         {
-            set { if (value) { GravelShoulderEnabled = false; GravelShoulderUvSizePercent = 100;
+            set { if (value) { ClearTextureModeProfiles(4); GravelShoulderEnabled = false; GravelShoulderUvSizePercent = 100;
                 GravelShoulderDepthStrengthPercent = 0; GravelShoulderDetail = 0;
                 GravelShoulderUvOffsetX = GravelShoulderUvOffsetY = GravelShoulderUvRotation = 0; ApplyAndSave(); } }
         }
@@ -214,9 +229,14 @@ namespace Advanced_Graphics
         [SettingsUIHidden]
         public int AlleySidewalkSettingsVersion { get; set; }
 
+        private int m_RoadAsphaltDetail;
         [SettingsUISection(RoadSection, RoadGroup)]
         [SettingsUISlider(min = 0, max = 2, step = 1, scalarMultiplier = 1)]
-        public int RoadAsphaltDetail { get; set; }
+        public int RoadAsphaltDetail
+        {
+            get => m_RoadAsphaltDetail;
+            set => SwitchTextureMode(0, ref m_RoadAsphaltDetail, value);
+        }
 
         [SettingsUISection(RoadSection, RoadGroup)]
         public bool RoadAsphaltEnabled { get; set; }
@@ -296,6 +316,7 @@ namespace Advanced_Graphics
             set
             {
                 if (!value) return;
+                ClearTextureModeProfiles(0);
                 RoadAsphaltDetail = 0;
                 RoadAsphaltEnabled = false;
                 AsphaltSource = RoadTextureSource.Generated;
@@ -312,25 +333,30 @@ namespace Advanced_Graphics
             }
         }
 
-        [SettingsUISection(RoadSection, RoadPanelGroup)]
+        [SettingsUIHidden]
         public bool ShowRoadPanelButton { get; set; }
 
         [SettingsUISection(SidewalkSection, SidewalkGroup)]
         public bool SidewalkEnabled { get; set; }
 
-        [SettingsUISection(SidewalkSection, SidewalkGroup)]
+        [SettingsUIHidden]
         public bool ShowSidewalkPanelButton { get; set; } = true;
 
-        [SettingsUISection(RailSection, RailGroup)]
+        [SettingsUIHidden]
         public bool ShowRailPanelButton { get; set; } = true;
 
         [SettingsUIHideByCondition(typeof(Setting), nameof(HideDebugControls))]
         [SettingsUISection(SidewalkSection, SidewalkGroup)]
         public bool DiagnoseRoadEUAtlas { get; set; }
 
+        private int m_SidewalkDetail;
         [SettingsUISection(SidewalkSection, SidewalkGroup)]
         [SettingsUISlider(min = 0, max = 2, step = 1, scalarMultiplier = 1)]
-        public int SidewalkDetail { get; set; }
+        public int SidewalkDetail
+        {
+            get => m_SidewalkDetail;
+            set => SwitchTextureMode(1, ref m_SidewalkDetail, value);
+        }
 
         [SettingsUISection(SidewalkSection, SidewalkGroup)]
         [SettingsUIButton]
@@ -396,9 +422,14 @@ namespace Advanced_Graphics
         [SettingsUISection(RailSection, RailGroup)]
         public bool RailGravelEnabled { get; set; }
 
+        private int m_RailGravelDetail;
         [SettingsUISection(RailSection, RailGroup)]
         [SettingsUISlider(min = 0, max = 2, step = 1, scalarMultiplier = 1)]
-        public int RailGravelDetail { get; set; }
+        public int RailGravelDetail
+        {
+            get => m_RailGravelDetail;
+            set => SwitchTextureMode(5, ref m_RailGravelDetail, value);
+        }
 
         [SettingsUISection(RailSection, RailGroup)]
         [SettingsUIButton]
@@ -515,12 +546,17 @@ namespace Advanced_Graphics
         [SettingsUISection(AlleySidewalkSection, AlleySidewalkGroup)]
         public bool AlleySidewalkEnabled { get; set; }
 
-        [SettingsUISection(AlleySidewalkSection, AlleySidewalkGroup)]
+        [SettingsUIHidden]
         public bool ShowAlleySidewalkPanelButton { get; set; } = true;
 
+        private int m_AlleySidewalkDetail;
         [SettingsUISection(AlleySidewalkSection, AlleySidewalkGroup)]
         [SettingsUISlider(min = 0, max = 2, step = 1, scalarMultiplier = 1)]
-        public int AlleySidewalkDetail { get; set; }
+        public int AlleySidewalkDetail
+        {
+            get => m_AlleySidewalkDetail;
+            set => SwitchTextureMode(2, ref m_AlleySidewalkDetail, value);
+        }
 
         [SettingsUISection(AlleySidewalkSection, AlleySidewalkGroup)]
         [SettingsUIButton]
@@ -647,6 +683,7 @@ namespace Advanced_Graphics
 
         public override void SetDefaults()
         {
+            ClearAllTextureModeProfiles();
             Mod.Graphics?.Capture();
             TreeLodDistance = 100;
             GlobalDetailScalePercent = 100;
@@ -667,6 +704,7 @@ namespace Advanced_Graphics
             RoadCrackWidthPercent = 100;
             RoadCrackOpacityPercent = 100;
             RoadCrackRandomnessPercent = 50;
+            ShowAppButton = true;
             ShowRoadPanelButton = true;
             ShowSidewalkPanelButton = true;
             ShowRailPanelButton = true;
@@ -687,6 +725,7 @@ namespace Advanced_Graphics
 
         private void SetSidewalkDefaults()
         {
+            ClearTextureModeProfiles(1);
             SidewalkEnabled = false;
             DiagnoseRoadEUAtlas = false;
             SidewalkDetail = 0;
@@ -701,6 +740,7 @@ namespace Advanced_Graphics
 
         private void SetAlleySidewalkDefaults()
         {
+            ClearTextureModeProfiles(2);
             ShowAlleySidewalkPanelButton = true;
             AlleySidewalkEnabled = false;
             AlleySidewalkDetail = 0;
@@ -715,6 +755,7 @@ namespace Advanced_Graphics
 
         private void ResetRailDefaults()
         {
+            ClearTextureModeProfiles(5);
             RailGravelEnabled = false;
             RailGravelDetail = 0;
             RailGravelUvSizePercent = 100;
@@ -724,6 +765,7 @@ namespace Advanced_Graphics
 
         private void ResetRoadGravelDefaults()
         {
+            ClearTextureModeProfiles(3);
             RoadGravelEnabled = false;
             RoadGravelDetail = 0;
             RoadGravelUvSizePercent = 100;
@@ -758,12 +800,14 @@ namespace Advanced_Graphics
 
         public override void Apply()
         {
+            CaptureTextureModeProfiles();
             base.Apply();
             ApplyToSystem();
         }
 
         internal void ApplyToSystem()
         {
+            CaptureTextureModeProfiles();
             if (Mod.TreeLod != null) Mod.TreeLod.DistancePercent = TreeLodDistance;
             Mod.Graphics?.Apply(this);
             Mod.RoadGravel?.Configure(RoadGravelEnabled && (RoadGravelDetail != 0 || RoadGravelUvSizePercent != 100 ||

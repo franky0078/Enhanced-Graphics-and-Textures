@@ -103,6 +103,7 @@ namespace Advanced_Graphics
                 _ = AssetDatabase.global.SaveSettings();
             }
             m_Setting.AsphaltSource = Setting.RoadTextureSource.Generated;
+            m_Setting.InitializeTextureModeProfiles();
             m_Setting.ApplyToSystem();
         }
 
