@@ -1,0 +1,135 @@
+.launcher {
+    width: 40rem;
+    height: 40rem;
+    margin: 0 4rem;
+    border: 0;
+    border-radius: 7rem;
+    background-color: #4acdf0;
+    color: #ffffff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    align-self: flex-start;
+    padding: 0;
+    pointer-events: auto;
+}
+.launcher svg { width: 28rem; height: 28rem; }
+.launcher:hover, .active { background-color: #71def8; }
+.panel {
+    position: fixed !important;
+    width: 420rem !important;
+    max-height: 78vh !important;
+    z-index: 90;
+    overflow: hidden;
+    pointer-events: auto;
+    color: #e9f4fb;
+    background-color: rgba(25, 43, 57, .93);
+    backdrop-filter: blur(15rem);
+    border: 1rem solid rgba(176, 210, 229, .37);
+    border-radius: 7rem;
+    box-shadow: 0 8rem 24rem rgba(0, 0, 0, .3);
+    box-sizing: border-box;
+}
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8rem 12rem;
+    cursor: move;
+    user-select: none;
+    border-bottom: 1rem solid rgba(190, 217, 231, .22);
+    font-size: 15rem;
+}
+.close, .source button, .reset {
+    border: 1rem solid rgba(189, 216, 231, .35);
+    border-radius: 4rem;
+    background-color: rgba(12, 30, 44, .6);
+    color: #f2f8fc !important;
+    cursor: pointer;
+}
+.close { width: 26rem; height: 26rem; font-size: 20rem; }
+.body { max-height: calc(78vh - 48rem); overflow-y: auto; padding: 9rem 13rem 13rem; }
+.surfaceTabs { display: flex; flex-wrap: wrap; gap: 6rem; margin: 0 0 10rem; }
+.surfaceTabs button { flex: 0 0 122rem; width: 122rem; box-sizing: border-box; padding: 6rem; border: 1rem solid rgba(189, 216, 231, .55); border-radius: 4rem; background: rgba(12, 30, 44, .82); color: #f2f8fc !important; cursor: pointer; font-size: 12rem; }
+.surfaceTabs button:hover { background: rgba(65, 111, 140, .9); }
+.surfaceTabs .selectedTab { background: rgba(58, 125, 158, .95); border-color: rgba(220, 241, 255, .85); color: #ffffff !important; }
+.moduleToggle { display: flex; align-items: center; gap: 8rem; width: 100%; margin: 2rem 0 8rem; padding: 2rem 0; border: 0; background: none; color: #f2f8fc !important; font: inherit; font-size: 12rem; text-align: left; cursor: pointer; }
+.toggleBox { display: flex; align-items: center; justify-content: center; width: 16rem; height: 16rem; flex: 0 0 16rem; border: 1rem solid #e9f4fb; border-radius: 2rem; background: rgba(4, 18, 29, .72); color: #fff; font-size: 14rem; line-height: 1; }
+.toggleOn { background: #458cba; }
+.moduleToggle:focus { outline: 2rem solid rgba(127, 212, 250, .85); outline-offset: 2rem; }
+.source { display: flex; align-items: center; gap: 5rem; margin-bottom: 8rem; font-size: 12rem; }
+.source span { flex: 1; }
+.source button { padding: 5rem 7rem; font-size: 11rem; }
+.source .selected { background-color: rgba(58, 125, 158, .8); }
+.separator { height: 1rem; margin: 10rem 0 8rem; background: rgba(190, 217, 231, .35); }
+.row { display: flex; align-items: center; gap: 8rem; min-height: 31rem; font-size: 12rem; }
+.rowLabel { width: 112rem; flex: 0 0 auto; cursor: help; }
+.textureHint { margin-top: 9rem; color: #c8dfec; font-size: 11rem; line-height: 1.3; }
+.slider {
+    position: relative;
+    flex: 1;
+    min-width: 80rem;
+    height: 31rem;
+    border: 0;
+    border-radius: 6rem;
+    cursor: ew-resize;
+    touch-action: none;
+    user-select: none;
+}
+.sliderTrack {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 11rem;
+    right: 11rem;
+    pointer-events: none;
+}
+.sliderTrack::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 9rem;
+    transform: translateY(-50%);
+    border: 1rem solid rgba(213, 231, 244, .65);
+    border-radius: 6rem;
+    background: rgba(4, 18, 29, .72);
+    pointer-events: none;
+}
+.slider:focus { outline: 2rem solid rgba(127, 212, 250, .85); outline-offset: 3rem; }
+.sliderFill { position: absolute; top: 50%; left: 0; height: 9rem; transform: translateY(-50%); border-radius: inherit; background: rgba(68, 162, 205, .9); pointer-events: none; }
+.sliderThumb {
+    position: absolute;
+    top: 50%;
+    width: 21rem;
+    height: 21rem;
+    border: 2rem solid #e9f4fb;
+    border-radius: 50%;
+    background: #579ac0;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    box-shadow: 0 1rem 4rem rgba(0, 0, 0, .5);
+}
+.row output { width: 94rem; min-width: 94rem; flex: 0 0 94rem; display: block; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap !important; }
+.numberInput {
+    width: 94rem;
+    min-width: 94rem;
+    flex: 0 0 94rem;
+    height: 25rem;
+    box-sizing: border-box;
+    padding: 2rem 7rem;
+    border: 1rem solid rgba(189, 216, 231, .55);
+    border-radius: 4rem;
+    background: rgba(12, 30, 44, .82);
+    color: #f2f8fc !important;
+    font: inherit;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    pointer-events: auto;
+}
+.numberInput:focus { outline: 2rem solid rgba(127, 212, 250, .85); }
+.reset { margin-top: 10rem; padding: 7rem 12rem; font-size: 12rem; }
+.close:hover, .source button:hover, .reset:hover { background-color: rgba(75, 119, 148, .8); }
+
