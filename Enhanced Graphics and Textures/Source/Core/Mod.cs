@@ -30,7 +30,7 @@ namespace Advanced_Graphics
         public void OnLoad(UpdateSystem updateSystem)
         {
             log.Info("Enhanced Graphics and Textures loading");
-            TextureStorage.Migrate();
+            TextureStorage.EnsureDirectories();
 
             // BatchManagerSystem builds the active groups; BatchDataSystem later reads their LOD thresholds. 
             updateSystem.UpdateAfter<TreeLodSystem, BatchManagerSystem>(SystemUpdatePhase.Rendering);

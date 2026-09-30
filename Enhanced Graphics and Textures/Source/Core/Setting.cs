@@ -10,10 +10,11 @@ namespace Advanced_Graphics
 {
     [FileLocation(nameof(Advanced_Graphics))]
     [SettingsUITabOrder(MainSection, RoadSection, SidewalkSection, AlleySidewalkSection, GravelSection, GravelSidewalkSection, RailSection)]
-    [SettingsUIGroupOrder(TreeGroup, DetailGroup, CacheGroup, TerrainGroup, ShadowsGroup, SharpnessGroup, RoadGroup, RoadUvGroup, RoadCrackGroup, RoadPanelGroup, SidewalkGroup, SidewalkUvGroup, SidewalkCrackGroup, AlleySidewalkGroup, AlleySidewalkUvGroup, AlleySidewalkCrackGroup, GravelGroup, ShoulderGroup, RailGroup, RailUvGroup, ResetGroup)]
-    [SettingsUIShowGroupName(TreeGroup, DetailGroup, CacheGroup, TerrainGroup, ShadowsGroup, SharpnessGroup, RoadGroup, RoadUvGroup, RoadCrackGroup, RoadPanelGroup, SidewalkGroup, SidewalkUvGroup, SidewalkCrackGroup, AlleySidewalkGroup, AlleySidewalkUvGroup, AlleySidewalkCrackGroup, GravelGroup, ShoulderGroup, RailGroup, RailUvGroup, ResetGroup)]
+    [SettingsUIGroupOrder(TreeGroup, DetailGroup, CacheGroup, TerrainGroup, ShadowsGroup, SharpnessGroup, RoadGroup, RoadUvGroup, RoadCrackGroup, RoadPanelGroup, SidewalkGroup, SidewalkUvGroup, SidewalkCrackGroup, AlleySidewalkGroup, AlleySidewalkUvGroup, AlleySidewalkCrackGroup, GravelGroup, ShoulderGroup, RailGroup, RailUvGroup, ResetGroup, AboutGroup)]
+    [SettingsUIShowGroupName(TreeGroup, DetailGroup, CacheGroup, TerrainGroup, ShadowsGroup, SharpnessGroup, RoadGroup, RoadUvGroup, RoadCrackGroup, RoadPanelGroup, SidewalkGroup, SidewalkUvGroup, SidewalkCrackGroup, AlleySidewalkGroup, AlleySidewalkUvGroup, AlleySidewalkCrackGroup, GravelGroup, ShoulderGroup, RailGroup, RailUvGroup, ResetGroup, AboutGroup)]
     public sealed class Setting : ModSetting
     {
+        public const string AboutGroup = "About";
         public const string MainSection = "Main";
         public const string RoadSection = "Road";
         public const string SidewalkSection = "Sidewalk";
@@ -51,11 +52,11 @@ namespace Advanced_Graphics
         public Setting(IMod mod) : base(mod) { SetDefaults(); }
 
         [SettingsUISection(MainSection, TreeGroup)]
-        [SettingsUISlider(min = 10, max = 300, step = 10, scalarMultiplier = 1)]
+        [SettingsUISlider(min = 10, max = 400, step = 10, scalarMultiplier = 1)]
         public int TreeLodDistance { get; set; }
 
         [SettingsUISection(MainSection, DetailGroup)]
-        [SettingsUISlider(min = 10, max = 300, step = 10, scalarMultiplier = 1)]
+        [SettingsUISlider(min = 10, max = 400, step = 10, scalarMultiplier = 1)]
         public int GlobalDetailScalePercent { get; set; }
 
         // The game's own slider stops at 4096 MB. Values beyond it are experimental.
@@ -120,7 +121,7 @@ namespace Advanced_Graphics
         [SettingsUISlider(min = 0, max = 2, step = 1, scalarMultiplier = 1)]
         public int RoadGravelDetail { get; set; }
         [SettingsUISection(GravelSection, GravelGroup)]
-        [SettingsUISlider(min = 100, max = 1000, step = 25, scalarMultiplier = 1)]
+        [SettingsUISlider(min = 50, max = 1000, step = 25, scalarMultiplier = 1)]
         public int RoadGravelUvSizePercent { get; set; } = 100;
         [SettingsUISection(GravelSection, GravelGroup)]
         [SettingsUISlider(min = 0, max = 1000, step = 25, scalarMultiplier = 1)]
@@ -640,6 +641,9 @@ namespace Advanced_Graphics
         [SettingsUISection(MainSection, ResetGroup)]
         [SettingsUIButton]
         public bool ResetAll { set { if (value) { SetDefaults(); ApplyAndSave(); } } }
+
+        [SettingsUISection(MainSection, AboutGroup)]
+        public string Version => typeof(Mod).Assembly.GetName().Version?.ToString(3) ?? "Unknown";
 
         public override void SetDefaults()
         {

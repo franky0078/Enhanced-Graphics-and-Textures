@@ -122,6 +122,41 @@ namespace Advanced_Graphics
                 { m_Setting.GetSettingsLocaleID(), t[0] },
                 { m_Setting.GetOptionTabLocaleID(Setting.MainSection), t[1] }
             };
+            string aboutLabel;
+            string versionLabel;
+            string versionDescription;
+            switch (m_Language)
+            {
+                case "de":
+                    aboutLabel = "Über die Mod";
+                    versionLabel = "Version";
+                    versionDescription = "Version der aktuell geladenen Enhanced Graphics and Textures DLL.";
+                    break;
+                case "es":
+                    aboutLabel = "Acerca del mod";
+                    versionLabel = "Versión";
+                    versionDescription = "Versión de la DLL de Enhanced Graphics and Textures cargada actualmente.";
+                    break;
+                case "fr":
+                    aboutLabel = "À propos du mod";
+                    versionLabel = "Version";
+                    versionDescription = "Version de la DLL Enhanced Graphics and Textures actuellement chargée.";
+                    break;
+                case "it":
+                    aboutLabel = "Informazioni sulla mod";
+                    versionLabel = "Versione";
+                    versionDescription = "Versione della DLL di Enhanced Graphics and Textures attualmente caricata.";
+                    break;
+                default:
+                    aboutLabel = "About the mod";
+                    versionLabel = "Version";
+                    versionDescription = "Version of the currently loaded Enhanced Graphics and Textures DLL.";
+                    break;
+            }
+            entries.Add(m_Setting.GetOptionGroupLocaleID(Setting.AboutGroup), aboutLabel);
+            entries.Add(m_Setting.GetOptionLabelLocaleID(nameof(Setting.Version)), versionLabel);
+            entries.Add(m_Setting.GetOptionDescLocaleID(nameof(Setting.Version)), versionDescription);
+
             var groups = new[] { Setting.TreeGroup, Setting.DetailGroup, Setting.CacheGroup,
                 Setting.TerrainGroup, Setting.ShadowsGroup, Setting.ResetGroup };
             for (var i = 0; i < groups.Length; i++)
