@@ -4,7 +4,6 @@ using UnityEngine;
 
 namespace Advanced_Graphics
 {
-    /// <summary>Uses the existing Asphalt and Sidewalk settings on parking roads only.</summary>
     public sealed partial class ParkingRoadAtlasSystem : SidewalkRoadAtlasSystem
     {
         private const string ParkingColorPrefix = "ParkingLane7_BaseColor_";
@@ -12,16 +11,12 @@ namespace Advanced_Graphics
         private const string ParkingColorSlot = "_BaseColorMap";
         private const string ParkingNormalSlot = "_NormalMap";
 
-        // ParkingLane7, in pixels of the 2048 reference atlas. The intervening
-        // kerb and the remaining atlas regions retain their original pixels.
+        // ParkingLane7, in pixels of the 2048 reference atlas.
         private const int ReferenceWidth = 2048;
         private const int ParkingEnd = 482;
         private const int SidewalkStart = 516;
         private const int SidewalkEnd = 942;
-        // Asphalt uses worldspace UVs on the carriageway. Its ParkingLane7
-        // atlas equivalent has a separately adjustable scale factor.
-        // Apply the same factor to color and normal; user UV size is already
-        // baked into the shared active texture and must not be applied again.
+        // Asphalt uses worldspace UVs on the carriageway.
         private const int AsphaltRepeatsPerAtlas = 8;
         private const int SidewalkRepeatsPerAtlas = 8;
 
@@ -52,7 +47,6 @@ namespace Advanced_Graphics
             var asphaltColor = Mod.RoadAsphalt?.ActiveColorTexture;
             var asphaltNormal = asphaltColor != null ? Mod.RoadAsphalt?.ActiveNormalTexture : null;
             float parkingScaleFactor = settings?.ParkingTextureScaleFactor ?? 1f;
-            // As with the RoadEU sidewalk, unchanged Original defaults keep the stock atlas.
             bool sidewalkOverride = settings != null && settings.SidewalkEnabled &&
                 (settings.SidewalkDetail != 0 || settings.SidewalkUvSizePercent != 100 ||
                  settings.SidewalkDepthStrengthPercent != 0 || settings.SidewalkUvOffsetX != 0 ||

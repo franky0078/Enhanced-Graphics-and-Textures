@@ -7,7 +7,6 @@ namespace Advanced_Graphics
     public sealed partial class Setting
     {
         // These strings are saved by the game's existing settings serializer.
-        // Each surface stores three independent numeric profiles (Original/Generated/Custom).
         [SettingsUIHidden]
         public string RoadAsphaltModeProfiles { get; set; } = "";
 
@@ -29,8 +28,7 @@ namespace Advanced_Graphics
         private bool m_TextureModeProfilesReady;
         private readonly double[][][] m_TextureModeProfiles = new double[6][][];
 
-        // Called after LoadSettings and existing setting migrations. This keeps loading
-        // order independent: mode setters must not swap values during deserialization.
+        // Called after LoadSettings and existing setting migrations.
         internal void InitializeTextureModeProfiles()
         {
             for (int surface = 0; surface < 6; surface++) EnsureTextureModeProfiles(surface);

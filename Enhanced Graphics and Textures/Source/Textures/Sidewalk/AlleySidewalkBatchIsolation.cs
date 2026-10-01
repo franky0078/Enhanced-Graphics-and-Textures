@@ -82,8 +82,7 @@ namespace Advanced_Graphics
             }
             finally { roads.Dispose(); }
 
-            // One mesh can be shared at a junction. Leave it original whenever
-            // any other road uses it; material replacement cannot split its triangles.
+            // One mesh can be shared at a junction.
             int shared = 0;
             foreach (var mesh in targetMeshes) if (otherMeshes.Contains(mesh)) shared++;
             targetMeshes.ExceptWith(otherMeshes);

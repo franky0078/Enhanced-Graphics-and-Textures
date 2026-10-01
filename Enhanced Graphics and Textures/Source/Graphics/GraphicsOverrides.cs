@@ -51,9 +51,6 @@ namespace Advanced_Graphics
             var terrain = graphics?.GetQualitySetting<TerrainQualitySettings>();
             var shadows = graphics?.GetQualitySetting<ShadowsQualitySettings>();
             if (lod == null || terrain == null || shadows == null) return;
-            // The game's detail slider tops out at 1. Values above that can be
-            // left in memory by an older version of this mod. Do not multiply
-            // that already extended value again on the next load.
             m_BaseDetail = Math.Max(0.1f, Math.Min(1f, lod.levelOfDetail));
             m_BaseCache = lod.meshMemoryBudget;
             m_BaseTessellation = terrain.finalTessellation;

@@ -13,9 +13,6 @@ namespace Advanced_Graphics
         internal static string Rail => Path.Combine(Root, "Rail");
         internal static string RoadGravel => Path.Combine(Root, "Gravel");
         internal static string GravelShoulder => Path.Combine(Root, "GravelSidewalk");
-
-        // Create empty directories only. Custom PNGs must be supplied by the user.
-        // Do not migrate, seed, export or copy textures from previous installations.
         internal static void EnsureDirectories()
         {
             var folders = new[] { Road, Sidewalk, AlleySidewalk, Rail, RoadGravel, GravelShoulder };

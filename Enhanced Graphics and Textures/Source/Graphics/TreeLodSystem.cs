@@ -9,11 +9,6 @@ using Unity.Entities;
 
 namespace Advanced_Graphics
 {
-    /// <summary>
-    /// Adjusts the LOD thresholds actually read by BatchDataSystem. The game
-    /// copies mesh thresholds into NativeBatchGroups when it builds render
-    /// batches; changing MeshData after that copy does not change the picture.
-    /// </summary>
     public partial class TreeLodSystem : GameSystemBase
     {
         private struct OriginalBatch

@@ -4,7 +4,6 @@ using UnityEngine;
 
 namespace Advanced_Graphics
 {
-    /// <summary>Generates the street sidewalk tile used by the RoadEU atlas.</summary>
     public partial class SidewalkSurfaceSystem : RoadSurfaceSystemBase
     {
         public static string SidewalkTextureFolder => TextureStorage.Sidewalk;
