@@ -77,9 +77,9 @@ Use these exact filenames:
 3. Select Custom mode and use the surface's reload control.
 4. Enable the surface override and adjust its appearance.
 
-Only use textures you own or have permission to use. Third-party custom texture files are not included in this update.
-Existing files in ModsData are left untouched; remove unwanted sample files manually if they were created by an older build.
-Textures from older folders must also be transferred manually if you want to keep using them.
+Only use textures you own or have permission to use. 
+Third-party custom texture files are not included in this update.
+
 
 
 ## Language support
