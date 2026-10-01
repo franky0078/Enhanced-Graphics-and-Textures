@@ -14,7 +14,6 @@ namespace Advanced_Graphics
         private const string NormalSlot = "_NormalMap";
         private const string ColorPrefix = "RoadEU_BaseColor_";
         private const string NormalPrefix = "RoadEU_Normal_";
-        private const string AlleyMaterialPrefix = "Batch (ParkingLaneAlleyShoulder";
         private const string AlleyColorPrefix = "ParkingLane7_BaseColor_";
         private const string AlleyNormalPrefix = "ParkingLane7_Normal_";
         private const int X0 = 318, X1 = 759, Y0 = 0, Y1 = 2048;
@@ -49,7 +48,7 @@ namespace Advanced_Graphics
                     !material.HasProperty(ColorSlot)) continue;
                 var color = material.GetTexture(ColorSlot);
                 if (color != null && (IsAlleyAtlas
-                    ? material.name != null && material.name.StartsWith(AlleyMaterialPrefix, StringComparison.Ordinal) &&
+                    ? material.name != null && material.name.StartsWith("Batch (", StringComparison.Ordinal) &&
                         color.name.StartsWith(AlleyColorPrefix, StringComparison.Ordinal)
                     : color.name.StartsWith(ColorPrefix, StringComparison.Ordinal))) return color;
             }
@@ -103,6 +102,7 @@ namespace Advanced_Graphics
                 int added = 0;
                 int applied = 0;
                 int virtualMaterials = 0;
+                if (IsAlleyAtlas) m_AlleyCurrentMaterialSources.Clear();
                 foreach (var material in Resources.FindObjectsOfTypeAll<Material>())
                 {
                     if (material == null || material.shader == null || material.shader.name != ShaderName ||
@@ -112,7 +112,7 @@ namespace Advanced_Graphics
                         Texture baseColor = material.GetTexture(ColorSlot);
                         if (baseColor == null) continue;
                         bool alleyShoulder = material.name != null &&
-                            material.name.StartsWith(AlleyMaterialPrefix, StringComparison.Ordinal) &&
+                            material.name.StartsWith("Batch (", StringComparison.Ordinal) &&
                             baseColor.name.StartsWith(AlleyColorPrefix, StringComparison.Ordinal);
                         if (IsAlleyAtlas ? !alleyShoulder : !baseColor.name.StartsWith(ColorPrefix, StringComparison.Ordinal)) continue;
                         Texture baseNormal = material.HasProperty(NormalSlot) ? material.GetTexture(NormalSlot) : null;
@@ -151,12 +151,20 @@ namespace Advanced_Graphics
                     if (currentColor != original.Color && currentColor != colorCopy) continue;
                     if (normalCopy != null && material.GetTexture(NormalSlot) != original.Normal &&
                         material.GetTexture(NormalSlot) != normalCopy) continue;
+                    if (IsAlleyAtlas)
+                    {
+                        PrepareIsolatedAlleyMaterial(material, colorCopy, normalCopy, original.VirtualTexturing);
+                        continue;
+                    }
                     material.SetTexture(ColorSlot, colorCopy);
                     if (normalCopy != null) material.SetTexture(NormalSlot, normalCopy);
                     if (original.VirtualTexturing) { material.DisableKeyword("ENABLE_VT"); virtualMaterials++; }
                     applied++;
                 }
-                if (added > 0) Mod.log.Info($"{SurfaceLabel} atlas: {m_Materials.Count} matched materials ({added} new), {applied} applied, {virtualMaterials} switched from ENABLE_VT; {(m_Diagnostic ? "color regions red/yellow/blue/cyan/magenta/green" : "sidewalk region x=318..758")}; source tile {color.width}x{color.height}.");
+                if (IsAlleyAtlas) applied = ApplyIsolatedAlleyBatches();
+                string region = m_Diagnostic ? "color regions red/yellow/blue/cyan/magenta/green"
+                    : (IsAlleyAtlas ? "ParkingLane7 atlas on isolated Alley batches" : "sidewalk region x=318..758");
+                if (added > 0) Mod.log.Info($"{SurfaceLabel} atlas: {m_Materials.Count} matched materials ({added} new), {applied} applied, {virtualMaterials} switched from ENABLE_VT; {region}; source tile {color.width}x{color.height}.");
                 if (m_Materials.Count == 0 && !m_LoggedMissing)
                 {
                     m_LoggedMissing = true;
@@ -316,6 +324,7 @@ namespace Advanced_Graphics
 
         public void RestoreNow(bool releaseSources = true)
         {
+            RestoreIsolatedAlleyBatches();
             foreach (var pair in m_Materials)
             {
                 var material = pair.Key;

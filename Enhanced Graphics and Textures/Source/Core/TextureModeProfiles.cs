@@ -73,8 +73,10 @@ namespace Advanced_Graphics
                 profiles[mode] = DefaultTextureSliders(surface);
                 if (encoded.Length != 3) continue;
                 var values = encoded[mode].Split(',');
-                if (values.Length != profiles[mode].Length) continue;
-                var parsed = new double[values.Length];
+                // Older asphalt profiles have eleven sliders. Append the new
+                // parking factor without losing the three existing profiles.
+                if (values.Length != profiles[mode].Length && !(surface == 0 && values.Length == 11)) continue;
+                var parsed = DefaultTextureSliders(surface);
                 bool valid = true;
                 for (int i = 0; i < values.Length; i++)
                 {
@@ -94,7 +96,7 @@ namespace Advanced_Graphics
         {
             switch (index)
             {
-                case 0: return value >= 100 && value <= 1000;
+                case 0: return value >= 50 && value <= 1000;
                 case 1: return value >= 0 && value <= 1000;
                 case 2: case 3: case 9: return value >= 0 && value <= 100;
                 case 4: return value >= 0 && value <= 360;
@@ -102,12 +104,14 @@ namespace Advanced_Graphics
                 case 6: return value >= 25 && value <= 600;
                 case 7: return value >= 25 && value <= 400;
                 case 8: return value >= 0 && value <= 200;
-                case 10: return value >= 0.1 && value <= 8;
+                case 10: case 11: return value >= 0.1 && value <= 8;
                 default: return false;
             }
         }
 
-        private static double[] DefaultTextureSliders(int surface) => surface < 3
+        private static double[] DefaultTextureSliders(int surface) => surface == 0
+            ? new double[] { 100, 0, 0, 0, 0, 0, 100, 100, 100, 50, 1, 1 }
+            : surface < 3
             ? new double[] { 100, 0, 0, 0, 0, 0, 100, 100, 100, 50, 1 }
             : new double[] { 100, 0, 0, 0, 0 };
 
@@ -181,7 +185,7 @@ namespace Advanced_Graphics
         {
             switch (surface)
             {
-                case 0: return new double[] { RoadUvSizePercent, RoadDepthStrengthPercent, RoadUvOffsetX, RoadUvOffsetY, RoadUvRotation, RoadCrackCount, RoadCrackSizePercent, RoadCrackWidthPercent, RoadCrackOpacityPercent, RoadCrackRandomnessPercent, RoadTextureTiling };
+                case 0: return new double[] { RoadUvSizePercent, RoadDepthStrengthPercent, RoadUvOffsetX, RoadUvOffsetY, RoadUvRotation, RoadCrackCount, RoadCrackSizePercent, RoadCrackWidthPercent, RoadCrackOpacityPercent, RoadCrackRandomnessPercent, RoadTextureTiling, ParkingTextureScaleFactor };
                 case 1: return new double[] { SidewalkUvSizePercent, SidewalkDepthStrengthPercent, SidewalkUvOffsetX, SidewalkUvOffsetY, SidewalkUvRotation, SidewalkCrackCount, SidewalkCrackSizePercent, SidewalkCrackWidthPercent, SidewalkCrackOpacityPercent, SidewalkCrackRandomnessPercent, SidewalkTextureTiling };
                 case 2: return new double[] { AlleySidewalkUvSizePercent, AlleySidewalkDepthStrengthPercent, AlleySidewalkUvOffsetX, AlleySidewalkUvOffsetY, AlleySidewalkUvRotation, AlleySidewalkCrackCount, AlleySidewalkCrackSizePercent, AlleySidewalkCrackWidthPercent, AlleySidewalkCrackOpacityPercent, AlleySidewalkCrackRandomnessPercent, AlleySidewalkTextureTiling };
                 case 3: return new double[] { RoadGravelUvSizePercent, RoadGravelDepthStrengthPercent, RoadGravelUvOffsetX, RoadGravelUvOffsetY, RoadGravelUvRotation };
@@ -207,6 +211,7 @@ namespace Advanced_Graphics
                     RoadCrackOpacityPercent = (int)values[8];
                     RoadCrackRandomnessPercent = (int)values[9];
                     RoadTextureTiling = (float)values[10];
+                    ParkingTextureScaleFactor = (float)values[11];
                     break;
                 case 1:
                     SidewalkUvSizePercent = (int)values[0];

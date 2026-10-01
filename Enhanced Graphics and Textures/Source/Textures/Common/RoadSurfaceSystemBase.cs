@@ -87,7 +87,7 @@ namespace Advanced_Graphics
             int crackOpacity, int crackRandomness)
         {
             level = Math.Max(0, Math.Min(2, level));
-            uvSize = Math.Max(100, Math.Min(1000, uvSize));
+            uvSize = Math.Max(50, Math.Min(1000, uvSize));
             depth = Math.Max(0, Math.Min(1000, depth));
             tiling = Mathf.Clamp(Mathf.Round(tiling * 10f) / 10f, 0.1f, 8f);
             offsetX = Math.Max(0, Math.Min(100, offsetX));

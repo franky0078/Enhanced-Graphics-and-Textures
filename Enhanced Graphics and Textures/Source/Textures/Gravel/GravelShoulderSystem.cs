@@ -42,7 +42,7 @@ namespace Advanced_Graphics
 
         public void Configure(bool enabled, int size, int depth, int detail, int offsetX, int offsetY, int rotation)
         {
-            size = Mathf.Clamp(size, 100, 1000);
+            size = Mathf.Clamp(size, 50, 1000);
             depth = Mathf.Clamp(depth, 0, 1000);
             detail = Mathf.Clamp(detail, 0, 2);
             offsetX = Mathf.Clamp(offsetX, 0, 100); offsetY = Mathf.Clamp(offsetY, 0, 100);

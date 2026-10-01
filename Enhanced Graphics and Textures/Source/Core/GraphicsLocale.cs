@@ -650,7 +650,40 @@ namespace Advanced_Graphics
             entries.Add(m_Setting.GetOptionLabelLocaleID(nameof(Setting.ShowAppButton)), appButtonLabel);
             entries.Add(m_Setting.GetOptionDescLocaleID(nameof(Setting.ShowAppButton)), appButtonDescription);
             entries["AdvancedGraphics.UI.OpenTextureEditor"] = launcherTooltip;
+            AddParkingScaleEntries(entries);
             return entries;
+        }
+
+        private void AddParkingScaleEntries(Dictionary<string, string> entries)
+        {
+            string label, description;
+            switch (m_Language)
+            {
+                case "de":
+                    label = "Parkflächen-Faktor";
+                    description = "Skalierung der Asphalttextur auf Parkflächen: 0,1 bis 8,0 in 0,1-Schritten. 1,0 = ursprüngliche Mod-Skalierung; höher = feinere, kleiner wirkende Struktur, niedriger = gröbere Struktur. Wirkt auf Farbe und Tiefenwirkung. Wird für Original, Generiert und eigene PNG separat gespeichert.";
+                    break;
+                case "es":
+                    label = "Factor de aparcamiento";
+                    description = "Escala del asfalto en las plazas de aparcamiento: de 0,1 a 8,0, en pasos de 0,1. 1,0 = escala inicial del mod; mayor = textura más fina y pequeña, menor = textura más gruesa. Afecta al color y al relieve. Se guarda por separado para Original, Generada y PNG propio.";
+                    break;
+                case "fr":
+                    label = "Facteur de stationnement";
+                    description = "Échelle de l'asphalte des places de stationnement : de 0,1 à 8,0, par pas de 0,1. 1,0 = échelle initiale du mod ; plus haut = texture plus fine et plus petite, plus bas = texture plus grossière. Modifie la couleur et le relief. Enregistré séparément pour Original, Générée et PNG personnalisé.";
+                    break;
+                case "it":
+                    label = "Fattore parcheggio";
+                    description = "Scala dell'asfalto dei posti auto: da 0,1 a 8,0, con incrementi di 0,1. 1,0 = scala iniziale della mod; più alto = trama più fine e piccola, più basso = trama più grossolana. Agisce sul colore e sul rilievo. Salvato separatamente per Originale, Generata e PNG personalizzato.";
+                    break;
+                default:
+                    label = "Parking surface factor";
+                    description = "Asphalt scale on parking spaces: 0.1 to 8.0 in 0.1 steps. 1.0 = initial mod scale; higher = finer, smaller texture, lower = coarser texture. Affects color and surface depth. Saved separately for Original, Generated and Custom PNG.";
+                    break;
+            }
+            entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.ParkingTextureScaleFactor))] = label;
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.ParkingTextureScaleFactor))] = description;
+            entries["AdvancedGraphics.UI.ParkingScale"] = label;
+            entries["AdvancedGraphics.UI.TipParkingScale"] = description;
         }
 
         private void AddSurfaceLayoutEntries(Dictionary<string, string> entries)

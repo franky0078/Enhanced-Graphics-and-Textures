@@ -170,7 +170,7 @@ namespace Advanced_Graphics
         [SettingsUISection(GravelSidewalkSection, ShoulderGroup)]
         public bool GravelShoulderEnabled { get; set; }
         [SettingsUISection(GravelSidewalkSection, ShoulderGroup)]
-        [SettingsUISlider(min = 100, max = 1000, step = 25, scalarMultiplier = 1)]
+        [SettingsUISlider(min = 50, max = 1000, step = 25, scalarMultiplier = 1)]
         public int GravelShoulderUvSizePercent { get; set; } = 100;
         [SettingsUISection(GravelSidewalkSection, ShoulderGroup)]
         [SettingsUISlider(min = 0, max = 1000, step = 25, scalarMultiplier = 1)]
@@ -269,6 +269,16 @@ namespace Advanced_Graphics
         [SettingsUISlider(min = 50, max = 1000, step = 25, scalarMultiplier = 1)]
         public int RoadUvSizePercent { get; set; }
 
+        private float m_ParkingTextureScaleFactor = 1f;
+        [SettingsUISection(RoadSection, RoadUvGroup)]
+        [SettingsUISlider(min = 0.1f, max = 8f, step = 0.1f, scalarMultiplier = 1, unit = Unit.kFloatSingleFraction)]
+        public float ParkingTextureScaleFactor
+        {
+            get => m_ParkingTextureScaleFactor;
+            set => m_ParkingTextureScaleFactor = float.IsNaN(value) || float.IsInfinity(value) ? 1f :
+                Math.Max(0.1f, Math.Min(8f, (float)Math.Round(value, 1)));
+        }
+
         [SettingsUISection(RoadSection, RoadUvGroup)]
         [SettingsUISlider(min = 0, max = 1000, step = 25, scalarMultiplier = 1)]
         public int RoadDepthStrengthPercent { get; set; }
@@ -328,6 +338,7 @@ namespace Advanced_Graphics
                 RoadCrackOpacityPercent = 100;
                 RoadCrackRandomnessPercent = 50;
                 RoadTextureTiling = 1;
+                ParkingTextureScaleFactor = 1f;
                 RoadUvOffsetX = RoadUvOffsetY = RoadUvRotation = 0;
                 ApplyAndSave();
             }
@@ -710,6 +721,7 @@ namespace Advanced_Graphics
             ShowRailPanelButton = true;
             DiagnoseRoadEUAtlas = false;
             RoadTextureTiling = 1;
+            ParkingTextureScaleFactor = 1f;
             RoadUvOffsetX = RoadUvOffsetY = RoadUvRotation = 0;
             SetSidewalkDefaults();
             SetAlleySidewalkDefaults();
@@ -849,4 +861,3 @@ namespace Advanced_Graphics
         }
     }
 }
-

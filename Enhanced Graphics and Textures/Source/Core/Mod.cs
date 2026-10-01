@@ -9,7 +9,7 @@ namespace Advanced_Graphics
 {
     public sealed class Mod : IMod
     {
-        public static readonly ILog log = LogManager.GetLogger(nameof(Advanced_Graphics)).SetShowsErrorsInUI(false);
+        public static readonly ILog log = LogManager.GetLogger("Enhanced Graphics and Textures").SetShowsErrorsInUI(false);
         internal static readonly bool DebugBackendEnabled = false;
         private Setting m_Setting;
         internal static TreeLodSystem TreeLod;
@@ -26,6 +26,7 @@ namespace Advanced_Graphics
         internal static SidewalkRoadAtlasSystem SidewalkAtlas;
         internal static AlleySidewalkSurfaceSystem AlleySidewalk;
         internal static AlleySidewalkAtlasSystem AlleySidewalkAtlas;
+        internal static ParkingRoadAtlasSystem ParkingRoadAtlas;
 
         public void OnLoad(UpdateSystem updateSystem)
         {
@@ -49,6 +50,7 @@ namespace Advanced_Graphics
             updateSystem.UpdateAfter<SidewalkRoadAtlasSystem, SidewalkSurfaceSystem>(SystemUpdatePhase.Rendering);
             updateSystem.UpdateAt<AlleySidewalkSurfaceSystem>(SystemUpdatePhase.Rendering);
             updateSystem.UpdateAfter<AlleySidewalkAtlasSystem, AlleySidewalkSurfaceSystem>(SystemUpdatePhase.Rendering);
+            updateSystem.UpdateAfter<ParkingRoadAtlasSystem, SidewalkRoadAtlasSystem>(SystemUpdatePhase.Rendering);
             updateSystem.UpdateAt<RoadPanelUISystem>(SystemUpdatePhase.UIUpdate);
             TreeLod = updateSystem.World.GetOrCreateSystemManaged<TreeLodSystem>();
             if (DebugBackendEnabled)
@@ -65,6 +67,7 @@ namespace Advanced_Graphics
             SidewalkAtlas = updateSystem.World.GetOrCreateSystemManaged<SidewalkRoadAtlasSystem>();
             AlleySidewalk = updateSystem.World.GetOrCreateSystemManaged<AlleySidewalkSurfaceSystem>();
             AlleySidewalkAtlas = updateSystem.World.GetOrCreateSystemManaged<AlleySidewalkAtlasSystem>();
+            ParkingRoadAtlas = updateSystem.World.GetOrCreateSystemManaged<ParkingRoadAtlasSystem>();
             Graphics = new GraphicsOverrides();
             Graphics.Capture();
 
@@ -124,6 +127,8 @@ namespace Advanced_Graphics
                 m_Setting = null;
             }
             ActiveSetting = null;
+            ParkingRoadAtlas?.RestoreParkingNow();
+            ParkingRoadAtlas = null;
             RoadAsphalt?.Configure(false, 0, Setting.RoadTextureSource.Generated, 100, 0, 1, 0, 0, 0, 0, 100, 100, 100, 50);
             RoadAsphalt?.RestoreNow();
             RoadAsphalt = null;
@@ -150,5 +155,4 @@ namespace Advanced_Graphics
         }
     }
 }
-
 

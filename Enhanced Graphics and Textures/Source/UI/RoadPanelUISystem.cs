@@ -81,6 +81,7 @@ namespace Advanced_Graphics
                 ",\"enabled\":" + (s.RoadAsphaltEnabled ? "true" : "false") +
                 ",\"detail\":" + s.RoadAsphaltDetail +
                 ",\"uv\":" + s.RoadUvSizePercent +
+                ",\"parkingScale\":" + s.ParkingTextureScaleFactor.ToString("0.0", CultureInfo.InvariantCulture) +
                 ",\"depth\":" + s.RoadDepthStrengthPercent +
                 ",\"tiling\":" + s.RoadTextureTiling.ToString("0.0", CultureInfo.InvariantCulture) +
                 ",\"offsetX\":" + s.RoadUvOffsetX +
@@ -179,7 +180,7 @@ namespace Advanced_Graphics
                     case "offsetY": s.GravelShoulderUvOffsetY = Clamp(value, 0, 100); break;
                     case "rotation": s.GravelShoulderUvRotation = Clamp(value, 0, 360); break;
                     case "enabled": s.GravelShoulderEnabled = value != 0; break;
-                    case "uv": s.GravelShoulderUvSizePercent = Clamp(value, 100, 1000); break;
+                    case "uv": s.GravelShoulderUvSizePercent = Clamp(value, 50, 1000); break;
                     case "depth": s.GravelShoulderDepthStrengthPercent = Clamp(value, 0, 1000); break;
                     default: return;
                 }
@@ -190,7 +191,7 @@ namespace Advanced_Graphics
                 {
                     case "enabled": s.RoadGravelEnabled = value != 0; break;
                     case "detail": s.RoadGravelDetail = Clamp(value, 0, 2); break;
-                    case "uv": s.RoadGravelUvSizePercent = Clamp(value, 100, 1000); break;
+                    case "uv": s.RoadGravelUvSizePercent = Clamp(value, 50, 1000); break;
                     case "depth": s.RoadGravelDepthStrengthPercent = Clamp(value, 0, 1000); break;
                     case "offsetX": s.RoadGravelUvOffsetX = Clamp(value, 0, 100); break;
                     case "offsetY": s.RoadGravelUvOffsetY = Clamp(value, 0, 100); break;
@@ -216,7 +217,7 @@ namespace Advanced_Graphics
             {
                 case "enabled": s.RailGravelEnabled = value != 0; break;
                 case "detail": s.RailGravelDetail = Clamp(value, 0, 2); break;
-                case "uv": s.RailGravelUvSizePercent = Clamp(value, 100, 1000); break;
+                case "uv": s.RailGravelUvSizePercent = Clamp(value, 50, 1000); break;
                 case "depth": s.RailGravelDepthStrengthPercent = Clamp(value, 0, 1000); break;
                 case "offsetX": s.RailGravelUvOffsetX = Clamp(value, 0, 100); break;
                 case "offsetY": s.RailGravelUvOffsetY = Clamp(value, 0, 100); break;
@@ -252,7 +253,7 @@ namespace Advanced_Graphics
                     {
                         case "enabled": s.SidewalkEnabled = value != 0; break;
                         case "detail": s.SidewalkDetail = Clamp(value, 0, 2); break;
-                        case "uv": s.SidewalkUvSizePercent = Clamp(value, 100, 1000); break;
+                        case "uv": s.SidewalkUvSizePercent = Clamp(value, 50, 1000); break;
                         case "depth": s.SidewalkDepthStrengthPercent = Clamp(value, 0, 1000); break;
                         case "offsetX": s.SidewalkUvOffsetX = Clamp(value, 0, 100); break;
                         case "offsetY": s.SidewalkUvOffsetY = Clamp(value, 0, 100); break;
@@ -295,7 +296,7 @@ namespace Advanced_Graphics
                     {
                         case "enabled": s.AlleySidewalkEnabled = value != 0; break;
                         case "detail": s.AlleySidewalkDetail = Clamp(value, 0, 2); break;
-                        case "uv": s.AlleySidewalkUvSizePercent = Clamp(value, 100, 1000); break;
+                        case "uv": s.AlleySidewalkUvSizePercent = Clamp(value, 50, 1000); break;
                         case "depth": s.AlleySidewalkDepthStrengthPercent = Clamp(value, 0, 1000); break;
                         case "offsetX": s.AlleySidewalkUvOffsetX = Clamp(value, 0, 100); break;
                         case "offsetY": s.AlleySidewalkUvOffsetY = Clamp(value, 0, 100); break;
@@ -326,10 +327,12 @@ namespace Advanced_Graphics
                 return;
             }
             int separator = request.IndexOf(':');
-            if (separator > 0 && request.Substring(0, separator) == "tiling")
+            if (separator > 0 && (request.Substring(0, separator) == "tiling" || request.Substring(0, separator) == "parkingScale"))
             {
                 if (!float.TryParse(request.Substring(separator + 1), NumberStyles.Float, CultureInfo.InvariantCulture, out float tiling)) return;
-                s.RoadTextureTiling = Math.Max(0.1f, Math.Min(8f, (float)Math.Round(tiling, 1)));
+                if (float.IsNaN(tiling) || float.IsInfinity(tiling)) return;
+                if (request.Substring(0, separator) == "parkingScale") s.ParkingTextureScaleFactor = tiling;
+                else s.RoadTextureTiling = Math.Max(0.1f, Math.Min(8f, (float)Math.Round(tiling, 1)));
                 s.ApplyToSystem();
                 m_State = BuildState(s);
                 m_SavePending = true;
@@ -341,7 +344,7 @@ namespace Advanced_Graphics
             {
                 case "enabled": s.RoadAsphaltEnabled = value != 0; break;
                 case "detail": s.RoadAsphaltDetail = Clamp(value, 0, 2); break;
-                case "uv": s.RoadUvSizePercent = Clamp(value, 100, 1000); break;
+                case "uv": s.RoadUvSizePercent = Clamp(value, 50, 1000); break;
                 case "depth": s.RoadDepthStrengthPercent = Clamp(value, 0, 1000); break;
                 case "offsetX": s.RoadUvOffsetX = Clamp(value, 0, 100); break;
                 case "offsetY": s.RoadUvOffsetY = Clamp(value, 0, 100); break;
@@ -362,4 +365,3 @@ namespace Advanced_Graphics
         private static int Clamp(int value, int min, int max) => Math.Max(min, Math.Min(max, value));
     }
 }
-

@@ -15,15 +15,16 @@ const shoulderState$ = bindValue<string>(group, "shoulderSettings", "{}");
 type Surface = "road" | "sidewalk" | "alley" | "rail" | "gravel" | "shoulder";
 const triggers: Record<Surface, string> = { road: "setRoadSetting", sidewalk: "setSidewalkSetting", alley: "setAlleySidewalkSetting", rail: "setRailSetting", gravel: "setGravelSetting", shoulder: "setShoulderSetting" };
 const prefixes: Record<Surface, string> = { road: "", sidewalk: "Sidewalk", alley: "AlleySidewalk", rail: "RailGravel", gravel: "RoadGravel", shoulder: "GravelShoulder" };
-type Key = "detail" | "uv" | "depth" | "tiling" | "offsetX" | "offsetY" |
+type Key = "detail" | "uv" | "depth" | "tiling" | "parkingScale" | "offsetX" | "offsetY" |
     "rotation" | "cracks" | "crackSize" | "crackWidth" | "crackOpacity" | "randomness";
 type State = Record<Key, number> & { show: boolean; enabled: boolean; probe?: boolean };
 const initial: State = { show: true, enabled: false, detail: 0, uv: 100, depth: 0,
-    tiling: 1, offsetX: 0, offsetY: 0, rotation: 0, cracks: 0, crackSize: 100, crackWidth: 100, crackOpacity: 100, randomness: 50 };
+    tiling: 1, parkingScale: 1, offsetX: 0, offsetY: 0, rotation: 0, cracks: 0, crackSize: 100, crackWidth: 100, crackOpacity: 100, randomness: 50 };
 
 const controls: { key: Key; label: string; min: number; max: number; step: number }[] = [
     { key: "detail", label: "Detail", min: 0, max: 2, step: 1 },
-    { key: "uv", label: "Uv", min: 100, max: 1000, step: 25 },
+    { key: "uv", label: "Uv", min: 50, max: 1000, step: 25 },
+    { key: "parkingScale", label: "ParkingScale", min: 0.1, max: 8, step: 0.1 },
     { key: "depth", label: "Depth", min: 0, max: 1000, step: 25 },
     { key: "offsetX", label: "OffsetX", min: 0, max: 100, step: 5 },
     { key: "offsetY", label: "OffsetY", min: 0, max: 100, step: 5 },
@@ -83,7 +84,7 @@ function RoadSlider({ control, label, description, value, displayValue, onChange
         const parsed = Number(numberText.trim().replace(",", "."));
         if (!numberText.trim() || !Number.isFinite(parsed)) { setNumberText(String(value)); return; }
         const clamped = Math.max(control.min, Math.min(control.max, parsed));
-        const next = control.key === "tiling" ? Math.round(clamped * 10) / 10 : Math.round(clamped);
+        const next = control.step < 1 ? Math.round(clamped * 10) / 10 : Math.round(clamped);
         setNumberText(String(next));
         onChange(next);
         onCommit();
@@ -258,7 +259,8 @@ export function RoadPanel({ panelClass }: { panelClass: string }) {
                     </span>
                     <span>{text(`${prefix}Enabled`, "Enable surface adjustments")}</span>
                 </button>
-                {controls.filter(control => (surface === "shoulder" || surface === "rail" || surface === "gravel") ? ["detail", "uv", "depth", "offsetX", "offsetY", "rotation"].includes(control.key) : true).map((control, index) => <React.Fragment key={`${surface}:${control.key}`}>
+                {controls.filter(control => control.key === "parkingScale" ? surface === "road" :
+                    (surface === "shoulder" || surface === "rail" || surface === "gravel") ? ["detail", "uv", "depth", "offsetX", "offsetY", "rotation"].includes(control.key) : true).map((control, index) => <React.Fragment key={`${surface}:${control.key}`}>
                     {(index === 1 || control.key === "cracks") && <div className={styles.separator} />}
                     <RoadSlider control={control}
                     label={text(`${prefix}${control.label}`, control.label)} value={draft[control.key]}
@@ -283,5 +285,4 @@ export function RoadPanel({ panelClass }: { panelClass: string }) {
         </div>}
     </>;
 }
-
 
