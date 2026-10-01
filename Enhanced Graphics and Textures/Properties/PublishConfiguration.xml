@@ -114,13 +114,13 @@
 
 	<!-- Screenshots -->
 	<Screenshot Value="Properties/Screenshot01.jpg" />
-	<!--<Screenshot Value="Properties/Screenshot02.jpg" />
+	<Screenshot Value="Properties/Screenshot02.jpg" />
 	<Screenshot Value="Properties/Screenshot03.jpg" />
 	<Screenshot Value="Properties/Screenshot04.jpg" />
 	<Screenshot Value="Properties/Screenshot05.jpg" />
 	<Screenshot Value="Properties/Screenshot06.jpg" />
 	<Screenshot Value="Properties/Screenshot07.jpg" />
-	<Screenshot Value="Properties/Screenshot08.jpg" />
+	<!--<Screenshot Value="Properties/Screenshot08.jpg" />
 	<Screenshot Value="Properties/Screenshot09.jpg" />
 	<Screenshot Value="Properties/Screenshot10.jpg" />-->
 
@@ -133,9 +133,10 @@
 	<GameVersion Value="1.0.*" />
 	
 	<ChangeLog>
-	- Added graphics and texture editor documentation.
-	- Startup now creates empty texture folders only.
-	- Removed automatic migration and sidewalk sample copying.
+		Version 1.0.0
+
+
+		- Initial release
 	</ChangeLog>
 
 	<!--Optional discussion link.-->
