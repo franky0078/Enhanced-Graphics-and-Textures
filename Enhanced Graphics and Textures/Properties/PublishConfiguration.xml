@@ -127,16 +127,16 @@
 	<AccessLevel Value="Public" />
 	<Tag Value="Code Mod" />
 	
-	<ModVersion Value="1.0" />
+	<ModVersion Value="1.0.1" />
 	
 	<!--Existing value retained. Set this to the game version tested locally before publishing.-->
-	<GameVersion Value="1.0.*" />
+	<GameVersion Value="1.6.*" />
 	
 	<ChangeLog>
-		Version 1.0.0
+		Version 1.0.1
 
 
-		- Initial release
+		- fix GameVersion to match the current release
 	</ChangeLog>
 
 	<!--Optional discussion link.-->
