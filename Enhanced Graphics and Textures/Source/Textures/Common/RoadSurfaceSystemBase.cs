@@ -54,6 +54,7 @@ namespace Advanced_Graphics
         internal Texture2D ActiveNormalTexture => m_Enabled ? m_Normal : null;
         private int m_Level, m_UvSize = 100, m_Depth = 100, m_OffsetX, m_OffsetY, m_Rotation;
         private float m_Tiling = 1f;
+        private int m_FilterColor = 0xffffff, m_FilterOpacityPercent = 100;
         private int m_CrackCount, m_CrackSize = 100, m_CrackWidth = 100, m_CrackOpacity = 100, m_CrackRandomness = 50;
         private Setting.RoadTextureSource m_Source;
         private int m_Frames, m_PollInterval = 120;
@@ -84,8 +85,10 @@ namespace Advanced_Graphics
 
         public void Configure(bool enabled, int level, Setting.RoadTextureSource source, int uvSize, int depth, float tiling,
             int offsetX, int offsetY, int rotation, int crackCount, int crackSize, int crackWidth,
-            int crackOpacity, int crackRandomness)
+            int crackOpacity, int crackRandomness, int filterColor = 0xffffff, int filterOpacityPercent = 100)
         {
+            filterOpacityPercent = Math.Max(0, Math.Min(100, filterOpacityPercent));
+            filterColor = Math.Max(0, Math.Min(0xffffff, filterColor));
             level = Math.Max(0, Math.Min(2, level));
             uvSize = Math.Max(50, Math.Min(1000, uvSize));
             depth = Math.Max(0, Math.Min(1000, depth));
@@ -107,13 +110,13 @@ namespace Advanced_Graphics
             if (m_Enabled == enabled && m_Level == level && m_Source == source && m_UvSize == uvSize && m_Depth == depth && m_Tiling == tiling && m_OffsetX == offsetX &&
                 m_OffsetY == offsetY && m_Rotation == rotation && m_CrackCount == crackCount &&
                 m_CrackSize == crackSize && m_CrackWidth == crackWidth && m_CrackOpacity == crackOpacity &&
-                m_CrackRandomness == crackRandomness) return;
-            bool depthOnly = ReuseColorForDepthChanges && m_Color != null && !m_TextureDirty &&
+                m_CrackRandomness == crackRandomness && m_FilterColor == filterColor && m_FilterOpacityPercent == filterOpacityPercent) return;
+            bool depthOnly = !TextureColorFilter.IsActive(m_FilterColor, m_FilterOpacityPercent) && !TextureColorFilter.IsActive(filterColor, filterOpacityPercent) && ReuseColorForDepthChanges && m_Color != null && !m_TextureDirty &&
                 m_Enabled == enabled && m_Level == level && m_Source == source && m_UvSize == uvSize &&
                 m_Tiling == tiling && m_OffsetX == offsetX && m_OffsetY == offsetY && m_Rotation == rotation &&
                 m_CrackCount == crackCount && m_CrackSize == crackSize && m_CrackWidth == crackWidth &&
                 m_CrackOpacity == crackOpacity && m_CrackRandomness == crackRandomness;
-            if (m_Enabled != enabled || m_Level != level || m_Source != source ||
+            if (m_FilterOpacityPercent != filterOpacityPercent || m_FilterColor != filterColor || m_Enabled != enabled || m_Level != level || m_Source != source ||
                 (BakeUvSizeIntoTexture && m_UvSize != uvSize) || m_Depth != depth ||
                 m_OffsetX != offsetX || m_OffsetY != offsetY || m_Rotation != rotation ||
                 m_Tiling != tiling || m_CrackCount != crackCount || m_CrackSize != crackSize ||
@@ -122,6 +125,8 @@ namespace Advanced_Graphics
                 m_TextureDirty = true;
                 m_NormalOnly = depthOnly;
             }
+            m_FilterOpacityPercent = filterOpacityPercent;
+            m_FilterColor = filterColor;
             m_Enabled = enabled;
             m_Level = level;
             m_Source = source;
@@ -256,6 +261,7 @@ namespace Advanced_Graphics
                 byte[] crackMask = m_CrackCount > 0 && m_CrackOpacity > 0 ? AddCrackOverlay(color) : null;
                 if (m_Depth > 0 || (m_Level == 1 && NeedsNormalAtZeroDepth))
                     normal = BuildSurfaceNormal(color, m_Depth, m_UvSize, crackMask);
+                TextureColorFilter.Apply(color, m_FilterColor, m_FilterOpacityPercent);
                 color.Apply(true, !KeepTileReadable);
             }
             catch
@@ -637,3 +643,4 @@ namespace Advanced_Graphics
         }
     }
 }
+

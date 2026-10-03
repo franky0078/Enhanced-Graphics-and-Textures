@@ -38,6 +38,7 @@ The editor provides original, generated and custom texture modes, with surface-d
 Asphalt and sidewalk controls also include procedural cracks with adjustable count, size, width, opacity and randomness.
 Depth controls change the material's normal-map appearance.
 Parking spaces use the selected road asphalt texture, while outer sidewalks use the sidewalk texture settings.
+Color Filter controls for all surfaces
 
 
 ## How to use

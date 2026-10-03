@@ -214,7 +214,7 @@ namespace Advanced_Graphics
         [SettingsUIButton]
         public bool ResetGravelShoulder
         {
-            set { if (value) { ClearTextureModeProfiles(4); GravelShoulderEnabled = false; GravelShoulderUvSizePercent = 100;
+            set { if (value) { ClearTextureModeProfiles(4); GravelShoulderFilterColor = 0xffffff; GravelShoulderFilterOpacityPercent = 0; GravelShoulderEnabled = false; GravelShoulderUvSizePercent = 100;
                 GravelShoulderDepthStrengthPercent = 0; GravelShoulderDetail = 0;
                 GravelShoulderUvOffsetX = GravelShoulderUvOffsetY = GravelShoulderUvRotation = 0; ApplyAndSave(); } }
         }
@@ -327,6 +327,7 @@ namespace Advanced_Graphics
             {
                 if (!value) return;
                 ClearTextureModeProfiles(0);
+                RoadFilterColor = 0xffffff; RoadFilterOpacityPercent = 0;
                 RoadAsphaltDetail = 0;
                 RoadAsphaltEnabled = false;
                 AsphaltSource = RoadTextureSource.Generated;
@@ -694,6 +695,7 @@ namespace Advanced_Graphics
 
         public override void SetDefaults()
         {
+            RoadFilterColor = SidewalkFilterColor = AlleySidewalkFilterColor = RoadGravelFilterColor = GravelShoulderFilterColor = RailFilterColor = 0xffffff;
             ClearAllTextureModeProfiles();
             Mod.Graphics?.Capture();
             TreeLodDistance = 100;
@@ -733,11 +735,13 @@ namespace Advanced_Graphics
             GravelShoulderDepthStrengthPercent = 0;
             GravelShoulderDetail = 0;
             GravelShoulderUvOffsetX = GravelShoulderUvOffsetY = GravelShoulderUvRotation = 0;
+            RoadFilterOpacityPercent = SidewalkFilterOpacityPercent = AlleySidewalkFilterOpacityPercent = RoadGravelFilterOpacityPercent = GravelShoulderFilterOpacityPercent = RailFilterOpacityPercent = 100;
         }
 
         private void SetSidewalkDefaults()
         {
             ClearTextureModeProfiles(1);
+            SidewalkFilterColor = 0xffffff; SidewalkFilterOpacityPercent = 0;
             SidewalkEnabled = false;
             DiagnoseRoadEUAtlas = false;
             SidewalkDetail = 0;
@@ -753,6 +757,7 @@ namespace Advanced_Graphics
         private void SetAlleySidewalkDefaults()
         {
             ClearTextureModeProfiles(2);
+            AlleySidewalkFilterColor = 0xffffff; AlleySidewalkFilterOpacityPercent = 0;
             ShowAlleySidewalkPanelButton = true;
             AlleySidewalkEnabled = false;
             AlleySidewalkDetail = 0;
@@ -768,6 +773,7 @@ namespace Advanced_Graphics
         private void ResetRailDefaults()
         {
             ClearTextureModeProfiles(5);
+            RailFilterColor = 0xffffff; RailFilterOpacityPercent = 0;
             RailGravelEnabled = false;
             RailGravelDetail = 0;
             RailGravelUvSizePercent = 100;
@@ -778,6 +784,7 @@ namespace Advanced_Graphics
         private void ResetRoadGravelDefaults()
         {
             ClearTextureModeProfiles(3);
+            RoadGravelFilterColor = 0xffffff; RoadGravelFilterOpacityPercent = 0;
             RoadGravelEnabled = false;
             RoadGravelDetail = 0;
             RoadGravelUvSizePercent = 100;
@@ -823,41 +830,42 @@ namespace Advanced_Graphics
             if (Mod.TreeLod != null) Mod.TreeLod.DistancePercent = TreeLodDistance;
             Mod.Graphics?.Apply(this);
             Mod.RoadGravel?.Configure(RoadGravelEnabled && (RoadGravelDetail != 0 || RoadGravelUvSizePercent != 100 ||
-                RoadGravelDepthStrengthPercent != 0 || RoadGravelUvOffsetX != 0 || RoadGravelUvOffsetY != 0 || RoadGravelUvRotation != 0), RoadGravelDetail,
+                RoadGravelDepthStrengthPercent != 0 || TextureColorFilter.IsActive(RoadGravelFilterColor, RoadGravelFilterOpacityPercent) || RoadGravelUvOffsetX != 0 || RoadGravelUvOffsetY != 0 || RoadGravelUvRotation != 0), RoadGravelDetail,
                 RoadGravelDetail == 2 ? RoadTextureSource.Custom : RoadTextureSource.Generated,
                 RoadGravelUvSizePercent, RoadGravelDepthStrengthPercent, 1f,
-                RoadGravelUvOffsetX, RoadGravelUvOffsetY, RoadGravelUvRotation, 0, 100, 100, 100, 50);
+                RoadGravelUvOffsetX, RoadGravelUvOffsetY, RoadGravelUvRotation, 0, 100, 100, 100, 50, RoadGravelFilterColor, RoadGravelFilterOpacityPercent);
             Mod.GravelShoulderSurface?.Configure(GravelShoulderEnabled && GravelShoulderDetail != 0,
                 GravelShoulderDetail, RoadTextureSource.Generated, 100, 100, 1f,
                 0, 0, 0, 0, 100, 100, 100, 50);
             Mod.GravelShoulder?.Configure(GravelShoulderEnabled, GravelShoulderUvSizePercent, GravelShoulderDepthStrengthPercent,
-                GravelShoulderDetail, GravelShoulderUvOffsetX, GravelShoulderUvOffsetY, GravelShoulderUvRotation);
+                GravelShoulderDetail, GravelShoulderUvOffsetX, GravelShoulderUvOffsetY, GravelShoulderUvRotation, GravelShoulderFilterColor, GravelShoulderFilterOpacityPercent);
             Mod.RoadAsphalt?.Configure(RoadAsphaltEnabled, RoadAsphaltDetail, RoadAsphaltDetail == 2 ? RoadTextureSource.Custom : RoadTextureSource.Generated,
                 RoadUvSizePercent, RoadDepthStrengthPercent, RoadTextureTiling,
                 RoadUvOffsetX, RoadUvOffsetY, RoadUvRotation, RoadCrackCount, RoadCrackSizePercent,
-                RoadCrackWidthPercent, RoadCrackOpacityPercent, RoadCrackRandomnessPercent);
+                RoadCrackWidthPercent, RoadCrackOpacityPercent, RoadCrackRandomnessPercent, RoadFilterColor, RoadFilterOpacityPercent);
             Mod.Sidewalk?.Configure(SidewalkEnabled, SidewalkDetail, SidewalkDetail == 2 ? RoadTextureSource.Custom : RoadTextureSource.Generated,
                 SidewalkUvSizePercent, SidewalkDepthStrengthPercent, SidewalkTextureTiling,
                 SidewalkUvOffsetX, SidewalkUvOffsetY, SidewalkUvRotation, SidewalkCrackCount, SidewalkCrackSizePercent,
-                SidewalkCrackWidthPercent, SidewalkCrackOpacityPercent, SidewalkCrackRandomnessPercent);
+                SidewalkCrackWidthPercent, SidewalkCrackOpacityPercent, SidewalkCrackRandomnessPercent, SidewalkFilterColor, SidewalkFilterOpacityPercent);
             Mod.AlleySidewalk?.Configure(AlleySidewalkEnabled, AlleySidewalkDetail, AlleySidewalkDetail == 2 ? RoadTextureSource.Custom : RoadTextureSource.Generated,
                 AlleySidewalkUvSizePercent, AlleySidewalkDepthStrengthPercent, AlleySidewalkTextureTiling,
                 AlleySidewalkUvOffsetX, AlleySidewalkUvOffsetY, AlleySidewalkUvRotation, AlleySidewalkCrackCount, AlleySidewalkCrackSizePercent,
-                AlleySidewalkCrackWidthPercent, AlleySidewalkCrackOpacityPercent, AlleySidewalkCrackRandomnessPercent);
+                AlleySidewalkCrackWidthPercent, AlleySidewalkCrackOpacityPercent, AlleySidewalkCrackRandomnessPercent, AlleySidewalkFilterColor, AlleySidewalkFilterOpacityPercent);
             Mod.AlleySidewalkAtlas?.Configure(AlleySidewalkEnabled &&
                 (AlleySidewalkDetail != 0 || AlleySidewalkUvSizePercent != 100 || AlleySidewalkDepthStrengthPercent != 0 ||
-                 AlleySidewalkUvOffsetX != 0 || AlleySidewalkUvOffsetY != 0 || AlleySidewalkUvRotation != 0 || AlleySidewalkCrackCount != 0), false);
+                 AlleySidewalkUvOffsetX != 0 || AlleySidewalkUvOffsetY != 0 || AlleySidewalkUvRotation != 0 || AlleySidewalkCrackCount != 0 || TextureColorFilter.IsActive(AlleySidewalkFilterColor, AlleySidewalkFilterOpacityPercent)), false);
             // Leave the original RoadEU atlas untouched at unchanged defaults.
             Mod.SidewalkAtlas?.Configure(SidewalkEnabled &&
                 ((Mod.DebugBackendEnabled && DiagnoseRoadEUAtlas) || SidewalkDetail != 0 || SidewalkUvSizePercent != 100 ||
                  SidewalkDepthStrengthPercent != 0 || SidewalkUvOffsetX != 0 ||
-                 SidewalkUvOffsetY != 0 || SidewalkUvRotation != 0 || SidewalkCrackCount != 0),
+                 SidewalkUvOffsetY != 0 || SidewalkUvRotation != 0 || SidewalkCrackCount != 0 || TextureColorFilter.IsActive(SidewalkFilterColor, SidewalkFilterOpacityPercent)),
                 Mod.DebugBackendEnabled && DiagnoseRoadEUAtlas);
             Mod.RailGravel?.Configure(RailGravelEnabled, RailGravelDetail,
                 RailGravelDetail == 2 ? RoadTextureSource.Custom : RoadTextureSource.Generated,
                 RailGravelUvSizePercent, RailGravelDepthStrengthPercent, 1f,
                 RailGravelUvOffsetX, RailGravelUvOffsetY, RailGravelUvRotation,
-                0, 100, 100, 100, 50);
+                0, 100, 100, 100, 50, RailFilterColor, RailFilterOpacityPercent);
         }
     }
 }
+

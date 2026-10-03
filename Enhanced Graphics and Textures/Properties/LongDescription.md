@@ -27,6 +27,7 @@ The editor provides original, generated and custom texture modes, with surface-d
 Asphalt and sidewalk controls also include procedural cracks with adjustable count, size, width, opacity and randomness.
 Depth controls change the material's normal-map appearance.
 Parking spaces use the selected road asphalt texture, while outer sidewalks use the sidewalk texture settings.
+Color Filter controls for all surfaces
 
 
 ## How to use
@@ -45,7 +46,7 @@ Launcher visibility for the surface panels can be configured in the mod options.
 
 ## Custom textures
 
-Custom textures are optional and must be provided manually by the user. The mod creates empty texture folders at startup. 
+Custom textures are optional and must be provided manually by the user. The mod creates empty texture folders at startup.
 It does not automatically copy PNGs from previous installations or create sample custom PNG files.
 
 Use the folder-opening controls in the mod options to find the correct directory. The texture root is:
@@ -70,12 +71,12 @@ Only use textures you own or have permission to use.
 Third-party custom texture files are not included in this update.
 
 
-		
+
 ## Language support
 
 English, German, Spanish, French and Italian are included. The interface follows the game's language setting.
 
-		
+
 ## Compatibility and limitations
 
 No additional mod dependency or DLC requirement is declared by this project. Other mods that change the same graphics settings or surface materials may override these changes. Avoid applying competing overrides to the same setting or material.
@@ -84,13 +85,13 @@ The mod modifies runtime rendering and materials. Keep the game's own graphics o
 
 Changing textures or adjusting texture settings may cause brief stutters while the mod rebuilds the textures and updates all affected surfaces.
 
-		
+
 ## Transparency note
 
 - Some parts of the code are built with AI assistance.
 - Some UI elements are built with AI assistance, which is also used for debugging and troubleshooting.
 
-		
+
 ## Feedback and bug reports
 
 Please include:

@@ -25,6 +25,11 @@ namespace Advanced_Graphics
         protected override void OnCreate()
         {
             base.OnCreate();
+            AddBinding(new TriggerBinding<string>(Group, "setSurfaceFilterColor", ChangeFilterColor));
+            AddUpdateBinding(new GetterValueBinding<string>(Group, "colorWindowPosition", () =>
+                "{\"x\":" + (Mod.ActiveSetting?.ColorWindowX ?? -1f).ToString("R", CultureInfo.InvariantCulture) +
+                ",\"y\":" + (Mod.ActiveSetting?.ColorWindowY ?? -1f).ToString("R", CultureInfo.InvariantCulture) + "}"));
+            AddBinding(new TriggerBinding<string>(Group, "setColorWindowPosition", ChangeColorWindowPosition));
             AddUpdateBinding(new GetterValueBinding<bool>(Group, "debugEnabled", () => Mod.DebugBackendEnabled));
             AddBinding(new TriggerBinding<string>(Group, "reloadGravelShoulderTexture", _ => Mod.GravelShoulderSurface?.ReloadCustomTexture()));
             AddUpdateBinding(new GetterValueBinding<string>(Group, "roadSettings", () => m_State));
@@ -74,10 +79,40 @@ namespace Advanced_Graphics
             base.OnDestroy();
         }
 
+        private void ChangeFilterColor(string request)
+        {
+            var s = Mod.ActiveSetting;
+            if (s == null || string.IsNullOrEmpty(request)) return;
+            var parts = request.Split(':');
+            int opacity = 100;
+            if ((parts.Length != 2 && parts.Length != 3) || !int.TryParse(parts[1], out int color) ||
+                (parts.Length == 3 && !int.TryParse(parts[2], out opacity)) || opacity < 0 || opacity > 100 ||
+                color < 0 || color > 0xffffff || !s.SetFilterColor(parts[0], color, opacity)) return;
+            s.ApplyToSystem();
+            m_SavePending = true;
+            m_SaveAt = UnityEngine.Time.unscaledTime + 0.6f;
+        }
+
+        private void ChangeColorWindowPosition(string request)
+        {
+            var s = Mod.ActiveSetting;
+            if (s == null || string.IsNullOrEmpty(request)) return;
+            var parts = request.Split(':');
+            if (parts.Length != 2 ||
+                !float.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out float x) ||
+                !float.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out float y) ||
+                float.IsNaN(x) || float.IsInfinity(x) || float.IsNaN(y) || float.IsInfinity(y) ||
+                x < 0 || y < 0 || x > 100000 || y > 100000) return;
+            s.ColorWindowX = x;
+            s.ColorWindowY = y;
+            m_SavePending = true;
+            m_SaveAt = UnityEngine.Time.unscaledTime + 0.6f;
+        }
+
         private static string BuildState(Setting s)
         {
             if (s == null) return "{}";
-            return "{\"show\":" + (s.ShowAppButton ? "true" : "false") +
+            return "{\"filterColor\":" + s.RoadFilterColor + ",\"filterOpacity\":" + s.RoadFilterOpacityPercent + ",\"show\":" + (s.ShowAppButton ? "true" : "false") +
                 ",\"enabled\":" + (s.RoadAsphaltEnabled ? "true" : "false") +
                 ",\"detail\":" + s.RoadAsphaltDetail +
                 ",\"uv\":" + s.RoadUvSizePercent +
@@ -97,7 +132,7 @@ namespace Advanced_Graphics
         private static string BuildSidewalkState(Setting s)
         {
             if (s == null) return "{}";
-            return "{\"show\":" + (s.ShowAppButton ? "true" : "false") +
+            return "{\"filterColor\":" + s.SidewalkFilterColor + ",\"filterOpacity\":" + s.SidewalkFilterOpacityPercent + ",\"show\":" + (s.ShowAppButton ? "true" : "false") +
                 ",\"enabled\":" + (s.SidewalkEnabled ? "true" : "false") +
                 ",\"detail\":" + s.SidewalkDetail +
                 ",\"uv\":" + s.SidewalkUvSizePercent +
@@ -116,7 +151,7 @@ namespace Advanced_Graphics
         private static string BuildAlleySidewalkState(Setting s)
         {
             if (s == null) return "{}";
-            return "{\"show\":" + (s.ShowAppButton ? "true" : "false") +
+            return "{\"filterColor\":" + s.AlleySidewalkFilterColor + ",\"filterOpacity\":" + s.AlleySidewalkFilterOpacityPercent + ",\"show\":" + (s.ShowAppButton ? "true" : "false") +
                 ",\"enabled\":" + (s.AlleySidewalkEnabled ? "true" : "false") +
                 ",\"detail\":" + s.AlleySidewalkDetail +
                 ",\"uv\":" + s.AlleySidewalkUvSizePercent +
@@ -135,7 +170,7 @@ namespace Advanced_Graphics
         private static string BuildRailState(Setting s)
         {
             if (s == null) return "{}";
-            return "{\"show\":" + (s.ShowAppButton ? "true" : "false") +
+            return "{\"filterColor\":" + s.RailFilterColor + ",\"filterOpacity\":" + s.RailFilterOpacityPercent + ",\"show\":" + (s.ShowAppButton ? "true" : "false") +
                 ",\"enabled\":" + (s.RailGravelEnabled ? "true" : "false") +
                 ",\"detail\":" + s.RailGravelDetail +
                 ",\"uv\":" + s.RailGravelUvSizePercent +
@@ -149,7 +184,7 @@ namespace Advanced_Graphics
         private static string BuildGravelState(Setting s, bool shoulder)
         {
             if (s == null) return "{}";
-            return "{\"show\":" + (s.ShowAppButton ? "true" : "false") +
+            return "{\"filterColor\":" + (shoulder ? s.GravelShoulderFilterColor : s.RoadGravelFilterColor) + ",\"filterOpacity\":" + (shoulder ? s.GravelShoulderFilterOpacityPercent : s.RoadGravelFilterOpacityPercent) + ",\"show\":" + (s.ShowAppButton ? "true" : "false") +
                 ",\"enabled\":" + ((shoulder ? s.GravelShoulderEnabled : s.RoadGravelEnabled) ? "true" : "false") +
                 ",\"detail\":" + (shoulder ? s.GravelShoulderDetail : s.RoadGravelDetail) +
                 ",\"uv\":" + (shoulder ? s.GravelShoulderUvSizePercent : s.RoadGravelUvSizePercent) +
@@ -365,3 +400,4 @@ namespace Advanced_Graphics
         private static int Clamp(int value, int min, int max) => Math.Max(min, Math.Min(max, value));
     }
 }
+

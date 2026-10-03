@@ -20,35 +20,40 @@ namespace Advanced_Graphics
             public Color32[] ColorWork, NormalWork;
             public int Width, Height, Band;
             public int AppliedVersion;
-            public int AppliedSize, AppliedOffsetX, AppliedOffsetY, AppliedRotation;
+            public int AppliedSize, AppliedOffsetX, AppliedOffsetY, AppliedRotation, AppliedFilterColor, AppliedFilterOpacityPercent;
             public Texture AppliedTile;
         }
         private sealed class Result
         {
             public Maps Maps;
             public Color32[] Color, Normal;
-            public int Size, OffsetX, OffsetY, Rotation;
+            public int Size, OffsetX, OffsetY, Rotation, FilterColor, FilterOpacityPercent;
             public Texture Tile;
         }
         private readonly Dictionary<Material, Maps> m_Maps = new Dictionary<Material, Maps>();
         private bool m_Enabled, m_Dirty;
+        private int m_FilterColor = 0xffffff, m_FilterOpacityPercent = 100;
         private int m_Size = 100, m_Depth, m_Frames, m_Detail, m_OffsetX, m_OffsetY, m_Rotation;
         private Texture2D m_Tile, m_NormalTile;
         private Color32[] m_TilePixels, m_NormalTilePixels;
         private bool IsOriginal => m_Detail == 0 && m_Size == 100 && m_Depth == 0 &&
-            m_OffsetX == 0 && m_OffsetY == 0 && m_Rotation == 0;
+            m_OffsetX == 0 && m_OffsetY == 0 && m_Rotation == 0 && !TextureColorFilter.IsActive(m_FilterColor, m_FilterOpacityPercent);
         private int m_Version, m_WorkVersion;
         private Task<Result[]> m_Work;
 
-        public void Configure(bool enabled, int size, int depth, int detail, int offsetX, int offsetY, int rotation)
+        public void Configure(bool enabled, int size, int depth, int detail, int offsetX, int offsetY, int rotation, int filterColor = 0xffffff, int filterOpacityPercent = 100)
         {
+            filterOpacityPercent = Math.Max(0, Math.Min(100, filterOpacityPercent));
+            filterColor = Math.Max(0, Math.Min(0xffffff, filterColor));
             size = Mathf.Clamp(size, 50, 1000);
             depth = Mathf.Clamp(depth, 0, 1000);
             detail = Mathf.Clamp(detail, 0, 2);
             offsetX = Mathf.Clamp(offsetX, 0, 100); offsetY = Mathf.Clamp(offsetY, 0, 100);
             rotation = Mathf.Clamp(rotation, 0, 360);
             if (m_Enabled == enabled && m_Size == size && m_Depth == depth && m_Detail == detail &&
-                m_OffsetX == offsetX && m_OffsetY == offsetY && m_Rotation == rotation) return;
+                m_OffsetX == offsetX && m_OffsetY == offsetY && m_Rotation == rotation && m_FilterColor == filterColor && m_FilterOpacityPercent == filterOpacityPercent) return;
+            m_FilterOpacityPercent = filterOpacityPercent;
+            m_FilterColor = filterColor;
             m_Detail = detail; m_OffsetX = offsetX; m_OffsetY = offsetY; m_Rotation = rotation;
             m_Enabled = enabled;
             m_Size = size;
@@ -161,7 +166,7 @@ namespace Advanced_Graphics
         private void StartWork()
         {
             var maps = new List<Maps>(m_Maps.Values).ToArray();
-            int size = m_Size, depth = m_Depth;
+            int size = m_Size, depth = m_Depth, filterColor = m_FilterColor, filterOpacityPercent = m_FilterOpacityPercent;
             int offsetX = m_OffsetX, offsetY = m_OffsetY, rotation = m_Rotation, detail = m_Detail;
             var tile = m_Tile;
             var overlayColor = m_TilePixels;
@@ -177,13 +182,13 @@ namespace Advanced_Graphics
                 {
                     if (System.Threading.Volatile.Read(ref m_Version) != version) return null;
                     var pair = maps[i];
-                    bool needsColor = pair.AppliedSize != size || pair.AppliedOffsetX != offsetX ||
+                    bool needsColor = pair.AppliedFilterOpacityPercent != filterOpacityPercent || pair.AppliedFilterColor != filterColor || pair.AppliedSize != size || pair.AppliedOffsetX != offsetX ||
                         pair.AppliedOffsetY != offsetY || pair.AppliedRotation != rotation || !ReferenceEquals(pair.AppliedTile, tile);
-                    var color = needsColor ? ResampleStrip(pair.SourceColor, pair.ColorWork, pair.Width, pair.Height, pair.Band, size, depth, false, version, offsetX, offsetY, rotation, overlayColor, tileWidth, tileHeight, detail) : null;
+                    var color = needsColor ? ResampleStrip(pair.SourceColor, pair.ColorWork, pair.Width, pair.Height, pair.Band, size, depth, false, version, offsetX, offsetY, rotation, overlayColor, tileWidth, tileHeight, detail, filterColor, filterOpacityPercent) : null;
                     if (needsColor && color == null) return null;
-                    var normal = ResampleStrip(pair.SourceNormal, pair.NormalWork, pair.Width, pair.Height, pair.Band, size, depth, true, version, offsetX, offsetY, rotation, overlayNormal, tileWidth, tileHeight, detail);
+                    var normal = ResampleStrip(pair.SourceNormal, pair.NormalWork, pair.Width, pair.Height, pair.Band, size, depth, true, version, offsetX, offsetY, rotation, overlayNormal, tileWidth, tileHeight, detail, filterColor, filterOpacityPercent);
                     if (normal == null) return null;
-                    results[i] = new Result { Maps = pair, Color = color, Normal = normal, Size = size, OffsetX = offsetX, OffsetY = offsetY, Rotation = rotation, Tile = tile };
+                    results[i] = new Result { Maps = pair, Color = color, Normal = normal, Size = size, OffsetX = offsetX, OffsetY = offsetY, Rotation = rotation, Tile = tile, FilterColor = filterColor, FilterOpacityPercent = filterOpacityPercent };
                 }
                 return results;
             });
@@ -212,7 +217,7 @@ namespace Advanced_Graphics
                 pair.AppliedNormal.SetPixels32(0, 0, pair.Band, pair.Height, result.Normal, 0);
                 pair.AppliedNormal.Apply(true, false);
                 pair.AppliedVersion = m_Version;
-                pair.AppliedSize = result.Size;
+                pair.AppliedSize = result.Size; pair.AppliedFilterColor = result.FilterColor; pair.AppliedFilterOpacityPercent = result.FilterOpacityPercent;
                 pair.AppliedOffsetX = result.OffsetX; pair.AppliedOffsetY = result.OffsetY;
                 pair.AppliedRotation = result.Rotation; pair.AppliedTile = result.Tile;
             }
@@ -234,7 +239,7 @@ namespace Advanced_Graphics
 
         private Color32[] ResampleStrip(Color32[] original, Color32[] pixels, int width, int height, int band,
             int size, int depth, bool normal, int version, int offsetX, int offsetY, int rotation,
-            Color32[] overlay, int tileWidth, int tileHeight, int detail)
+            Color32[] overlay, int tileWidth, int tileHeight, int detail, int filterColor, int filterOpacityPercent)
         {
             float scale = 100f / size, strength = 1f + DepthGain * depth / 100f;
             float angle = rotation * (float)Math.PI / 180f;
@@ -265,6 +270,7 @@ namespace Advanced_Graphics
                         value.r = original[y * width + x].r;
                         value.b = original[y * width + x].b;
                     }
+                    if (!normal) value = TextureColorFilter.Apply(value, filterColor, filterOpacityPercent);
                     var old = original[y * width + x];
                     float blend = Math.Min(1f, Math.Max(0f, (band - 1 - x) / 16f));
                     pixels[y * band + x] = new Color32((byte)(old.r + (value.r - old.r) * blend),
@@ -314,4 +320,5 @@ namespace Advanced_Graphics
         protected override void OnDestroy() { RestoreNow(); base.OnDestroy(); }
     }
 }
+
 

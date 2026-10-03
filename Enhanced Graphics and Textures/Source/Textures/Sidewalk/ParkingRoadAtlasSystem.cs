@@ -50,7 +50,7 @@ namespace Advanced_Graphics
             bool sidewalkOverride = settings != null && settings.SidewalkEnabled &&
                 (settings.SidewalkDetail != 0 || settings.SidewalkUvSizePercent != 100 ||
                  settings.SidewalkDepthStrengthPercent != 0 || settings.SidewalkUvOffsetX != 0 ||
-                 settings.SidewalkUvOffsetY != 0 || settings.SidewalkUvRotation != 0 || settings.SidewalkCrackCount != 0);
+                 settings.SidewalkUvOffsetY != 0 || settings.SidewalkUvRotation != 0 || settings.SidewalkCrackCount != 0 || TextureColorFilter.IsActive(settings.SidewalkFilterColor, settings.SidewalkFilterOpacityPercent));
             var sidewalkColor = sidewalkOverride ? Mod.Sidewalk?.ActiveColorTexture : null;
             var sidewalkNormal = sidewalkColor != null ? Mod.Sidewalk?.ActiveNormalTexture : null;
             bool changed = m_AsphaltColor != asphaltColor || m_AsphaltNormal != asphaltNormal ||
@@ -172,8 +172,6 @@ namespace Advanced_Graphics
                 {
                     int index = y * width + x;
                     var original = pixels[index];
-                    // A missing normal at zero depth means a flat replacement,
-                    // rather than retaining the stock surface's relief.
                     Color32 replacement = new Color32(128, 128, 255, 255);
                     if (detail != null)
                     {
@@ -240,3 +238,4 @@ namespace Advanced_Graphics
         }
     }
 }
+

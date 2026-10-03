@@ -11,14 +11,15 @@ const sidewalkState$ = bindValue<string>(group, "sidewalkSettings", "{}");
 const alleySidewalkState$ = bindValue<string>(group, "alleySidewalkSettings", "{}");
 const railState$ = bindValue<string>(group, "railSettings", "{}");
 const gravelState$ = bindValue<string>(group, "gravelSettings", "{}");
+const colorWindowPosition$ = bindValue<string>(group, "colorWindowPosition", "{}");
 const shoulderState$ = bindValue<string>(group, "shoulderSettings", "{}");
 type Surface = "road" | "sidewalk" | "alley" | "rail" | "gravel" | "shoulder";
 const triggers: Record<Surface, string> = { road: "setRoadSetting", sidewalk: "setSidewalkSetting", alley: "setAlleySidewalkSetting", rail: "setRailSetting", gravel: "setGravelSetting", shoulder: "setShoulderSetting" };
 const prefixes: Record<Surface, string> = { road: "", sidewalk: "Sidewalk", alley: "AlleySidewalk", rail: "RailGravel", gravel: "RoadGravel", shoulder: "GravelShoulder" };
 type Key = "detail" | "uv" | "depth" | "tiling" | "parkingScale" | "offsetX" | "offsetY" |
     "rotation" | "cracks" | "crackSize" | "crackWidth" | "crackOpacity" | "randomness";
-type State = Record<Key, number> & { show: boolean; enabled: boolean; probe?: boolean };
-const initial: State = { show: true, enabled: false, detail: 0, uv: 100, depth: 0,
+type State = Record<Key, number> & { show: boolean; enabled: boolean; filterColor: number; filterOpacity: number; probe?: boolean };
+const initial: State = { show: true, enabled: false, filterColor: 0xffffff, filterOpacity: 100, detail: 0, uv: 100, depth: 0,
     tiling: 1, parkingScale: 1, offsetX: 0, offsetY: 0, rotation: 0, cracks: 0, crackSize: 100, crackWidth: 100, crackOpacity: 100, randomness: 50 };
 
 const controls: { key: Key; label: string; min: number; max: number; step: number }[] = [
@@ -61,7 +62,7 @@ function RoadSlider({ control, label, description, value, displayValue, onChange
         const fraction = Math.max(0, Math.min(1, (clientX - rect.left - inset) / Math.max(1, rect.width - inset * 2)));
         const steps = Math.round(fraction * (control.max - control.min) / control.step);
         onChangeRef.current(Number(Math.min(control.max, control.min + steps * control.step).toFixed(1)), true);
-    }, [control]);
+    }, [control.min, control.max, control.step]);
     const mouseMove = React.useCallback((event: MouseEvent) => {
         if (!dragging.current) return;
         event.preventDefault();
@@ -142,8 +143,16 @@ export function RoadPanel({ panelClass }: { panelClass: string }) {
     const gravelRaw = useValue(gravelState$);
     const shoulderRaw = useValue(shoulderState$);
     const debugEnabled = useValue(debugEnabled$);
+    const colorWindowRaw = useValue(colorWindowPosition$);
+    const colorWindowPosition = React.useMemo(() => {
+        try { return JSON.parse(colorWindowRaw) as { x?: number; y?: number }; }
+        catch { return {}; }
+    }, [colorWindowRaw]);
+    const mainPanelRef = React.useRef<HTMLDivElement>(null);
+    const [colorStart, setColorStart] = React.useState({ x: 650, y: 100 });
     const { translate } = useLocalization();
     const [open, setOpen] = React.useState(false);
+    const [colorOpen, setColorOpen] = React.useState(false);
     const [surface, setSurface] = React.useState<Surface>("road");
     const [position, setPosition] = React.useState({ x: 86, y: 100 });
     const [draft, setDraft] = React.useState<State>(initial);
@@ -232,7 +241,7 @@ export function RoadPanel({ panelClass }: { panelClass: string }) {
             </svg>
         </button>
         </Tooltip>
-        {open && <div className={`${panelClass} ${styles.panel}`}
+        {open && <div ref={mainPanelRef} className={`${panelClass} ${styles.panel}`}
             style={{ left: `${position.x}px`, top: `${position.y}px` }}>
             <div className={styles.header} onMouseDown={event => {
                 if ((event.target as HTMLElement).closest("button")) return;
@@ -244,7 +253,20 @@ export function RoadPanel({ panelClass }: { panelClass: string }) {
             </div>
             <div className={styles.body}>
                 <div className={styles.surfaceTabs}>
-                    {surfaces.filter(key => values[key].show).map(key => <button key={key} className={surface === key ? styles.selectedTab : ""} onClick={() => { flushPending(); setDraft(values[key]); setSurface(key); }}>{titles[key]}</button>)}
+                    {surfaces.filter(key => values[key].show).map(key => <div key={key} className={styles.tabGroup}>
+                        <button className={surface === key ? styles.selectedTab : ""} onClick={() => { flushPending(); setDraft(values[key]); setSurface(key); }}>{titles[key]}</button>
+                        <Tooltip tooltip={`${text("ColorFilter", "Color filter")} – ${titles[key]}`}>
+                            <button className={styles.colorButton} aria-label={`${text("ChooseColor", "Choose color")} – ${titles[key]}`}
+                                onClick={() => {
+                                    flushPending(); setSurface(key); setDraft(values[key]);
+                                    const rect = mainPanelRef.current?.getBoundingClientRect();
+                                    setColorStart({ x: rect ? rect.right + 24 : position.x + 564, y: rect?.top ?? position.y });
+                                    setColorOpen(true);
+                                }}>
+                                <span className={styles.colorSwatch} style={{ backgroundColor: values[key].filterOpacity > 0 ? colorHex(values[key].filterColor) : "transparent" }} />
+                            </button>
+                        </Tooltip>
+                    </div>)}
                 </div>
                 <button type="button" className={styles.moduleToggle} role="checkbox" aria-checked={draft.enabled}
                     title={text(`${prefix}TipEnabled`, "Enable surface adjustments")}
@@ -283,6 +305,117 @@ export function RoadPanel({ panelClass }: { panelClass: string }) {
                 </>}
             </div>
         </div>}
+        {open && colorOpen && values[surface].show && <ColorFilterWindow surface={surface}
+            title={titles[surface]} color={values[surface].filterColor} opacity={values[surface].filterOpacity} text={text}
+            panelClass={panelClass} savedPosition={colorWindowPosition} initialPosition={colorStart}
+            onSavePosition={position => trigger(group, "setColorWindowPosition", `${position.x.toFixed(1)}:${position.y.toFixed(1)}`)}
+            onClose={() => setColorOpen(false)}
+            onApply={(color, opacity) => { flushPending(); trigger(group, "setSurfaceFilterColor", `${surface}:${color}:${opacity}`); }} />}
     </>;
 }
 
+
+
+function colorHex(value: number) {
+    return `#${(value & 0xffffff).toString(16).padStart(6, "0").toUpperCase()}`;
+}
+
+function ColorFilterWindow({ surface, title, color, opacity, text, panelClass, savedPosition, initialPosition, onSavePosition, onClose, onApply }: {
+    surface: Surface; title: string; color: number; opacity: number; text: (key: string, fallback: string) => string; panelClass: string;
+    savedPosition: { x?: number; y?: number }; initialPosition: { x: number; y: number };
+    onSavePosition: (position: { x: number; y: number }) => void;
+    onClose: () => void; onApply: (color: number, opacity: number) => void;
+}) {
+    const [draft, setDraft] = React.useState(color);
+    const [draftOpacity, setDraftOpacity] = React.useState(opacity);
+    const [hex, setHex] = React.useState(colorHex(color));
+    const [position, setPosition] = React.useState(initialPosition);
+    const panelRef = React.useRef<HTMLDivElement>(null);
+    const positionRef = React.useRef(position);
+    const saveRef = React.useRef(onSavePosition);
+    saveRef.current = onSavePosition;
+    const drag = React.useRef<{ x: number; y: number; left: number; top: number } | null>(null);
+    const clampPosition = (next: { x: number; y: number }) => {
+        const rect = panelRef.current?.getBoundingClientRect();
+        return { x: Math.max(8, Math.min(Math.max(8, window.innerWidth - (rect?.width || 420) - 8), next.x)),
+            y: Math.max(8, Math.min(Math.max(8, window.innerHeight - (rect?.height || 420) - 8), next.y)) };
+    };
+    React.useLayoutEffect(() => {
+        const saved = Number.isFinite(savedPosition.x) && Number.isFinite(savedPosition.y) &&
+            (savedPosition.x ?? -1) >= 0 && (savedPosition.y ?? -1) >= 0;
+        const next = clampPosition(saved ? { x: savedPosition.x!, y: savedPosition.y! } : initialPosition);
+        positionRef.current = next; setPosition(next);
+    }, []);
+    React.useEffect(() => { setDraft(color); setDraftOpacity(opacity); setHex(colorHex(color)); }, [surface, color, opacity]);
+    React.useEffect(() => {
+        const move = (event: MouseEvent) => {
+            if (!drag.current) return;
+            const next = clampPosition({ x: drag.current.left + event.clientX - drag.current.x,
+                y: drag.current.top + event.clientY - drag.current.y });
+            positionRef.current = next; setPosition(next);
+        };
+        const up = () => {
+            if (!drag.current) return;
+            drag.current = null; saveRef.current(positionRef.current);
+        };
+        const resize = () => {
+            const next = clampPosition(positionRef.current);
+            positionRef.current = next; setPosition(next);
+        };
+        window.addEventListener("mousemove", move); window.addEventListener("mouseup", up); window.addEventListener("resize", resize);
+        return () => {
+            window.removeEventListener("mousemove", move); window.removeEventListener("mouseup", up); window.removeEventListener("resize", resize);
+            if (drag.current) saveRef.current(positionRef.current);
+        };
+    }, []);
+    const choose = (value: number) => {
+        setDraft(value); setHex(colorHex(value));
+        // A new RGB selection reactivates a filter that was reset.
+        setDraftOpacity(previous => previous === 0 ? 100 : previous);
+    };
+    const parsedHex = () => /^#?[0-9a-f]{6}$/i.test(hex.trim()) ? parseInt(hex.trim().replace("#", ""), 16) : draft;
+    const commitHex = () => {
+        const next = parsedHex();
+        if (next !== draft) choose(next); else setHex(colorHex(draft));
+    };
+    const presets = [0xffffff, 0xd6d6d6, 0xa7b4bd, 0x808080, 0xead4b2, 0xc2a780,
+        0xff8a1a, 0xffd91a, 0x1ff238, 0x14dbff, 0x8757ff, 0xe74cff];
+    return <div ref={panelRef} className={`${panelClass} ${styles.panel} ${styles.colorWindow}`} role="dialog" aria-label={`${text("ColorFilter", "Color filter")} – ${title}`}
+        style={{ left: `${position.x}px`, top: `${position.y}px` }}>
+        <div className={styles.header} onMouseDown={event => {
+            if (event.button !== 0 || (event.target as HTMLElement).closest("button")) return;
+            drag.current = { x: event.clientX, y: event.clientY, left: positionRef.current.x, top: positionRef.current.y }; event.preventDefault();
+        }}>
+            <strong>{text("ColorFilter", "Color filter")} – {title}</strong>
+            <button className={styles.close} onClick={onClose} aria-label={text("Close", "Close")}>×</button>
+        </div>
+        <div className={styles.body}>
+            <div className={styles.colorPreview}><span style={{ backgroundColor: colorHex(draft) }} />
+                <strong>{draftOpacity === 0 ? text("NoColorFilter", "No color filter") : colorHex(draft)}</strong></div>
+            <p className={styles.textureHint}>{text("ColorFilterTip", "Transparency 100% disables the color filter.")}</p>
+            <div className={styles.colorPresets} aria-label={text("ColorPresets", "Presets")}>
+                {presets.map(value => <button key={value} style={{ backgroundColor: colorHex(value) }}
+                    aria-label={`${text("ChooseColor", "Choose color")} ${colorHex(value)}`} aria-pressed={draft === value}
+                    onClick={() => choose(value)} />)}
+            </div>
+            {[["ColorRed", "Red", 16], ["ColorGreen", "Green", 8], ["ColorBlue", "Blue", 0]].map(([key, fallback, shift]) => {
+                const bits = shift as number;
+                return <RoadSlider key={key} control={{ key: "detail", label: key as string, min: 0, max: 255, step: 1 }}
+                    label={text(key as string, fallback as string)} description={text(key as string, fallback as string)}
+                    value={(draft >> bits) & 255} onCommit={() => {}}
+                    onChange={value => choose((draft & ~(255 << bits)) | (value << bits))} />;
+            })}
+            <RoadSlider control={{ key: "detail", label: "FilterTransparency", min: 0, max: 100, step: 1 }}
+                label={text("FilterTransparency", "Transparency")} description={text("FilterTransparencyTip", "0% = full filter; 100% = no filter.")}
+                value={100 - draftOpacity} onChange={value => setDraftOpacity(100 - value)} onCommit={() => {}} />
+            <div className={styles.row}><label className={styles.rowLabel} htmlFor="egt-filter-hex">{text("ColorHex", "Hex value")}</label>
+                <input id="egt-filter-hex" className={styles.numberInput} type="text" value={hex} maxLength={7}
+                    onChange={event => setHex(event.target.value)} onBlur={commitHex}
+                    onKeyDown={event => { event.stopPropagation(); if (event.key === "Enter") event.currentTarget.blur(); }} /></div>
+            <div className={styles.colorActions}>
+                <button className={styles.reset} onClick={() => { const next = parsedHex(); setDraft(next); setHex(colorHex(next)); onApply(next, draftOpacity); }}>{text("ApplyColor", "Apply")}</button>
+                <button className={styles.reset} onClick={() => { setDraft(color); setHex(colorHex(color)); setDraftOpacity(0); onApply(color, 0); }}>{text("ResetColor", "Reset color")}</button>
+            </div>
+        </div>
+    </div>;
+}

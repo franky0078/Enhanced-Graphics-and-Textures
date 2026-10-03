@@ -651,6 +651,7 @@ namespace Advanced_Graphics
             entries.Add(m_Setting.GetOptionDescLocaleID(nameof(Setting.ShowAppButton)), appButtonDescription);
             entries["AdvancedGraphics.UI.OpenTextureEditor"] = launcherTooltip;
             AddParkingScaleEntries(entries);
+            AddColorFilterEntries(entries);
             return entries;
         }
 
@@ -842,7 +843,23 @@ namespace Advanced_Graphics
 
         }
 
+        private void AddColorFilterEntries(Dictionary<string, string> entries)
+        {
+            string[] labels;
+            switch (m_Language)
+            {
+                case "de": labels = new[] { "Farbfilter", "Farbauswahl", "Rot", "Grün", "Blau", "Hex-Wert", "Übernehmen", "Farbe zurücksetzen", "Farbvorgaben", "Wählt den Farbfilter für diesen Tab. Transparenz 100 % deaktiviert den Filter und zeigt die Textur ohne Einfärbung. Zum Anwenden die Flächenanpassung aktivieren.", "Transparenz", "0 % = voller Farbfilter; 100 % = Textur ohne Farbfilter. Die Transparenz der Oberfläche bleibt unverändert.", "Kein Farbfilter" }; break;
+                case "es": labels = new[] { "Filtro de color", "Elegir color", "Rojo", "Verde", "Azul", "Valor hexadecimal", "Aplicar", "Restablecer color", "Colores predefinidos", "Filtro para esta pestaña. Transparencia 100 % desactiva el filtro. Activa los ajustes de superficie para aplicarlo.", "Transparencia", "0 % = filtro completo; 100 % = textura sin filtro. No cambia la transparencia de la superficie.", "Sin filtro de color" }; break;
+                case "fr": labels = new[] { "Filtre de couleur", "Choisir une couleur", "Rouge", "Vert", "Bleu", "Valeur hexadécimale", "Appliquer", "Réinitialiser la couleur", "Couleurs prédéfinies", "Filtre pour cet onglet. Une transparence de 100 % désactive le filtre. Activez les réglages de surface pour l’appliquer.", "Transparence", "0 % = filtre complet ; 100 % = texture sans filtre. Ne change pas la transparence de la surface.", "Sans filtre de couleur" }; break;
+                case "it": labels = new[] { "Filtro colore", "Scegli colore", "Rosso", "Verde", "Blu", "Valore esadecimale", "Applica", "Ripristina colore", "Colori predefiniti", "Filtro per questa scheda. Trasparenza 100 % disattiva il filtro. Attiva le regolazioni della superficie per applicarlo.", "Trasparenza", "0 % = filtro completo; 100 % = texture senza filtro. Non cambia la trasparenza della superficie.", "Nessun filtro colore" }; break;
+                default: labels = new[] { "Color filter", "Choose color", "Red", "Green", "Blue", "Hex value", "Apply", "Reset color", "Presets", "Color filter for this tab. Transparency 100% disables the filter. Enable surface adjustments to apply it.", "Transparency", "0% = full color filter; 100% = texture without a filter. Surface transparency is unchanged.", "No color filter" }; break;
+            }
+            string[] keys = { "ColorFilter", "ChooseColor", "ColorRed", "ColorGreen", "ColorBlue", "ColorHex", "ApplyColor", "ResetColor", "ColorPresets", "ColorFilterTip", "FilterTransparency", "FilterTransparencyTip", "NoColorFilter" };
+            for (int i = 0; i < keys.Length; i++) entries["AdvancedGraphics.UI." + keys[i]] = labels[i];
+        }
+
         public void Unload() { }
     }
 }
+
 

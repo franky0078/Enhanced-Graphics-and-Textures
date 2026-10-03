@@ -1,7 +1,7 @@
 <Publish>
 	
 	<!--Leave empty for first publication; enter the assigned ID before updating an existing Paradox mod.-->
-	<ModId Value="" />
+	<ModId Value="161533" />
 	<DisplayName Value="Enhanced Graphics and Textures" />
 	
 	<ShortDescription Value="Extended graphics controls and an in-game texture editor for roads, sidewalks, gravel and railway ballast" />
@@ -36,6 +36,7 @@
 		Asphalt and sidewalk controls also include procedural cracks with adjustable count, size, width, opacity and randomness.
 		Depth controls change the material's normal-map appearance.
 		Parking spaces use the selected road asphalt texture, while outer sidewalks use the sidewalk texture settings.
+		Color Filter controls for all surfaces
 
 
 		## How to use
@@ -54,7 +55,7 @@
 
 		## Custom textures
 
-		Custom textures are optional and must be provided manually by the user. The mod creates empty texture folders at startup. 
+		Custom textures are optional and must be provided manually by the user. The mod creates empty texture folders at startup.
 		It does not automatically copy PNGs from previous installations or create sample custom PNG files.
 
 		Use the folder-opening controls in the mod options to find the correct directory. The texture root is:
@@ -75,16 +76,16 @@
 		3. Select Custom mode and use the surface's reload control.
 		4. Enable the surface override and adjust its appearance.
 
-		Only use textures you own or have permission to use. 
+		Only use textures you own or have permission to use.
 		Third-party custom texture files are not included in this update.
-		
 
-		
+
+
 		## Language support
 
 		English, German, Spanish, French and Italian are included. The interface follows the game's language setting.
 
-		
+
 		## Compatibility and limitations
 
 		No additional mod dependency or DLC requirement is declared by this project. Other mods that change the same graphics settings or surface materials may override these changes. Avoid applying competing overrides to the same setting or material.
@@ -93,13 +94,13 @@
 
 		Changing textures or adjusting texture settings may cause brief stutters while the mod rebuilds the textures and updates all affected surfaces.
 
-		
+
 		## Transparency note
 
 		- Some parts of the code are built with AI assistance.
 		- Some UI elements are built with AI assistance, which is also used for debugging and troubleshooting.
 
-		
+
 		## Feedback and bug reports
 
 		Please include:
@@ -120,23 +121,23 @@
 	<Screenshot Value="Properties/Screenshot05.jpg" />
 	<Screenshot Value="Properties/Screenshot06.jpg" />
 	<Screenshot Value="Properties/Screenshot07.jpg" />
-	<!--<Screenshot Value="Properties/Screenshot08.jpg" />
-	<Screenshot Value="Properties/Screenshot09.jpg" />
+	<Screenshot Value="Properties/Screenshot08.jpg" />
+	<!--<Screenshot Value="Properties/Screenshot09.jpg" />
 	<Screenshot Value="Properties/Screenshot10.jpg" />-->
 
 	<AccessLevel Value="Public" />
 	<Tag Value="Code Mod" />
 	
-	<ModVersion Value="1.0.1" />
+	<ModVersion Value="1.1.0" />
 	
 	<!--Existing value retained. Set this to the game version tested locally before publishing.-->
 	<GameVersion Value="1.6.*" />
 	
 	<ChangeLog>
-		Version 1.0.1
+		Version 1.1.0
 
 
-		- fix GameVersion to match the current release
+		- add color filter to the texture editor for all surfaces
 	</ChangeLog>
 
 	<!--Optional discussion link.-->
