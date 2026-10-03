@@ -1,4 +1,4 @@
-Enhanced Graphics and Textures adds extended graphics controls and an in-game surface texture editor to **Cities: Skylines II**.
+Enhanced Graphics and Textures adds extended graphics controls and an in-game surface texture editor to Cities: Skylines II.
 
 ## Graphics controls
 
@@ -51,7 +51,7 @@ It does not automatically copy PNGs from previous installations or create sample
 
 Use the folder-opening controls in the mod options to find the correct directory. The texture root is:
 
-`%USERPROFILE%/AppData/LocalLow/Colossal Order/Cities Skylines II/ModsData/Enhanced_Graphics_and_Textures/Textures`
+%USERPROFILE%/AppData/LocalLow/Colossal Order/Cities Skylines II/ModsData/Enhanced_Graphics_and_Textures/Textures
 
 Use these exact filenames:
 
