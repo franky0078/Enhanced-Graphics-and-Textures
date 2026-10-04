@@ -90,11 +90,11 @@ namespace Advanced_Graphics
             filterOpacityPercent = Math.Max(0, Math.Min(100, filterOpacityPercent));
             filterColor = Math.Max(0, Math.Min(0xffffff, filterColor));
             level = Math.Max(0, Math.Min(2, level));
-            uvSize = Math.Max(50, Math.Min(1000, uvSize));
-            depth = Math.Max(0, Math.Min(1000, depth));
+            uvSize = Math.Max(50, Math.Min(Setting.MaxTextureUvSize, uvSize));
+            depth = Math.Max(0, Math.Min(Setting.MaxTextureDepthStrength, depth));
             tiling = Mathf.Clamp(Mathf.Round(tiling * 10f) / 10f, 0.1f, 8f);
-            offsetX = Math.Max(0, Math.Min(100, offsetX));
-            offsetY = Math.Max(0, Math.Min(100, offsetY));
+            offsetX = Math.Max(0, Math.Min(Setting.MaxTextureUvOffset, offsetX));
+            offsetY = Math.Max(0, Math.Min(Setting.MaxTextureUvOffset, offsetY));
             rotation = Math.Max(0, Math.Min(360, rotation));
             if (rotation == 360) rotation = 0;
             crackCount = Math.Max(0, Math.Min(400, crackCount));
@@ -643,4 +643,5 @@ namespace Advanced_Graphics
         }
     }
 }
+
 

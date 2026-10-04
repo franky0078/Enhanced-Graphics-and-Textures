@@ -1,5 +1,6 @@
 import type { ModRegistrar } from "cs2/modding";
 import { RoadPanel } from "./road-panel";
+import { GraphicsPanel } from "./graphics-panel";
 
 const register: ModRegistrar = registry => {
     let panelClass = "";
@@ -10,9 +11,10 @@ const register: ModRegistrar = registry => {
     } catch (error) {
         console.warn("[Enhanced Graphics and Textures] Game panel theme unavailable", error);
     }
-    registry.append("GameTopLeft", () => <RoadPanel panelClass={panelClass} />);
+    registry.append("GameTopLeft", () => <><RoadPanel panelClass={panelClass} /><GraphicsPanel panelClass={panelClass} /></>);
 };
 
 export default register;
+
 
 

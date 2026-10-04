@@ -19,7 +19,7 @@ namespace Advanced_Graphics
         {
             Mod.Graphics?.Capture();
             var detail = Mod.Graphics?.BaseDetail ?? "?";
-            var shadow = Mod.Graphics?.BaseShadowResolution ?? "?";
+            var shadow = Mod.Graphics?.DefaultShadowResolution?.ToString() ?? "?";
             var culling = Mod.Graphics?.BaseShadowCulling ?? "?";
             string[] t;
             switch (m_Language)
@@ -31,16 +31,16 @@ namespace Advanced_Graphics
                         "Geometrie-Cache (MB)", "Standard: 4096 MB. Höher: mehr Geometriedaten im Speicher, mehr VRAM-Bedarf; nicht automatisch bessere Grafik oder mehr FPS. Niedriger: weniger VRAM-Bedarf, bei zu wenig Cache möglicherweise Ruckler. Spielmenü bis 4096 MB, Mod bis 16384 MB.",
                         "Terrain-Tessellation", "Standard: 5. Höher: potenziell feinere Geländegeometrie, meist langsamer. Niedriger: gröberes Gelände, meist schneller. Spielmenü bis 5; höhere Werte sind experimentell und können begrenzt werden.",
                         "Terrain-Patchgröße", "Standard: 64. Kleiner: feinere Unterteilung des Terrains, oft bessere Übergänge, aber mehr Zeichenaufwand und eventuell weniger FPS. Größer: gröbere Unterteilung, weniger Zeichenaufrufe und oft mehr FPS. Spielmenü bis 64.",
-                        "Schattenauflösung", $"Standard: {shadow} Pixel. Höher: schärfere Schatten, mehr VRAM- und GPU-Bedarf, oft weniger FPS. Niedriger: weichere oder pixeligere Schatten, oft mehr FPS. Schatten im Spielmenü aktivieren.",
+                        "Schattenauflösung", $"Spielvorgabe der Schattenqualität: {shadow} Pixel. 0 = Spielvorgabe; 8192 ist eine zusätzliche Mod-Einstellung. Höher: schärfere Schatten, mehr VRAM- und GPU-Bedarf, oft weniger FPS. Niedriger: weichere oder pixeligere Schatten, oft mehr FPS. Schatten im Spielmenü aktivieren.",
                         "Schattenreichweite (m)", "Standard: Spielwert (0 = kein Eingriff). Höher: Sonnenschatten bis in größere Entfernung, oft weniger FPS. Niedriger: kürzere Schattenreichweite, oft mehr FPS. Wirkt nur bei aktivierten Schatten.",
                         "Auf Standard zurücksetzen", "Alle Werte zurücksetzen",
                         "Baum-LOD-Distanz auf 100 % zurücksetzen.", "Globale Objektdetails auf 100 % zurücksetzen.",
                         "Geometrie-Cache auf 4096 MB zurücksetzen.", "Terrain-Tessellation auf 5 zurücksetzen.",
-                        "Terrain-Patchgröße auf 64 zurücksetzen.", $"Schattenauflösung auf {shadow} Pixel (Startwert des Spiels) zurücksetzen.",
+                        "Terrain-Patchgröße auf 64 zurücksetzen.", $"Schattenauflösung auf {shadow} Pixel (Spielvorgabe der Schattenqualität; 0) zurücksetzen.",
                         "Schattenreichweite auf den Spielwert zurücksetzen (0 = kein Eingriff).",
                         "Alle Optionen auf ihre Standardwerte zurücksetzen.",
                         "Schärfe", "Kleine Schattenwerfer", $"Standard: Spielwerte (Höhe / Volumen: {culling}; 0 = kein Eingriff). Höher: mehr kleine Schatten ausgeblendet, oft schneller, aber weniger feine Schatten. Niedriger: mehr kleine Schatten, meist langsamer. Wirkt nur bei aktivierten Schatten.",
-                        "TAA-Schärfe", "Standard: Kamerawert (0 = kein Eingriff). Schritte von 0,05; 0,50 entspricht HDRP-Stärke 0,50. Höher: schärferes TAA-Bild, aber mögliche dunkle Kanten. Niedriger: weicher. Wirkt nur mit TAA, nicht mit DLSS/FSR2.",
+                        "TAA-Schärfe", "Standard: Kamerawert (0 = kein Eingriff). Schritte von 0,05; 0,50 entspricht HDRP-Stärke 0,50. Höher: schärferes TAA-Bild, aber mögliches Flimmern und dunkle Kanten. Niedriger: weicher. Wirkt nur mit TAA, nicht mit DLSS/FSR2.",
                         "Schwellenwert für kleine Schattenwerfer auf die Spielwerte zurücksetzen.", "TAA-Schärfe auf den ursprünglichen Kamerawert zurücksetzen." };
                     break;
                 case "es":
@@ -50,15 +50,15 @@ namespace Advanced_Graphics
                         "Caché de geometría (MB)", "Predeterminado: 4096 MB. Más alto: más geometría en memoria y mayor uso de VRAM; no garantiza mejor imagen ni más FPS. Más bajo: menos VRAM, pero un caché insuficiente puede provocar tirones. Juego hasta 4096 MB; mod hasta 16384 MB.",
                         "Teselación del terreno", "Predeterminado: 5. Más alto: terreno potencialmente más detallado, normalmente más lento. Más bajo: terreno más simple, normalmente más rápido. Juego hasta 5; por encima es experimental y puede limitarse.",
                         "Tamaño de parche del terreno", "Predeterminado: 64. Más pequeño: subdivisión más fina y posibles mejores transiciones, pero más trabajo de dibujo y quizá menos FPS. Más grande: menos llamadas de dibujo y normalmente más FPS. Juego hasta 64.",
-                        "Resolución de sombras", $"Predeterminado: {shadow} píxeles. Más alto: sombras más nítidas, más uso de VRAM y GPU, normalmente menos FPS. Más bajo: sombras más borrosas o pixeladas, normalmente más FPS. Activa las sombras en el juego.",
+                        "Resolución de sombras", $"Valor de la calidad de sombras: {shadow} píxeles. 0 = valor del juego; 8192 es una opción adicional del mod. Más alto: sombras más nítidas, más uso de VRAM y GPU, normalmente menos FPS. Más bajo: sombras más borrosas o pixeladas, normalmente más FPS. Activa las sombras en el juego.",
                         "Distancia de sombras (m)", "Predeterminado: valor del juego (0 = sin modificar). Más alto: sombras solares visibles más lejos, normalmente menos FPS. Más bajo: menor alcance, normalmente más FPS. Requiere sombras activas.",
                         "Restablecer valor", "Restablecer todo",
                         "Restablecer la distancia LOD de árboles al 100 %.", "Restablecer el detalle global al 100 %.",
                         "Restablecer la caché de geometría a 4096 MB.", "Restablecer la teselación del terreno a 5.",
-                        "Restablecer el tamaño de parche a 64.", $"Restablecer la resolución de sombras a {shadow} píxeles (valor inicial del juego).",
+                        "Restablecer el tamaño de parche a 64.", $"Restablecer la resolución de sombras a {shadow} píxeles (valor de la calidad de sombras; 0).",
                         "Restablecer la distancia de sombras al juego (0 = sin modificar).", "Restablecer todas las opciones a sus valores predeterminados.",
                         "Nitidez", "Objetos pequeños que proyectan sombras", $"Predeterminado: juego (altura / volumen: {culling}; 0 = sin modificar). Más alto: oculta más sombras pequeñas, suele mejorar FPS, pero pierde sombras finas. Más bajo: más sombras pequeñas, suele reducir FPS. Requiere sombras activas.",
-                        "Nitidez TAA", "Predeterminado: valor de la cámara (0 = sin modificar). Pasos de 0,05; 0,50 corresponde a intensidad HDRP 0,50. Más alto: imagen TAA más nítida, pero posibles bordes oscuros. Más bajo: más suave. Solo con TAA, no DLSS/FSR2.",
+                        "Nitidez TAA", "Predeterminado: valor de la cámara (0 = sin modificar). Pasos de 0,05; 0,50 corresponde a intensidad HDRP 0,50. Más alto: imagen TAA más nítida, pero posible parpadeo y bordes oscuros. Más bajo: más suave. Solo con TAA, no DLSS/FSR2.",
                         "Restablecer los objetos pequeños que proyectan sombras al juego.", "Restablecer la nitidez TAA al valor original de la cámara." };
                     break;
                 case "fr":
@@ -68,15 +68,15 @@ namespace Advanced_Graphics
                         "Cache de géométrie (Mo)", "Défaut : 4096 Mo. Plus élevé : plus de géométrie en mémoire et plus de VRAM ; ni meilleure image ni plus de FPS garantis. Plus bas : moins de VRAM, mais un cache insuffisant peut causer des saccades. Jeu jusqu'à 4096 Mo ; mod jusqu'à 16384 Mo.",
                         "Tessellation du terrain", "Défaut : 5. Plus élevé : terrain potentiellement plus détaillé, généralement plus lent. Plus bas : terrain plus simple, généralement plus rapide. Jeu jusqu'à 5 ; au-delà, expérimental et parfois limité.",
                         "Taille des parcelles", "Défaut : 64. Plus petit : terrain subdivisé plus finement et transitions parfois meilleures, mais plus de rendu et parfois moins de FPS. Plus grand : moins d'appels de rendu, souvent plus de FPS. Jeu jusqu'à 64.",
-                        "Résolution des ombres", $"Défaut : {shadow} pixels. Plus élevé : ombres plus nettes, plus de VRAM et de GPU, souvent moins de FPS. Plus bas : ombres plus floues ou pixelisées, souvent plus de FPS. Activez les ombres dans le jeu.",
+                        "Résolution des ombres", $"Valeur de la qualité des ombres : {shadow} pixels. 0 = valeur du jeu ; 8192 est une option supplémentaire du mod. Plus élevé : ombres plus nettes, plus de VRAM et de GPU, souvent moins de FPS. Plus bas : ombres plus floues ou pixelisées, souvent plus de FPS. Activez les ombres dans le jeu.",
                         "Portée des ombres (m)", "Défaut : valeur du jeu (0 = aucun changement). Plus élevé : ombres du soleil plus loin, souvent moins de FPS. Plus bas : portée réduite, souvent plus de FPS. Nécessite les ombres activées.",
                         "Rétablir la valeur", "Tout réinitialiser",
                         "Rétablir la distance LOD des arbres à 100 %.", "Rétablir les détails globaux à 100 %.",
                         "Rétablir le cache de géométrie à 4096 Mo.", "Rétablir la tessellation du terrain à 5.",
-                        "Rétablir la taille des parcelles à 64.", $"Rétablir la résolution des ombres à {shadow} pixels (valeur initiale du jeu).",
+                        "Rétablir la taille des parcelles à 64.", $"Rétablir la résolution des ombres à {shadow} pixels (valeur de la qualité des ombres ; 0).",
                         "Rétablir la portée des ombres au jeu (0 = aucun changement).", "Rétablir toutes les options à leurs valeurs par défaut.",
                         "Netteté", "Petits objets projetant des ombres", $"Défaut : jeu (hauteur / volume : {culling} ; 0 = aucun changement). Plus élevé : masque plus de petites ombres, souvent plus rapide, mais moins de détails. Plus bas : plus de petites ombres, souvent plus lent. Nécessite les ombres activées.",
-                        "Netteté TAA", "Défaut : valeur de la caméra (0 = aucun changement). Pas de 0,05 ; 0,50 correspond à une force HDRP de 0,50. Plus élevé : image TAA plus nette, mais contours sombres possibles. Plus bas : plus douce. TAA uniquement, sans DLSS/FSR2.",
+                        "Netteté TAA", "Défaut : valeur de la caméra (0 = aucun changement). Pas de 0,05 ; 0,50 correspond à une force HDRP de 0,50. Plus élevé : image TAA plus nette, mais scintillement et contours sombres possibles. Plus bas : plus douce. TAA uniquement, sans DLSS/FSR2.",
                         "Rétablir le seuil des petits objets projetant des ombres au jeu.", "Rétablir la netteté TAA à la valeur initiale de la caméra." };
                     break;
                 case "it":
@@ -86,15 +86,15 @@ namespace Advanced_Graphics
                         "Cache geometria (MB)", "Predefinito: 4096 MB. Più alto: più geometria in memoria e più VRAM; qualità e FPS non migliorano automaticamente. Più basso: meno VRAM, ma una cache insufficiente può causare scatti. Gioco fino a 4096 MB; mod fino a 16384 MB.",
                         "Tessellazione terreno", "Predefinito: 5. Più alto: geometria del terreno potenzialmente più fine, di solito più lento. Più basso: terreno più semplice, di solito più veloce. Gioco fino a 5; oltre è sperimentale e può essere limitato.",
                         "Dimensione patch terreno", "Predefinito: 64. Più piccolo: suddivisione più fine e possibili transizioni migliori, ma più lavoro di disegno e forse meno FPS. Più grande: meno chiamate di disegno, spesso più FPS. Gioco fino a 64.",
-                        "Risoluzione ombre", $"Predefinito: {shadow} pixel. Più alto: ombre più nitide, più VRAM e GPU, spesso meno FPS. Più basso: ombre più sfocate o pixelate, spesso più FPS. Attiva le ombre nel gioco.",
+                        "Risoluzione ombre", $"Valore della qualità ombre: {shadow} pixel. 0 = valore del gioco; 8192 è un’impostazione aggiuntiva del mod. Più alto: ombre più nitide, più VRAM e GPU, spesso meno FPS. Più basso: ombre più sfocate o pixelate, spesso più FPS. Attiva le ombre nel gioco.",
                         "Distanza ombre (m)", "Predefinito: valore del gioco (0 = nessuna modifica). Più alto: ombre solari più lontane, spesso meno FPS. Più basso: distanza minore, spesso più FPS. Richiede le ombre attive.",
                         "Ripristina valore", "Ripristina tutto",
                         "Ripristina la distanza LOD degli alberi al 100%.", "Ripristina i dettagli globali al 100%.",
                         "Ripristina la cache geometria a 4096 MB.", "Ripristina la tessellazione terreno a 5.",
-                        "Ripristina la dimensione patch a 64.", $"Ripristina la risoluzione ombre a {shadow} pixel (valore iniziale del gioco).",
+                        "Ripristina la dimensione patch a 64.", $"Ripristina la risoluzione ombre a {shadow} pixel (valore della qualità ombre; 0).",
                         "Ripristina la distanza ombre al gioco (0 = nessuna modifica).", "Ripristina tutte le opzioni ai valori predefiniti.",
                         "Nitidezza", "Piccoli oggetti che proiettano ombre", $"Predefinito: gioco (altezza / volume: {culling}; 0 = nessuna modifica). Più alto: esclude più ombre piccole, spesso più FPS, ma meno dettagli. Più basso: più ombre piccole, spesso meno FPS. Richiede le ombre attive.",
-                        "Nitidezza TAA", "Predefinito: valore della camera (0 = nessuna modifica). Passi di 0,05; 0,50 equivale a intensità HDRP 0,50. Più alto: immagine TAA più nitida, ma possibili contorni scuri. Più basso: più morbida. Solo con TAA, non DLSS/FSR2.",
+                        "Nitidezza TAA", "Predefinito: valore della camera (0 = nessuna modifica). Passi di 0,05; 0,50 equivale a intensità HDRP 0,50. Più alto: immagine TAA più nitida, ma possibili sfarfallii e contorni scuri. Più basso: più morbida. Solo con TAA, non DLSS/FSR2.",
                         "Ripristina la soglia per le ombre piccole al valore del gioco.", "Ripristina la nitidezza TAA al valore iniziale della camera." };
                     break;
                 default:
@@ -104,15 +104,15 @@ namespace Advanced_Graphics
                         "Geometry cache (MB)", "Default: 4096 MB. Higher: more geometry kept in memory and more VRAM used; neither better image quality nor more FPS is guaranteed. Lower: less VRAM, but too little cache may cause stutter. Game menu up to 4096 MB; mod up to 16384 MB.",
                         "Terrain tessellation", "Default: 5. Higher: potentially finer terrain geometry, usually slower. Lower: simpler terrain, usually faster. Game menu up to 5; higher values are experimental and may be clamped.",
                         "Terrain patch size", "Default: 64. Smaller: finer terrain subdivision and possibly better transitions, but more draw work and possibly fewer FPS. Larger: fewer draw calls, often more FPS. Game menu up to 64.",
-                        "Shadow resolution", $"Default: {shadow} pixels. Higher: sharper shadows, more VRAM and GPU work, often fewer FPS. Lower: softer or more pixelated shadows, often more FPS. Enable shadows in game options.",
+                        "Shadow resolution", $"Shadow quality default: {shadow} pixels. 0 = game default; 8192 is an additional mod setting. Higher: sharper shadows, more VRAM and GPU work, often fewer FPS. Lower: softer or more pixelated shadows, often more FPS. Enable shadows in game options.",
                         "Shadow distance (m)", "Default: game value (0 = no override). Higher: sun shadows visible farther away, often fewer FPS. Lower: shorter reach, often more FPS. Requires shadows enabled in game options.",
                         "Restore default", "Reset all values",
                         "Restore tree LOD distance to 100%.", "Restore global object detail to 100%.",
                         "Restore geometry cache to 4096 MB.", "Restore terrain tessellation to 5.",
-                        "Restore terrain patch size to 64.", $"Restore shadow resolution to {shadow} pixels (game value at startup).",
+                        "Restore terrain patch size to 64.", $"Restore shadow resolution to {shadow} pixels (shadow quality default; 0).",
                         "Restore shadow distance to the game value (0 = no override).", "Restore every option to its default value.",
                         "Sharpness", "Small shadow casters", $"Default: game values (height / volume: {culling}; 0 = no override). Higher: culls more small shadows, often faster but loses fine shadows. Lower: keeps more small shadows, usually slower. Requires shadows enabled.",
-                        "TAA sharpness", "Default: camera value (0 = no override). Steps of 0.05; 0.50 equals HDRP strength 0.50. Higher: sharper TAA image but possible dark outlines. Lower: softer. Only affects TAA, not DLSS/FSR2.",
+                        "TAA sharpness", "Default: camera value (0 = no override). Steps of 0.05; 0.50 equals HDRP strength 0.50. Higher: sharper TAA image but possible flicker and dark outlines. Lower: softer. Only affects TAA, not DLSS/FSR2.",
                         "Restore small shadow-caster thresholds to game values.", "Restore TAA sharpness to the camera's original value." };
                     break;
             }
@@ -235,7 +235,7 @@ namespace Advanced_Graphics
             {
                 case "de":
                     asphalt = new[] { "Asphaltstruktur", "0 = Originaltextur; 1 = gleichmäßige generierte Asphaltkörnung; 2 = eigene Road_BaseColor.png. Bei aktivierten Asphalt-Anpassungen wirken UV, Tiefenwirkung und Risse mit jeder Textur.",
-                        "UV-Größe", "100 % = ursprüngliche Mustergröße; bis 1000 %. Höher vergrößert die Asphaltkörnung. Die Rissgröße wird separat eingestellt.",
+                        "UV-Größe", "100 % = ursprüngliche Mustergröße; bis 3000 %. Höher vergrößert die Asphaltkörnung. Die Rissgröße wird separat eingestellt.",
                         "Texturkachelung", "0,1 bis 8,0 in 0,1-Schritten. Unter 1,0 weniger zusätzliche Risse, über 1,0 mehr. Die Asphaltkörnung bleibt bei allen Stufen gleich groß. Das Worldspace-Material wiederholt dieselbe Kachel weiterhin entlang der Straße.",
                         "UV-Versatz X", "Verschiebt das gekachelte Asphaltmuster horizontal. 100 % entspricht wieder 0 %.",
                         "UV-Versatz Y", "Verschiebt das gekachelte Asphaltmuster vertikal. 100 % entspricht wieder 0 %.",
@@ -244,7 +244,7 @@ namespace Advanced_Graphics
                     break;
                 case "es":
                     asphalt = new[] { "Detalle del asfalto", "0 = textura original; 1 = asfalto generado; 2 = Road_BaseColor.png propia. Si los ajustes están activados, UV, relieve y grietas funcionan en todos los niveles.",
-                        "Tamaño UV", "100 % = tamaño original; hasta 1000 %. Aumenta el grano del asfalto; el tamaño de las grietas es independiente.",
+                        "Tamaño UV", "100 % = tamaño original; hasta 3000 %. Aumenta el grano del asfalto; el tamaño de las grietas es independiente.",
                         "Repetición de textura", "De 0,1 a 8,0 en pasos de 0,1. Menos de 1,0 reduce las grietas añadidas; más de 1,0 las aumenta. El grano del asfalto no cambia. El material repite el mismo mosaico en la carretera.",
                         "Desplazamiento UV X", "Desplaza el patrón horizontalmente; 100 % equivale a 0 %.",
                         "Desplazamiento UV Y", "Desplaza el patrón verticalmente; 100 % equivale a 0 %.",
@@ -253,7 +253,7 @@ namespace Advanced_Graphics
                     break;
                 case "fr":
                     asphalt = new[] { "Détails de l’asphalte", "0 = texture d’origine ; 1 = asphalte généré ; 2 = votre Road_BaseColor.png. Quand les réglages sont actifs, UV, relief et fissures fonctionnent à tous les niveaux.",
-                        "Taille UV", "100 % = taille d’origine ; jusqu’à 1000 %. Agrandit le grain ; la taille des fissures se règle séparément.",
+                        "Taille UV", "100 % = taille d’origine ; jusqu’à 3000 %. Agrandit le grain ; la taille des fissures se règle séparément.",
                         "Répétition de texture", "De 0,1 à 8,0 par pas de 0,1. Sous 1,0 diminue les fissures ajoutées ; au-dessus de 1,0 les augmente. Le grain reste inchangé. Le matériau répète la même tuile sur la route.",
                         "Décalage UV X", "Décale le motif horizontalement ; 100 % revient à 0 %.",
                         "Décalage UV Y", "Décale le motif verticalement ; 100 % revient à 0 %.",
@@ -262,7 +262,7 @@ namespace Advanced_Graphics
                     break;
                 case "it":
                     asphalt = new[] { "Dettaglio asfalto", "0 = texture originale; 1 = asfalto generato; 2 = Road_BaseColor.png personale. Con le regolazioni attive, UV, rilievo e crepe funzionano a tutti i livelli.",
-                        "Dimensione UV", "100% = dimensione originale; fino a 1000%. Ingrandisce la grana; la dimensione delle crepe è separata.",
+                        "Dimensione UV", "100% = dimensione originale; fino a 3000%. Ingrandisce la grana; la dimensione delle crepe è separata.",
                         "Ripetizione texture", "Da 0,1 a 8,0 con passi di 0,1. Sotto 1,0 riduce le crepe aggiunte; sopra 1,0 le aumenta. La grana non cambia. Il materiale ripete la stessa tessera sulla strada.",
                         "Spostamento UV X", "Sposta il motivo in orizzontale; 100% equivale a 0%.",
                         "Spostamento UV Y", "Sposta il motivo in verticale; 100% equivale a 0%.",
@@ -271,7 +271,7 @@ namespace Advanced_Graphics
                     break;
                 default:
                     asphalt = new[] { "Asphalt detail", "0 = original texture; 1 = uniform generated asphalt grain; 2 = your Road_BaseColor.png. With asphalt adjustments enabled, UV, depth, and cracks work at every level.",
-                        "UV size", "100% = original pattern size; up to 1000%. Enlarges asphalt grain; crack size is controlled separately.",
+                        "UV size", "100% = original pattern size; up to 3000%. Enlarges asphalt grain; crack size is controlled separately.",
                         "Texture tiling", "0.1 to 8.0 in 0.1 steps. Below 1.0 reduces extra cracks, above 1.0 increases them. Asphalt grain size is unaffected. The world-space material still repeats the same tile along the road.",
                         "UV offset X", "Shifts the asphalt pattern horizontally. 100% wraps back to 0%.",
                         "UV offset Y", "Shifts the asphalt pattern vertically. 100% wraps back to 0%.",
@@ -341,11 +341,11 @@ namespace Advanced_Graphics
             string[] depth;
             switch (m_Language)
             {
-                case "de": depth = new[] { "Tiefenwirkung", "0 = originale Straßen-Normalmap. 100 bis 1000 verstärkt Asphalt- und Rissrelief passend zur UV-Größe bei allen Texturstufen. Keine echte Geometrie oder Parallax-Verdeckung." }; break;
-                case "es": depth = new[] { "Relieve", "0 = normal original. De 100 a 1000 refuerza el relieve y las grietas con todas las texturas. No añade geometría ni paralaje real." }; break;
-                case "fr": depth = new[] { "Relief", "0 = normale d’origine. De 100 à 1000 accentue le relief et les fissures avec toutes les textures. Sans géométrie ni parallaxe réelle." }; break;
-                case "it": depth = new[] { "Rilievo", "0 = normale originale. Da 100 a 1000 accentua grana e crepe su tutte le texture. Nessuna geometria o parallasse reale." }; break;
-                default: depth = new[] { "Surface depth", "0 = original road normal. 100 to 1000 strengthens asphalt and crack relief at every texture level. No geometry or true parallax occlusion." }; break;
+                case "de": depth = new[] { "Tiefenwirkung", "0 = originale Straßen-Normalmap. 100 bis 3000 verstärkt Asphalt- und Rissrelief passend zur UV-Größe bei allen Texturstufen. Keine echte Geometrie oder Parallax-Verdeckung." }; break;
+                case "es": depth = new[] { "Relieve", "0 = normal original. De 100 a 3000 refuerza el relieve y las grietas con todas las texturas. No añade geometría ni paralaje real." }; break;
+                case "fr": depth = new[] { "Relief", "0 = normale d’origine. De 100 à 3000 accentue le relief et les fissures avec toutes les textures. Sans géométrie ni parallaxe réelle." }; break;
+                case "it": depth = new[] { "Rilievo", "0 = normale originale. Da 100 a 3000 accentua grana e crepe su tutte le texture. Nessuna geometria o parallasse reale." }; break;
+                default: depth = new[] { "Surface depth", "0 = original road normal. 100 to 3000 strengthens asphalt and crack relief at every texture level. No geometry or true parallax occlusion." }; break;
             }
             entries.Add(m_Setting.GetOptionLabelLocaleID(nameof(Setting.RoadDepthStrengthPercent)), depth[0]);
             entries.Add(m_Setting.GetOptionDescLocaleID(nameof(Setting.RoadDepthStrengthPercent)), depth[1]);
@@ -577,11 +577,11 @@ namespace Advanced_Graphics
             string[] gravel;
             switch (m_Language)
             {
-                case "de": gravel = new[] { "Schotter: UV und Tiefe", "Gleisschotter anpassen", "Ändert ausschließlich die TrainGravelWorldspace-Textur der Gleise; Schienen und Schwellen bleiben unverändert.", "Schotterstruktur", "0 = Original; 1 = hellerer, feinerer Schotter mit passender Normalmap; 2 = eigene RailGravel_BaseColor.png.", "Schotter-UV-Größe", "100 = ursprüngliche Größe; höher vergrößert die Kiesstruktur, bis 1000.", "Schotter-Tiefenwirkung", "0 = Original-Normalmap bei Original, flach bei Generiert; höhere Werte verstärken die passende Schotter-Normalmap oder die berechnete Tiefe der eigenen Textur. Keine echte Geometrie.", "Schotter-Versatz X", "Verschiebt die Schottertextur horizontal.", "Schotter-Versatz Y", "Verschiebt die Schottertextur vertikal.", "Schotter-Drehung", "Dreht Schotter und Tiefenwirkung frei von 0 bis 360 Grad.", "Schotter zurücksetzen", "Stellt Originaltexturen und Schotterwerte wieder her.", "Schotterordner öffnen", "Öffnet RailTextures für RailGravel_BaseColor.png.", "Eigene Schottertextur neu laden", "Lädt RailGravel_BaseColor.png nach dem Kopieren erneut.", "RailGravel_BaseColor.png in RailTextures kopieren und in den Optionen neu laden." }; break;
-                case "es": gravel = new[] { "Balasto: UV y relieve", "Ajustar balasto", "Solo cambia TrainGravelWorldspace; rieles y traviesas permanecen intactos.", "Textura del balasto", "0 = original; 1 = balasto más claro y fino con su normal correspondiente; 2 = RailGravel_BaseColor.png propia.", "Tamaño UV del balasto", "100 = tamaño original; valores mayores amplían el grano, hasta 1000.", "Relieve del balasto", "0 = normal original en modo Original, plana en Generado; valores mayores realzan la normal del balasto o el relieve de la textura propia. Sin geometría real.", "Desplazamiento X", "Desplaza el balasto horizontalmente.", "Desplazamiento Y", "Desplaza el balasto verticalmente.", "Rotación del balasto", "Gira el patrón de 0 a 360 grados.", "Restablecer balasto", "Restaura texturas y valores originales.", "Abrir carpeta del balasto", "Abre RailTextures para RailGravel_BaseColor.png.", "Recargar balasto personal", "Vuelve a cargar RailGravel_BaseColor.png.", "Coloca RailGravel_BaseColor.png en RailTextures y vuelve a cargarla en opciones." }; break;
-                case "fr": gravel = new[] { "Ballast : UV et relief", "Modifier le ballast", "Modifie uniquement TrainGravelWorldspace ; rails et traverses restent intacts.", "Texture du ballast", "0 = origine ; 1 = ballast plus clair et plus fin avec sa normale associée ; 2 = RailGravel_BaseColor.png personnelle.", "Taille UV du ballast", "100 = taille d’origine ; plus grand agrandit les pierres, jusqu’à 1000.", "Relief du ballast", "0 = normale originale en mode Origine, surface plate en mode Généré ; les valeurs supérieures renforcent la normale du ballast ou le relief calculé de la texture personnelle. Sans géométrie réelle.", "Décalage X", "Décale le ballast horizontalement.", "Décalage Y", "Décale le ballast verticalement.", "Rotation du ballast", "Tourne la texture de 0 à 360 degrés.", "Réinitialiser le ballast", "Restaure textures et valeurs initiales.", "Ouvrir le dossier ballast", "Ouvre RailTextures pour RailGravel_BaseColor.png.", "Recharger le ballast personnel", "Recharge RailGravel_BaseColor.png.", "Placez RailGravel_BaseColor.png dans RailTextures, puis rechargez dans les options." }; break;
-                case "it": gravel = new[] { "Pietrisco: UV e rilievo", "Modifica pietrisco", "Cambia solo TrainGravelWorldspace; rotaie e traversine restano intatte.", "Struttura pietrisco", "0 = originale; 1 = pietrisco più chiaro e fine con relativa normale; 2 = RailGravel_BaseColor.png personale.", "Dimensione UV pietrisco", "100 = originale; valori maggiori ingrandiscono la grana fino a 1000.", "Rilievo pietrisco", "0 = normale originale in modalità Originale, piatta in Generata; valori maggiori rafforzano la normale del pietrisco o il rilievo calcolato della texture personale. Nessuna geometria reale.", "Spostamento X", "Sposta il pietrisco in orizzontale.", "Spostamento Y", "Sposta il pietrisco in verticale.", "Rotazione pietrisco", "Ruota la texture da 0 a 360 gradi.", "Ripristina pietrisco", "Ripristina texture e valori originali.", "Apri cartella pietrisco", "Apre RailTextures per RailGravel_BaseColor.png.", "Ricarica pietrisco personale", "Ricarica RailGravel_BaseColor.png.", "Copia RailGravel_BaseColor.png in RailTextures e ricarica nelle opzioni." }; break;
-                default: gravel = new[] { "Track gravel UV and depth", "Enable track gravel adjustments", "Changes only the track's TrainGravelWorldspace texture; steel rails and sleepers remain unchanged.", "Gravel texture", "0 = original; 1 = lighter, finer ballast with its matching normal map; 2 = custom RailGravel_BaseColor.png.", "Gravel UV size", "100 = original size; higher enlarges stones up to 1000.", "Gravel depth", "0 = original normal at level 0, flat at level 1; higher values strengthen the matching ballast normal, or color-derived relief at level 2. No geometry.", "Gravel offset X", "Shifts the gravel pattern horizontally.", "Gravel offset Y", "Shifts the gravel pattern vertically.", "Gravel rotation", "Rotates gravel and surface depth freely from 0 to 360 degrees.", "Reset gravel", "Restores the original track gravel maps and controls.", "Open gravel texture folder", "Opens RailTextures for RailGravel_BaseColor.png.", "Reload custom gravel texture", "Reloads RailGravel_BaseColor.png after copying it.", "Put RailGravel_BaseColor.png in RailTextures and reload it in options." }; break;
+                case "de": gravel = new[] { "Schotter: UV und Tiefe", "Gleisschotter anpassen", "Ändert ausschließlich die TrainGravelWorldspace-Textur der Gleise; Schienen und Schwellen bleiben unverändert.", "Schotterstruktur", "0 = Original; 1 = hellerer, feinerer Schotter mit passender Normalmap; 2 = eigene RailGravel_BaseColor.png.", "Schotter-UV-Größe", "100 = ursprüngliche Größe; höher vergrößert die Kiesstruktur, bis 3000.", "Schotter-Tiefenwirkung", "0 = Original-Normalmap bei Original, flach bei Generiert; höhere Werte verstärken die passende Schotter-Normalmap oder die berechnete Tiefe der eigenen Textur. Keine echte Geometrie.", "Schotter-Versatz X", "Verschiebt die Schottertextur horizontal.", "Schotter-Versatz Y", "Verschiebt die Schottertextur vertikal.", "Schotter-Drehung", "Dreht Schotter und Tiefenwirkung frei von 0 bis 360 Grad.", "Schotter zurücksetzen", "Stellt Originaltexturen und Schotterwerte wieder her.", "Schotterordner öffnen", "Öffnet RailTextures für RailGravel_BaseColor.png.", "Eigene Schottertextur neu laden", "Lädt RailGravel_BaseColor.png nach dem Kopieren erneut.", "RailGravel_BaseColor.png in RailTextures kopieren und in den Optionen neu laden." }; break;
+                case "es": gravel = new[] { "Balasto: UV y relieve", "Ajustar balasto", "Solo cambia TrainGravelWorldspace; rieles y traviesas permanecen intactos.", "Textura del balasto", "0 = original; 1 = balasto más claro y fino con su normal correspondiente; 2 = RailGravel_BaseColor.png propia.", "Tamaño UV del balasto", "100 = tamaño original; valores mayores amplían el grano, hasta 3000.", "Relieve del balasto", "0 = normal original en modo Original, plana en Generado; valores mayores realzan la normal del balasto o el relieve de la textura propia. Sin geometría real.", "Desplazamiento X", "Desplaza el balasto horizontalmente.", "Desplazamiento Y", "Desplaza el balasto verticalmente.", "Rotación del balasto", "Gira el patrón de 0 a 360 grados.", "Restablecer balasto", "Restaura texturas y valores originales.", "Abrir carpeta del balasto", "Abre RailTextures para RailGravel_BaseColor.png.", "Recargar balasto personal", "Vuelve a cargar RailGravel_BaseColor.png.", "Coloca RailGravel_BaseColor.png en RailTextures y vuelve a cargarla en opciones." }; break;
+                case "fr": gravel = new[] { "Ballast : UV et relief", "Modifier le ballast", "Modifie uniquement TrainGravelWorldspace ; rails et traverses restent intacts.", "Texture du ballast", "0 = origine ; 1 = ballast plus clair et plus fin avec sa normale associée ; 2 = RailGravel_BaseColor.png personnelle.", "Taille UV du ballast", "100 = taille d’origine ; plus grand agrandit les pierres, jusqu’à 3000.", "Relief du ballast", "0 = normale originale en mode Origine, surface plate en mode Généré ; les valeurs supérieures renforcent la normale du ballast ou le relief calculé de la texture personnelle. Sans géométrie réelle.", "Décalage X", "Décale le ballast horizontalement.", "Décalage Y", "Décale le ballast verticalement.", "Rotation du ballast", "Tourne la texture de 0 à 360 degrés.", "Réinitialiser le ballast", "Restaure textures et valeurs initiales.", "Ouvrir le dossier ballast", "Ouvre RailTextures pour RailGravel_BaseColor.png.", "Recharger le ballast personnel", "Recharge RailGravel_BaseColor.png.", "Placez RailGravel_BaseColor.png dans RailTextures, puis rechargez dans les options." }; break;
+                case "it": gravel = new[] { "Pietrisco: UV e rilievo", "Modifica pietrisco", "Cambia solo TrainGravelWorldspace; rotaie e traversine restano intatte.", "Struttura pietrisco", "0 = originale; 1 = pietrisco più chiaro e fine con relativa normale; 2 = RailGravel_BaseColor.png personale.", "Dimensione UV pietrisco", "100 = originale; valori maggiori ingrandiscono la grana fino a 3000.", "Rilievo pietrisco", "0 = normale originale in modalità Originale, piatta in Generata; valori maggiori rafforzano la normale del pietrisco o il rilievo calcolato della texture personale. Nessuna geometria reale.", "Spostamento X", "Sposta il pietrisco in orizzontale.", "Spostamento Y", "Sposta il pietrisco in verticale.", "Rotazione pietrisco", "Ruota la texture da 0 a 360 gradi.", "Ripristina pietrisco", "Ripristina texture e valori originali.", "Apri cartella pietrisco", "Apre RailTextures per RailGravel_BaseColor.png.", "Ricarica pietrisco personale", "Ricarica RailGravel_BaseColor.png.", "Copia RailGravel_BaseColor.png in RailTextures e ricarica nelle opzioni." }; break;
+                default: gravel = new[] { "Track gravel UV and depth", "Enable track gravel adjustments", "Changes only the track's TrainGravelWorldspace texture; steel rails and sleepers remain unchanged.", "Gravel texture", "0 = original; 1 = lighter, finer ballast with its matching normal map; 2 = custom RailGravel_BaseColor.png.", "Gravel UV size", "100 = original size; higher enlarges stones up to 3000.", "Gravel depth", "0 = original normal at level 0, flat at level 1; higher values strengthen the matching ballast normal, or color-derived relief at level 2. No geometry.", "Gravel offset X", "Shifts the gravel pattern horizontally.", "Gravel offset Y", "Shifts the gravel pattern vertically.", "Gravel rotation", "Rotates gravel and surface depth freely from 0 to 360 degrees.", "Reset gravel", "Restores the original track gravel maps and controls.", "Open gravel texture folder", "Opens RailTextures for RailGravel_BaseColor.png.", "Reload custom gravel texture", "Reloads RailGravel_BaseColor.png after copying it.", "Put RailGravel_BaseColor.png in RailTextures and reload it in options." }; break;
             }
             entries.Add(m_Setting.GetOptionGroupLocaleID(Setting.RailUvGroup), gravel[0]);
             var gravelOptions = new[] { nameof(Setting.RailGravelEnabled), nameof(Setting.RailGravelDetail),
@@ -652,6 +652,9 @@ namespace Advanced_Graphics
             entries["AdvancedGraphics.UI.OpenTextureEditor"] = launcherTooltip;
             AddParkingScaleEntries(entries);
             AddColorFilterEntries(entries);
+            AddTaaEntries(entries);
+            AddLightingEntries(entries);
+            AddGraphicsPanelEntries(entries);
             return entries;
         }
 
@@ -859,7 +862,298 @@ namespace Advanced_Graphics
         }
 
         public void Unload() { }
+        private void AddLightingEntries(Dictionary<string, string> entries)
+        {
+            string[] text;
+            switch (m_Language)
+            {
+                case "de":
+                    text = new[]
+                    {
+                        "Bloom und Sonnenhalo",
+                        "Himmel",
+                        "Bloom",
+                        "Spielstandard folgt dem Spiel. An verwendet die Intensität darunter; Aus deaktiviert den allgemeinen Bloom-Effekt. Eine geänderte Intensität überschreibt auch den Spielstandard. Zurücksetzen gibt die Steuerung an das Spiel zurück.",
+                        "Bloom-Intensität",
+                        "Leuchten um helle Bildbereiche. Bereich 0–1; 0 entfernt das Leuchten. Ausgangswert 0,20. Zurücksetzen stellt die aktuellen Spieleinstellungen wieder her.",
+                        "Sun Bloom (Sonnenhalo)",
+                        "Separater HDRP-Sonnenhalo: 0 = aus, 1 = Original. Über 1 wird der Halo kräftiger, breiter und weicher; bis 5. Sichtbar rund um die Sonne, wenn sie im Bild liegt. Bei fehlendem Halo dient ein neutraler 2-Grad-Halo als Basis. Unabhängig vom allgemeinen Bloom; Sonnenscheibe und Lens Flare bleiben unverändert.",
+                        "Sky Exposure (Himmelsbelichtung)",
+                        "Belichtungskorrektur des Himmels in EV: -5–5, 0 = Original. Folgt der Tag-/Nachtbelichtung des Spiels und beeinflusst auch die Beleuchtung durch den Himmel.",
+                        "Bloom zurücksetzen",
+                        "Entfernt die Bloom-Übersteuerung und übernimmt die aktuellen Spieleinstellungen.",
+                        "Sun Bloom zurücksetzen",
+                        "Stellt den ursprünglichen Sonnenhalo wieder her (Stärke 1).",
+                        "Sky Exposure zurücksetzen",
+                        "Entfernt die Belichtungskorrektur des Himmels (0).",
+                        "Spielstandard",
+                        "An",
+                        "Aus",
+                    };
+                    break;
+                case "es":
+                    text = new[]
+                    {
+                        "Bloom y halo solar",
+                        "Cielo",
+                        "Bloom",
+                        "Predeterminado sigue al juego. Activado usa la intensidad indicada; Desactivado elimina el bloom global. Cambiar la intensidad también modifica Predeterminado. Restablecer devuelve el control al juego.",
+                        "Intensidad de bloom",
+                        "Resplandor alrededor de zonas brillantes. Rango 0–1; 0 elimina el resplandor. Valor inicial 0,20. Restablecer recupera los ajustes actuales del juego.",
+                        "Sun Bloom (halo solar)",
+                        "Halo solar HDRP independiente: 0 = desactivado, 1 = original. Por encima de 1 aumenta la intensidad, el tamaño y la suavidad, hasta 5. Visible alrededor del sol cuando está en pantalla. Sin halo se usa una base neutra de 2 grados. Independiente del bloom global; no cambia el disco solar ni el destello de lente.",
+                        "Sky Exposure (exposición del cielo)",
+                        "Corrección de exposición del cielo en EV: -5–5, 0 = original. Sigue la exposición diurna/nocturna del juego y afecta a la iluminación del cielo.",
+                        "Restablecer Bloom",
+                        "Elimina la modificación de bloom y sigue los ajustes actuales del juego.",
+                        "Restablecer Sun Bloom",
+                        "Recupera el halo solar original (intensidad 1).",
+                        "Restablecer Sky Exposure",
+                        "Elimina la corrección de exposición del cielo (0).",
+                        "Predeterminado del juego",
+                        "Activado",
+                        "Desactivado",
+                    };
+                    break;
+                case "fr":
+                    text = new[]
+                    {
+                        "Bloom et halo solaire",
+                        "Ciel",
+                        "Bloom",
+                        "Par défaut suit le jeu. Activé utilise l’intensité indiquée ; Désactivé supprime le bloom global. Une intensité modifiée remplace aussi la valeur par défaut. Réinitialiser rend le contrôle au jeu.",
+                        "Intensité du bloom",
+                        "Lueur autour des zones lumineuses. Plage 0–1 ; 0 supprime la lueur. Valeur initiale 0,20. Réinitialiser restaure les réglages actuels du jeu.",
+                        "Sun Bloom (halo solaire)",
+                        "Halo solaire HDRP séparé : 0 = désactivé, 1 = original. Au-dessus de 1, le halo devient plus intense, plus large et plus doux, jusqu’à 5. Visible autour du soleil lorsqu’il est à l’écran. Sans halo, une base neutre de 2 degrés est utilisée. Indépendant du bloom global ; le disque solaire et le lens flare restent inchangés.",
+                        "Sky Exposure (exposition du ciel)",
+                        "Correction de l’exposition du ciel en EV : -5–5, 0 = original. Suit l’exposition jour/nuit du jeu et affecte aussi l’éclairage du ciel.",
+                        "Réinitialiser Bloom",
+                        "Supprime la modification du bloom et suit les réglages actuels du jeu.",
+                        "Réinitialiser Sun Bloom",
+                        "Restaure le halo solaire original (intensité 1).",
+                        "Réinitialiser Sky Exposure",
+                        "Supprime la correction de l’exposition du ciel (0).",
+                        "Réglage du jeu",
+                        "Activé",
+                        "Désactivé",
+                    };
+                    break;
+                case "it":
+                    text = new[]
+                    {
+                        "Bloom e alone solare",
+                        "Cielo",
+                        "Bloom",
+                        "Predefinito segue il gioco. Attivo usa l’intensità indicata; Disattivo elimina il bloom globale. Un’intensità modificata sostituisce anche il valore predefinito. Ripristina restituisce il controllo al gioco.",
+                        "Intensità bloom",
+                        "Bagliore intorno alle aree luminose. Intervallo 0–1; 0 elimina il bagliore. Valore iniziale 0,20. Ripristina recupera le impostazioni attuali del gioco.",
+                        "Sun Bloom (alone solare)",
+                        "Alone solare HDRP separato: 0 = disattivo, 1 = originale. Sopra 1 aumenta intensità, dimensione e morbidezza, fino a 5. Visibile intorno al sole quando è sullo schermo. Se manca l’alone viene usata una base neutra di 2 gradi. Indipendente dal bloom globale; il disco solare e il lens flare restano invariati.",
+                        "Sky Exposure (esposizione del cielo)",
+                        "Correzione dell’esposizione del cielo in EV: -5–5, 0 = originale. Segue l’esposizione giorno/notte del gioco e influenza anche l’illuminazione del cielo.",
+                        "Ripristina Bloom",
+                        "Rimuove la modifica del bloom e segue le impostazioni attuali del gioco.",
+                        "Ripristina Sun Bloom",
+                        "Ripristina l’alone solare originale (intensità 1).",
+                        "Ripristina Sky Exposure",
+                        "Rimuove la correzione dell’esposizione del cielo (0).",
+                        "Predefinito del gioco",
+                        "Attivo",
+                        "Disattivo",
+                    };
+                    break;
+                default:
+                    text = new[]
+                    {
+                        "Bloom and sun halo",
+                        "Sky",
+                        "Bloom",
+                        "Game default follows the game. On uses the intensity below; Off disables screen-wide bloom. A changed intensity also overrides Game default. Reset releases the override.",
+                        "Bloom intensity",
+                        "Screen-wide glow around bright areas. Range 0–1; 0 removes the glow. Initial value 0.20. Reset restores the current game settings.",
+                        "Sun Bloom (sun halo)",
+                        "Separate HDRP sun halo: 0 = off, 1 = original. Above 1 it becomes stronger, wider and softer, up to 5. Visible around the sun when it is on screen. A missing halo uses a neutral 2-degree base. Independent of screen-wide Bloom; the solar disc and lens flare remain unchanged.",
+                        "Sky Exposure",
+                        "Sky exposure correction in EV: -5–5, 0 = original. Follows the game’s day/night sky exposure and also affects sky lighting.",
+                        "Reset Bloom",
+                        "Releases the Bloom override and follows the current game settings.",
+                        "Reset Sun Bloom",
+                        "Restores the original sun halo (strength 1).",
+                        "Reset Sky Exposure",
+                        "Removes the sky exposure correction (0).",
+                        "Game default",
+                        "On",
+                        "Off",
+                    };
+                    break;
+            }
+            entries.Add(m_Setting.GetOptionGroupLocaleID(Setting.BloomGroup), text[0]);
+            entries.Add(m_Setting.GetOptionGroupLocaleID(Setting.SkyGroup), text[1]);
+            var controls = new[] { nameof(Setting.BloomMode), nameof(Setting.BloomIntensity),
+                nameof(Setting.SunBloomStrength), nameof(Setting.SkyExposure), nameof(Setting.ResetBloom),
+                nameof(Setting.ResetSunBloom), nameof(Setting.ResetSkyExposure) };
+            for (var i = 0; i < controls.Length; i++)
+            {
+                entries.Add(m_Setting.GetOptionLabelLocaleID(controls[i]), text[2 + i * 2]);
+                entries.Add(m_Setting.GetOptionDescLocaleID(controls[i]), text[3 + i * 2]);
+            }
+            entries.Add(m_Setting.GetEnumValueLocaleID(Setting.BloomControl.GameDefault), text[16]);
+            entries.Add(m_Setting.GetEnumValueLocaleID(Setting.BloomControl.Enabled), text[17]);
+            entries.Add(m_Setting.GetEnumValueLocaleID(Setting.BloomControl.Disabled), text[18]);
+        }
+        private void AddTaaEntries(Dictionary<string, string> entries)
+        {
+            string[] text;
+            switch (m_Language)
+            {
+                case "de":
+                    text = new[] { "Kantenglättung", "TAA-Stabilisierung anpassen", "Aktiviert ausschließlich den Anti-Flimmer-Regler für TAA. Aus stellt den ursprünglichen Kamerawert wieder her. TAA-Qualität, History-Schärfe und Kantenschutz bleiben beim Spiel. Wirkt nur mit TAA, nicht mit DLSS/FSR2.", "TAA-Stabilisierung", "Tatsächlicher HDRP-Anti-Flimmer-Wert: 0,00–1,00 in 0,01-Schritten. 0 deaktiviert nur den zusätzlichen Anti-Flimmer-Mechanismus, nicht TAA. Ausgangswert 0,50; wird nur bei aktivierter Anpassung angewendet. Höhere Werte können mehr Nachziehen verursachen; die sichtbare Wirkung hängt von Bewegung und Bildinhalt ab. Kleine und große Werte vergleichen.", "TAA-Stabilisierung zurücksetzen", "Deaktiviert die Anpassung und setzt den Regler auf 0,50 zurück.", "Spielvorgabe der Schattenqualität" };
+                    break;
+                case "es":
+                    text = new[] { "Antialiasing", "Ajustar estabilización TAA", "Activa solo el control antiparpadeo de TAA. Desactivado restaura el valor original de la cámara. Calidad TAA, nitidez del historial y protección de bordes permanecen bajo control del juego. Solo TAA, no DLSS/FSR2.", "Estabilización TAA", "Valor antiparpadeo HDRP: 0,00–1,00 en pasos de 0,01. 0 desactiva solo el mecanismo antiparpadeo adicional, no TAA. Valor inicial 0,50; se aplica solo con el ajuste activado. Los valores altos pueden aumentar las estelas; el efecto depende del movimiento y de la imagen. Compara valores bajos y altos.", "Restablecer estabilización TAA", "Desactiva el ajuste y restablece el control a 0,50.", "Valor de la calidad de sombras" };
+                    break;
+                case "fr":
+                    text = new[] { "Anticrénelage", "Régler la stabilisation TAA", "Active uniquement le réglage antiscintillement TAA. Désactivé restaure la valeur initiale de la caméra. Qualité TAA, netteté de l’historique et protection des contours restent gérées par le jeu. TAA uniquement, sans DLSS/FSR2.", "Stabilisation TAA", "Valeur antiscintillement HDRP : 0,00–1,00 par pas de 0,01. 0 désactive uniquement le mécanisme antiscintillement supplémentaire, pas TAA. Valeur initiale 0,50 ; appliquée uniquement lorsque le réglage est activé. Des valeurs élevées peuvent augmenter les traînées ; l’effet dépend du mouvement et de l’image. Comparez les valeurs faibles et élevées.", "Réinitialiser la stabilisation TAA", "Désactive le réglage et rétablit le curseur à 0,50.", "Valeur de la qualité des ombres" };
+                    break;
+                case "it":
+                    text = new[] { "Antialiasing", "Regola stabilizzazione TAA", "Attiva solo il controllo antisfarfallio TAA. Disattivato ripristina il valore originale della camera. Qualità TAA, nitidezza della cronologia e protezione dei bordi restano gestite dal gioco. Solo TAA, non DLSS/FSR2.", "Stabilizzazione TAA", "Valore antisfarfallio HDRP: 0,00–1,00 a passi di 0,01. 0 disattiva solo il meccanismo antisfarfallio aggiuntivo, non TAA. Valore iniziale 0,50; applicato solo quando il controllo è attivo. Valori elevati possono aumentare le scie; l’effetto dipende dal movimento e dall’immagine. Confronta valori bassi e alti.", "Ripristina stabilizzazione TAA", "Disattiva il controllo e ripristina il cursore a 0,50.", "Valore della qualità ombre" };
+                    break;
+                default:
+                    text = new[] { "Anti-aliasing", "Adjust TAA stability", "Enables only the TAA anti-flicker control. Off restores the original camera value. TAA quality, history sharpening and dark-edge protection remain controlled by the game. Only affects TAA, not DLSS/FSR2.", "TAA stability", "Actual HDRP anti-flicker value: 0.00–1.00 in steps of 0.01. 0 disables only the additional anti-flicker mechanism, not TAA. Initial value 0.50; applied only while the override is enabled. Higher values may increase trails; the effect depends on motion and image content. Compare low and high values.", "Reset TAA stability", "Disables the override and resets the slider to 0.50.", "Shadow quality default" };
+                    break;
+            }
+            entries[m_Setting.GetOptionGroupLocaleID(Setting.SharpnessGroup)] = text[0];
+            entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.TaaStabilityEnabled))] = text[1];
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.TaaStabilityEnabled))] = text[2];
+            entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.TaaStabilityStrength))] = text[3];
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.TaaStabilityStrength))] = text[4];
+            entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.ResetTaaStability))] = text[5];
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.ResetTaaStability))] = text[6];
+            const string prefix = "AdvancedGraphics.UI.Graphics.";
+            entries[prefix + "AntiAliasing"] = text[0];
+            entries[prefix + "ShadowGameValue"] = text[7];
+        }
+        private void AddGraphicsPanelEntries(Dictionary<string, string> entries)
+        {
+            string[] text;
+            switch (m_Language)
+            {
+                case "de":
+                    text = new[]
+                    {
+                        "Grafik",
+                        "Enhanced Graphics and Textures – Grafikfenster öffnen",
+                        "Bloom / Himmel",
+                        "Schließen",
+                        "Zurücksetzen",
+                        "Grafik zurücksetzen",
+                        "Setzt nur die Grafikwerte dieses Fensters zurück.",
+                        "Spielstandard",
+                        "An",
+                        "Aus",
+                        "Grafik-App-Button anzeigen",
+                        "Zeigt das separate Grafikfenster in der Ingame-UI. Die Stadt bleibt sichtbar, Änderungen wirken direkt und die Fensterposition wird gespeichert.",
+                        "Textur-App-Button anzeigen",
+                    };
+                    break;
+                case "es":
+                    text = new[]
+                    {
+                        "Gráficos",
+                        "Enhanced Graphics and Textures – abrir editor gráfico",
+                        "Bloom / cielo",
+                        "Cerrar",
+                        "Restablecer",
+                        "Restablecer gráficos",
+                        "Restablece solo los valores gráficos de esta ventana.",
+                        "Predeterminado",
+                        "Activado",
+                        "Desactivado",
+                        "Mostrar botón de gráficos",
+                        "Muestra el editor gráfico independiente. La ciudad permanece visible, los cambios se aplican de inmediato y se guarda la posición de la ventana.",
+                        "Mostrar botón de texturas",
+                    };
+                    break;
+                case "fr":
+                    text = new[]
+                    {
+                        "Graphismes",
+                        "Enhanced Graphics and Textures – ouvrir l’éditeur graphique",
+                        "Bloom / ciel",
+                        "Fermer",
+                        "Réinitialiser",
+                        "Réinitialiser les graphismes",
+                        "Restaure uniquement les valeurs graphiques de cette fenêtre.",
+                        "Réglage du jeu",
+                        "Activé",
+                        "Désactivé",
+                        "Afficher le bouton graphique",
+                        "Affiche l’éditeur graphique séparé. La ville reste visible, les changements sont immédiats et la position de la fenêtre est enregistrée.",
+                        "Afficher le bouton des textures",
+                    };
+                    break;
+                case "it":
+                    text = new[]
+                    {
+                        "Grafica",
+                        "Enhanced Graphics and Textures – apri editor grafico",
+                        "Bloom / cielo",
+                        "Chiudi",
+                        "Ripristina",
+                        "Ripristina grafica",
+                        "Ripristina solo i valori grafici di questa finestra.",
+                        "Predefinito",
+                        "Attivo",
+                        "Disattivo",
+                        "Mostra pulsante grafica",
+                        "Mostra l’editor grafico separato. La città resta visibile, le modifiche sono immediate e la posizione della finestra viene salvata.",
+                        "Mostra pulsante texture",
+                    };
+                    break;
+                default:
+                    text = new[]
+                    {
+                        "Graphics",
+                        "Enhanced Graphics and Textures – open graphics editor",
+                        "Bloom / sky",
+                        "Close",
+                        "Reset",
+                        "Reset graphics",
+                        "Restores only the graphics values in this window.",
+                        "Game default",
+                        "On",
+                        "Off",
+                        "Show graphics app button",
+                        "Shows the separate in-game graphics editor. The city remains visible, changes apply immediately, and the window position is saved.",
+                        "Show texture app button",
+                    };
+                    break;
+            }
+            const string prefix = "AdvancedGraphics.UI.Graphics.";
+            var keys = new[] { "Title", "Open", "Lighting", "Close", "Reset", "ResetAll",
+                "TipResetAll", "GameDefault", "On", "Off" };
+            for (int i = 0; i < keys.Length; i++) entries[prefix + keys[i]] = text[i];
+            entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.ShowGraphicsAppButton))] = text[10];
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.ShowGraphicsAppButton))] = text[11];
+            entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.ShowAppButton))] = text[12];
+            entries[prefix + "Details"] = entries[m_Setting.GetOptionGroupLocaleID(Setting.DetailGroup)];
+            entries[prefix + "Terrain"] = entries[m_Setting.GetOptionGroupLocaleID(Setting.TerrainGroup)];
+            entries[prefix + "Shadows"] = entries[m_Setting.GetOptionGroupLocaleID(Setting.ShadowsGroup)];
+            var controls = new[] { nameof(Setting.TreeLodDistance), nameof(Setting.GlobalDetailScalePercent),
+                nameof(Setting.TerrainTessellationLevel), nameof(Setting.TerrainPatchSizeUnits),
+                nameof(Setting.ShadowResolution), nameof(Setting.ShadowDistanceMeters),
+                nameof(Setting.SmallShadowCasterThreshold), nameof(Setting.TaaSharpenStrength), nameof(Setting.TaaStabilityEnabled), nameof(Setting.TaaStabilityStrength),
+                nameof(Setting.BloomMode), nameof(Setting.BloomIntensity),
+                nameof(Setting.SunBloomStrength), nameof(Setting.SkyExposure) };
+            foreach (var name in controls)
+            {
+                entries[prefix + name] = entries[m_Setting.GetOptionLabelLocaleID(name)];
+                entries[prefix + "Tip" + name] = entries[m_Setting.GetOptionDescLocaleID(name)];
+            }
+        }
     }
 }
+
 
 

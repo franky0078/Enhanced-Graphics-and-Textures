@@ -122,22 +122,27 @@
 	<Screenshot Value="Properties/Screenshot06.jpg" />
 	<Screenshot Value="Properties/Screenshot07.jpg" />
 	<Screenshot Value="Properties/Screenshot08.jpg" />
-	<!--<Screenshot Value="Properties/Screenshot09.jpg" />
-	<Screenshot Value="Properties/Screenshot10.jpg" />-->
+	<Screenshot Value="Properties/Screenshot09.jpg" />
+	<!--<Screenshot Value="Properties/Screenshot10.jpg" />-->
 
 	<AccessLevel Value="Public" />
 	<Tag Value="Code Mod" />
 	
-	<ModVersion Value="1.1.0" />
+	<ModVersion Value="1.2.0" />
 	
 	<!--Existing value retained. Set this to the game version tested locally before publishing.-->
 	<GameVersion Value="1.6.*" />
 	
 	<ChangeLog>
-		Version 1.1.0
+		Version 1.2.0
 
 
-		- add color filter to the texture editor for all surfaces
+		- Added Bloom on/off controls and an intensity slider.
+		- Added Sun Bloom controls and Sky Exposure adjustment.
+		- Added a separate in-game graphics panel.
+		- Added a TAA stabilization slider.
+		- Increased the maximum values.
+
 	</ChangeLog>
 
 	<!--Optional discussion link.-->

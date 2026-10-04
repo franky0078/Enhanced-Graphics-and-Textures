@@ -35,7 +35,7 @@ namespace Advanced_Graphics
 
             // BatchManagerSystem builds the active groups; BatchDataSystem later reads their LOD thresholds. 
             updateSystem.UpdateAfter<TreeLodSystem, BatchManagerSystem>(SystemUpdatePhase.Rendering);
-            updateSystem.UpdateAt<GraphicsCameraSystem>(SystemUpdatePhase.Rendering);
+            updateSystem.UpdateAfter<GraphicsCameraSystem, Game.Rendering.LightingSystem>(SystemUpdatePhase.Rendering);
             if (DebugBackendEnabled)
             {
                 updateSystem.UpdateAt<RoadMaterialInspector>(SystemUpdatePhase.Rendering);
@@ -52,6 +52,7 @@ namespace Advanced_Graphics
             updateSystem.UpdateAfter<AlleySidewalkAtlasSystem, AlleySidewalkSurfaceSystem>(SystemUpdatePhase.Rendering);
             updateSystem.UpdateAfter<ParkingRoadAtlasSystem, SidewalkRoadAtlasSystem>(SystemUpdatePhase.Rendering);
             updateSystem.UpdateAt<RoadPanelUISystem>(SystemUpdatePhase.UIUpdate);
+            updateSystem.UpdateAt<GraphicsPanelUISystem>(SystemUpdatePhase.UIUpdate);
             TreeLod = updateSystem.World.GetOrCreateSystemManaged<TreeLodSystem>();
             if (DebugBackendEnabled)
             {
@@ -155,4 +156,5 @@ namespace Advanced_Graphics
         }
     }
 }
+
 

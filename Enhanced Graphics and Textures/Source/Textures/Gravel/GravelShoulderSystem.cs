@@ -45,10 +45,10 @@ namespace Advanced_Graphics
         {
             filterOpacityPercent = Math.Max(0, Math.Min(100, filterOpacityPercent));
             filterColor = Math.Max(0, Math.Min(0xffffff, filterColor));
-            size = Mathf.Clamp(size, 50, 1000);
-            depth = Mathf.Clamp(depth, 0, 1000);
+            size = Mathf.Clamp(size, 50, Setting.MaxTextureUvSize);
+            depth = Mathf.Clamp(depth, 0, Setting.MaxTextureDepthStrength);
             detail = Mathf.Clamp(detail, 0, 2);
-            offsetX = Mathf.Clamp(offsetX, 0, 100); offsetY = Mathf.Clamp(offsetY, 0, 100);
+            offsetX = Mathf.Clamp(offsetX, 0, Setting.MaxTextureUvOffset); offsetY = Mathf.Clamp(offsetY, 0, Setting.MaxTextureUvOffset);
             rotation = Mathf.Clamp(rotation, 0, 360);
             if (m_Enabled == enabled && m_Size == size && m_Depth == depth && m_Detail == detail &&
                 m_OffsetX == offsetX && m_OffsetY == offsetY && m_Rotation == rotation && m_FilterColor == filterColor && m_FilterOpacityPercent == filterOpacityPercent) return;
@@ -320,5 +320,6 @@ namespace Advanced_Graphics
         protected override void OnDestroy() { RestoreNow(); base.OnDestroy(); }
     }
 }
+
 
 

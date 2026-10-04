@@ -9,11 +9,13 @@ namespace Advanced_Graphics
     //Applies only graphics settings that extend the game's options.
     internal sealed class GraphicsOverrides
     {
+        private readonly GraphicsLightingOverrides m_Lighting = new GraphicsLightingOverrides();
         private float m_BaseDetail;
         private int m_BaseCache;
         private int m_BaseTessellation;
         private int m_BasePatchSize;
         private int m_BaseShadowResolution;
+        private int m_DefaultShadowResolution;
         private float m_BaseShadowCullingHeight, m_BaseShadowCullingVolume;
         private bool m_Captured;
         private bool m_TouchedDetail, m_TouchedCache, m_TouchedTessellation,
@@ -23,7 +25,10 @@ namespace Advanced_Graphics
         private float m_ObservedDetail;
         private int m_ObservedCache, m_ObservedTessellation, m_ObservedPatch, m_ObservedShadowResolution;
         private HDAdditionalCameraData m_TaaCamera;
-        private float m_BaseTaaSharpen;
+        private float m_BaseTaaSharpen, m_LastTaaSharpen;
+        private float m_BaseTaaAntiFlicker;
+        private float m_LastTaaAntiFlicker;
+        private bool m_TouchedTaaStability;
         private bool m_TouchedTaa;
         private GameObject m_ShadowHolder;
         private Volume m_ShadowVolume;
@@ -41,7 +46,7 @@ namespace Advanced_Graphics
         public int? DefaultCache => m_Captured ? m_BaseCache : (int?)null;
         public int? DefaultTessellation => m_Captured ? m_BaseTessellation : (int?)null;
         public int? DefaultPatchSize => m_Captured ? m_BasePatchSize : (int?)null;
-        public int? DefaultShadowResolution => m_Captured ? m_BaseShadowResolution : (int?)null;
+        public int? DefaultShadowResolution => m_Captured ? m_DefaultShadowResolution : (int?)null;
 
         public void Capture()
         {
@@ -56,6 +61,7 @@ namespace Advanced_Graphics
             m_BaseTessellation = terrain.finalTessellation;
             m_BasePatchSize = terrain.targetPatchSize;
             m_BaseShadowResolution = shadows.directionalShadowResolution;
+            m_DefaultShadowResolution = GetDefaultShadowResolution(shadows);
             m_BaseShadowCullingHeight = shadows.shadowCullingThresholdHeight;
             m_BaseShadowCullingVolume = shadows.shadowCullingThresholdVolume;
             m_Captured = true;
@@ -66,6 +72,7 @@ namespace Advanced_Graphics
 
         public void Apply(Setting options)
         {
+            m_Lighting.ApplyVolume(options);
             Capture();
             if (!m_Captured) return;
             var graphics = SharedSettings.instance?.graphics;
@@ -157,7 +164,7 @@ namespace Advanced_Graphics
                     Mod.log.Info($"Graphics shadow caster culling height {height:0.##}, volume {volume:0.##}");
                 }
                 m_TouchedShadowCulling |= threshold > 0;
-                var resolution = options.ShadowResolution == 0 ? m_BaseShadowResolution :
+                var resolution = options.ShadowResolution == 0 ? m_DefaultShadowResolution :
                     Math.Max(512, Math.Min(8192, options.ShadowResolution));
                 if (shadows.directionalShadowResolution != resolution)
                 {
@@ -222,6 +229,7 @@ namespace Advanced_Graphics
             if (shadows.directionalShadowResolution != m_ObservedShadowResolution)
             {
                 m_BaseShadowResolution = shadows.directionalShadowResolution;
+                m_DefaultShadowResolution = GetDefaultShadowResolution(shadows);
                 options.ShadowResolution = shadows.directionalShadowResolution;
                 changed = true;
             }
@@ -231,6 +239,15 @@ namespace Advanced_Graphics
                 options.ApplyAndSave();
                 Mod.log.Info("Advanced Graphics synchronized changes from the game graphics menu");
             }
+        }
+
+        private static int GetDefaultShadowResolution(ShadowsQualitySettings shadows)
+        {
+            var defaults = DefaultSettingsProvider.CreateShadowDefaults(shadows.GetLevel());
+            // A custom/off preset has no positive resolution default.
+            if (defaults == null || defaults.directionalShadowResolution <= 0)
+                defaults = DefaultSettingsProvider.CreateShadowDefaults(QualitySetting.Level.High);
+            return defaults.directionalShadowResolution;
         }
 
         private void ObserveGameValues()
@@ -259,25 +276,77 @@ namespace Advanced_Graphics
             var data = camera != null ? camera.GetComponent<HDAdditionalCameraData>() : null;
             if (data != m_TaaCamera)
             {
-                if (m_TaaCamera != null && m_TouchedTaa)
-                    m_TaaCamera.taaSharpenStrength = m_BaseTaaSharpen;
+                RestoreTaa();
                 m_TaaCamera = data;
-                if (data != null) m_BaseTaaSharpen = data.taaSharpenStrength;
-                m_TouchedTaa = false;
+                if (data != null)
+                {
+                    m_BaseTaaSharpen = data.taaSharpenStrength;
+                    CaptureTaaStability(data);
+                }
             }
             if (data == null) return;
+            if (!m_TouchedTaa || !Mathf.Approximately(data.taaSharpenStrength, m_LastTaaSharpen))
+                m_BaseTaaSharpen = data.taaSharpenStrength;
             if (options.TaaSharpenStrength <= 0)
             {
-                if (m_TouchedTaa) data.taaSharpenStrength = m_BaseTaaSharpen;
-                m_TouchedTaa = false;
+                RestoreTaaSharpen();
             }
             else
             {
                 var strength = Math.Max(0.05f, Math.Min(2f, options.TaaSharpenStrength));
-                if (data.taaSharpenStrength != strength)
-                    data.taaSharpenStrength = strength;
+                if (data.taaSharpenStrength != strength) data.taaSharpenStrength = strength;
+                m_LastTaaSharpen = data.taaSharpenStrength;
                 m_TouchedTaa = true;
             }
+
+            // Do not change the game's AA method or take over DLSS/FSR2.
+            var graphics = SharedSettings.instance?.graphics;
+            if (!options.TaaStabilityEnabled ||
+                data.antialiasing != HDAdditionalCameraData.AntialiasingMode.TemporalAntialiasing ||
+                (graphics != null && (graphics.isDlssActive || graphics.isFsr2Active)))
+            {
+                RestoreTaaStability();
+                return;
+            }
+            if (!m_TouchedTaaStability) CaptureTaaStability(data);
+            else
+            {
+                if (!Mathf.Approximately(data.taaAntiFlicker, m_LastTaaAntiFlicker)) m_BaseTaaAntiFlicker = data.taaAntiFlicker;
+            }
+            // Use the actual HDRP value; leave quality, history sharpening and
+            // ringing protection at the game's values so the slider isolates one parameter.
+            var value = options.TaaStabilityStrength;
+            data.taaAntiFlicker = float.IsNaN(value) || float.IsInfinity(value) ? 0.5f : Mathf.Clamp01(value);
+            m_LastTaaAntiFlicker = data.taaAntiFlicker;
+            m_TouchedTaaStability = true;
+        }
+
+        private void CaptureTaaStability(HDAdditionalCameraData data)
+        {
+            m_BaseTaaAntiFlicker = data.taaAntiFlicker;
+        }
+
+        private void RestoreTaaSharpen()
+        {
+            if (m_TaaCamera != null && m_TouchedTaa && Mathf.Approximately(m_TaaCamera.taaSharpenStrength, m_LastTaaSharpen))
+                m_TaaCamera.taaSharpenStrength = m_BaseTaaSharpen;
+            m_TouchedTaa = false;
+        }
+
+        private void RestoreTaaStability()
+        {
+            var data = m_TaaCamera;
+            if (data != null && m_TouchedTaaStability)
+            {
+                if (Mathf.Approximately(data.taaAntiFlicker, m_LastTaaAntiFlicker)) data.taaAntiFlicker = m_BaseTaaAntiFlicker;
+            }
+            m_TouchedTaaStability = false;
+        }
+
+        private void RestoreTaa()
+        {
+            RestoreTaaSharpen();
+            RestoreTaaStability();
         }
 
         private void ApplyShadowDistance(int meters)
@@ -311,12 +380,17 @@ namespace Advanced_Graphics
             m_ShadowVolume.enabled = true;
         }
 
+        public void ApplyLighting(Setting options, HDAdditionalLightData sun)
+        {
+            m_Lighting.ApplyVolume(options);
+            m_Lighting.ApplySun(options, sun);
+        }
+
         public void Restore()
         {
-            if (m_TaaCamera != null && m_TouchedTaa)
-                m_TaaCamera.taaSharpenStrength = m_BaseTaaSharpen;
+            m_Lighting.Restore();
+            RestoreTaa();
             m_TaaCamera = null;
-            m_TouchedTaa = false;
             if (m_ShadowHolder != null) UnityEngine.Object.Destroy(m_ShadowHolder);
             if (m_ShadowProfile != null) UnityEngine.Object.Destroy(m_ShadowProfile);
             m_ShadowHolder = null;
@@ -364,4 +438,5 @@ namespace Advanced_Graphics
         }
     }
 }
+
 

@@ -24,11 +24,11 @@ const initial: State = { show: true, enabled: false, filterColor: 0xffffff, filt
 
 const controls: { key: Key; label: string; min: number; max: number; step: number }[] = [
     { key: "detail", label: "Detail", min: 0, max: 2, step: 1 },
-    { key: "uv", label: "Uv", min: 50, max: 1000, step: 25 },
+    { key: "uv", label: "Uv", min: 50, max: 3000, step: 25 },
     { key: "parkingScale", label: "ParkingScale", min: 0.1, max: 8, step: 0.1 },
-    { key: "depth", label: "Depth", min: 0, max: 1000, step: 25 },
-    { key: "offsetX", label: "OffsetX", min: 0, max: 100, step: 5 },
-    { key: "offsetY", label: "OffsetY", min: 0, max: 100, step: 5 },
+    { key: "depth", label: "Depth", min: 0, max: 3000, step: 25 },
+    { key: "offsetX", label: "OffsetX", min: 0, max: 300, step: 5 },
+    { key: "offsetY", label: "OffsetY", min: 0, max: 300, step: 5 },
     { key: "rotation", label: "Rotation", min: 0, max: 360, step: 1 },
     { key: "cracks", label: "Cracks", min: 0, max: 400, step: 10 },
     { key: "crackSize", label: "CrackSize", min: 25, max: 600, step: 25 },
@@ -38,12 +38,14 @@ const controls: { key: Key; label: string; min: number; max: number; step: numbe
     { key: "tiling", label: "Tiling", min: 0.1, max: 8, step: 0.1 },
 ];
 
-type Control = typeof controls[number];
+export type SliderControl = { key: string; label: string; min: number; max: number; step: number };
+type Control = SliderControl;
 
-function RoadSlider({ control, label, description, value, displayValue, onChange, onCommit }: {
+export function RoadSlider({ control, label, description, value, displayValue, onChange, onCommit }: {
     control: Control; label: string; description: string; value: number; displayValue?: string;
     onChange: (value: number, dragging?: boolean) => void; onCommit: () => void;
 }) {
+    const precision = Math.max(0, -Math.floor(Math.log10(control.step)));
     const track = React.useRef<HTMLDivElement>(null);
     const dragging = React.useRef(false);
     const onChangeRef = React.useRef(onChange);
@@ -61,8 +63,8 @@ function RoadSlider({ control, label, description, value, displayValue, onChange
         const inset = 11 * (rect.height / 31);
         const fraction = Math.max(0, Math.min(1, (clientX - rect.left - inset) / Math.max(1, rect.width - inset * 2)));
         const steps = Math.round(fraction * (control.max - control.min) / control.step);
-        onChangeRef.current(Number(Math.min(control.max, control.min + steps * control.step).toFixed(1)), true);
-    }, [control.min, control.max, control.step]);
+        onChangeRef.current(Number(Math.min(control.max, control.min + steps * control.step).toFixed(precision)), true);
+    }, [control.min, control.max, control.step, precision]);
     const mouseMove = React.useCallback((event: MouseEvent) => {
         if (!dragging.current) return;
         event.preventDefault();
@@ -85,7 +87,7 @@ function RoadSlider({ control, label, description, value, displayValue, onChange
         const parsed = Number(numberText.trim().replace(",", "."));
         if (!numberText.trim() || !Number.isFinite(parsed)) { setNumberText(String(value)); return; }
         const clamped = Math.max(control.min, Math.min(control.max, parsed));
-        const next = control.step < 1 ? Math.round(clamped * 10) / 10 : Math.round(clamped);
+        const next = Number(clamped.toFixed(precision));
         setNumberText(String(next));
         onChange(next);
         onCommit();
@@ -113,7 +115,7 @@ function RoadSlider({ control, label, description, value, displayValue, onChange
                 else if (event.key === "End") next = control.max;
                 else return;
                 event.preventDefault();
-                onChange(Number(Math.max(control.min, Math.min(control.max, next)).toFixed(1)));
+                onChange(Number(Math.max(control.min, Math.min(control.max, next)).toFixed(precision)));
             }}>
             <div className={styles.sliderTrack}>
                 <div className={styles.sliderFill} style={{ width: `${percent}%` }} />
@@ -419,3 +421,4 @@ function ColorFilterWindow({ surface, title, color, opacity, text, panelClass, s
         </div>
     </div>;
 }
+

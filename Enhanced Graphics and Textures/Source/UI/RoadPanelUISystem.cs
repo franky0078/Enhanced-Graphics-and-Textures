@@ -211,12 +211,12 @@ namespace Advanced_Graphics
                 switch (key)
                 {
                     case "detail": s.GravelShoulderDetail = Clamp(value, 0, 2); break;
-                    case "offsetX": s.GravelShoulderUvOffsetX = Clamp(value, 0, 100); break;
-                    case "offsetY": s.GravelShoulderUvOffsetY = Clamp(value, 0, 100); break;
+                    case "offsetX": s.GravelShoulderUvOffsetX = Clamp(value, 0, Setting.MaxTextureUvOffset); break;
+                    case "offsetY": s.GravelShoulderUvOffsetY = Clamp(value, 0, Setting.MaxTextureUvOffset); break;
                     case "rotation": s.GravelShoulderUvRotation = Clamp(value, 0, 360); break;
                     case "enabled": s.GravelShoulderEnabled = value != 0; break;
-                    case "uv": s.GravelShoulderUvSizePercent = Clamp(value, 50, 1000); break;
-                    case "depth": s.GravelShoulderDepthStrengthPercent = Clamp(value, 0, 1000); break;
+                    case "uv": s.GravelShoulderUvSizePercent = Clamp(value, 50, Setting.MaxTextureUvSize); break;
+                    case "depth": s.GravelShoulderDepthStrengthPercent = Clamp(value, 0, Setting.MaxTextureDepthStrength); break;
                     default: return;
                 }
             }
@@ -226,10 +226,10 @@ namespace Advanced_Graphics
                 {
                     case "enabled": s.RoadGravelEnabled = value != 0; break;
                     case "detail": s.RoadGravelDetail = Clamp(value, 0, 2); break;
-                    case "uv": s.RoadGravelUvSizePercent = Clamp(value, 50, 1000); break;
-                    case "depth": s.RoadGravelDepthStrengthPercent = Clamp(value, 0, 1000); break;
-                    case "offsetX": s.RoadGravelUvOffsetX = Clamp(value, 0, 100); break;
-                    case "offsetY": s.RoadGravelUvOffsetY = Clamp(value, 0, 100); break;
+                    case "uv": s.RoadGravelUvSizePercent = Clamp(value, 50, Setting.MaxTextureUvSize); break;
+                    case "depth": s.RoadGravelDepthStrengthPercent = Clamp(value, 0, Setting.MaxTextureDepthStrength); break;
+                    case "offsetX": s.RoadGravelUvOffsetX = Clamp(value, 0, Setting.MaxTextureUvOffset); break;
+                    case "offsetY": s.RoadGravelUvOffsetY = Clamp(value, 0, Setting.MaxTextureUvOffset); break;
                     case "rotation": s.RoadGravelUvRotation = Clamp(value, 0, 360); break;
                     default: return;
                 }
@@ -252,10 +252,10 @@ namespace Advanced_Graphics
             {
                 case "enabled": s.RailGravelEnabled = value != 0; break;
                 case "detail": s.RailGravelDetail = Clamp(value, 0, 2); break;
-                case "uv": s.RailGravelUvSizePercent = Clamp(value, 50, 1000); break;
-                case "depth": s.RailGravelDepthStrengthPercent = Clamp(value, 0, 1000); break;
-                case "offsetX": s.RailGravelUvOffsetX = Clamp(value, 0, 100); break;
-                case "offsetY": s.RailGravelUvOffsetY = Clamp(value, 0, 100); break;
+                case "uv": s.RailGravelUvSizePercent = Clamp(value, 50, Setting.MaxTextureUvSize); break;
+                case "depth": s.RailGravelDepthStrengthPercent = Clamp(value, 0, Setting.MaxTextureDepthStrength); break;
+                case "offsetX": s.RailGravelUvOffsetX = Clamp(value, 0, Setting.MaxTextureUvOffset); break;
+                case "offsetY": s.RailGravelUvOffsetY = Clamp(value, 0, Setting.MaxTextureUvOffset); break;
                 case "rotation": s.RailGravelUvRotation = Clamp(value, 0, 360); break;
                 default: return;
             }
@@ -288,10 +288,10 @@ namespace Advanced_Graphics
                     {
                         case "enabled": s.SidewalkEnabled = value != 0; break;
                         case "detail": s.SidewalkDetail = Clamp(value, 0, 2); break;
-                        case "uv": s.SidewalkUvSizePercent = Clamp(value, 50, 1000); break;
-                        case "depth": s.SidewalkDepthStrengthPercent = Clamp(value, 0, 1000); break;
-                        case "offsetX": s.SidewalkUvOffsetX = Clamp(value, 0, 100); break;
-                        case "offsetY": s.SidewalkUvOffsetY = Clamp(value, 0, 100); break;
+                        case "uv": s.SidewalkUvSizePercent = Clamp(value, 50, Setting.MaxTextureUvSize); break;
+                        case "depth": s.SidewalkDepthStrengthPercent = Clamp(value, 0, Setting.MaxTextureDepthStrength); break;
+                        case "offsetX": s.SidewalkUvOffsetX = Clamp(value, 0, Setting.MaxTextureUvOffset); break;
+                        case "offsetY": s.SidewalkUvOffsetY = Clamp(value, 0, Setting.MaxTextureUvOffset); break;
                         case "rotation": s.SidewalkUvRotation = Clamp(value, 0, 360); break;
                         case "cracks": s.SidewalkCrackCount = Clamp(value, 0, 400); break;
                         case "crackSize": s.SidewalkCrackSizePercent = Clamp(value, 25, 600); break;
@@ -331,10 +331,10 @@ namespace Advanced_Graphics
                     {
                         case "enabled": s.AlleySidewalkEnabled = value != 0; break;
                         case "detail": s.AlleySidewalkDetail = Clamp(value, 0, 2); break;
-                        case "uv": s.AlleySidewalkUvSizePercent = Clamp(value, 50, 1000); break;
-                        case "depth": s.AlleySidewalkDepthStrengthPercent = Clamp(value, 0, 1000); break;
-                        case "offsetX": s.AlleySidewalkUvOffsetX = Clamp(value, 0, 100); break;
-                        case "offsetY": s.AlleySidewalkUvOffsetY = Clamp(value, 0, 100); break;
+                        case "uv": s.AlleySidewalkUvSizePercent = Clamp(value, 50, Setting.MaxTextureUvSize); break;
+                        case "depth": s.AlleySidewalkDepthStrengthPercent = Clamp(value, 0, Setting.MaxTextureDepthStrength); break;
+                        case "offsetX": s.AlleySidewalkUvOffsetX = Clamp(value, 0, Setting.MaxTextureUvOffset); break;
+                        case "offsetY": s.AlleySidewalkUvOffsetY = Clamp(value, 0, Setting.MaxTextureUvOffset); break;
                         case "rotation": s.AlleySidewalkUvRotation = Clamp(value, 0, 360); break;
                         case "cracks": s.AlleySidewalkCrackCount = Clamp(value, 0, 400); break;
                         case "crackSize": s.AlleySidewalkCrackSizePercent = Clamp(value, 25, 600); break;
@@ -379,10 +379,10 @@ namespace Advanced_Graphics
             {
                 case "enabled": s.RoadAsphaltEnabled = value != 0; break;
                 case "detail": s.RoadAsphaltDetail = Clamp(value, 0, 2); break;
-                case "uv": s.RoadUvSizePercent = Clamp(value, 50, 1000); break;
-                case "depth": s.RoadDepthStrengthPercent = Clamp(value, 0, 1000); break;
-                case "offsetX": s.RoadUvOffsetX = Clamp(value, 0, 100); break;
-                case "offsetY": s.RoadUvOffsetY = Clamp(value, 0, 100); break;
+                case "uv": s.RoadUvSizePercent = Clamp(value, 50, Setting.MaxTextureUvSize); break;
+                case "depth": s.RoadDepthStrengthPercent = Clamp(value, 0, Setting.MaxTextureDepthStrength); break;
+                case "offsetX": s.RoadUvOffsetX = Clamp(value, 0, Setting.MaxTextureUvOffset); break;
+                case "offsetY": s.RoadUvOffsetY = Clamp(value, 0, Setting.MaxTextureUvOffset); break;
                 case "rotation": s.RoadUvRotation = Clamp(value, 0, 360); break;
                 case "cracks": s.RoadCrackCount = Clamp(value, 0, 400); break;
                 case "crackSize": s.RoadCrackSizePercent = Clamp(value, 25, 600); break;
@@ -400,4 +400,5 @@ namespace Advanced_Graphics
         private static int Clamp(int value, int min, int max) => Math.Max(min, Math.Min(max, value));
     }
 }
+
 

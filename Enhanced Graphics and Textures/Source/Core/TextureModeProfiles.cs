@@ -94,9 +94,10 @@ namespace Advanced_Graphics
         {
             switch (index)
             {
-                case 0: return value >= 50 && value <= 1000;
-                case 1: return value >= 0 && value <= 1000;
-                case 2: case 3: case 9: return value >= 0 && value <= 100;
+                case 0: return value >= 50 && value <= MaxTextureUvSize;
+                case 1: return value >= 0 && value <= MaxTextureDepthStrength;
+                case 2: case 3: return value >= 0 && value <= MaxTextureUvOffset;
+                case 9: return value >= 0 && value <= 100;
                 case 4: return value >= 0 && value <= 360;
                 case 5: return value >= 0 && value <= 400;
                 case 6: return value >= 25 && value <= 600;
@@ -263,3 +264,4 @@ namespace Advanced_Graphics
         }
     }
 }
+

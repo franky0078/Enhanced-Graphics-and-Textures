@@ -10,10 +10,14 @@ namespace Advanced_Graphics
 {
     [FileLocation(nameof(Advanced_Graphics))]
     [SettingsUITabOrder(MainSection, RoadSection, SidewalkSection, AlleySidewalkSection, GravelSection, GravelSidewalkSection, RailSection)]
-    [SettingsUIGroupOrder(LauncherGroup, TreeGroup, DetailGroup, CacheGroup, TerrainGroup, ShadowsGroup, SharpnessGroup, RoadGroup, RoadUvGroup, RoadCrackGroup, RoadPanelGroup, SidewalkGroup, SidewalkUvGroup, SidewalkCrackGroup, AlleySidewalkGroup, AlleySidewalkUvGroup, AlleySidewalkCrackGroup, GravelGroup, ShoulderGroup, RailGroup, RailUvGroup, ResetGroup, AboutGroup)]
-    [SettingsUIShowGroupName(LauncherGroup, TreeGroup, DetailGroup, CacheGroup, TerrainGroup, ShadowsGroup, SharpnessGroup, RoadGroup, RoadUvGroup, RoadCrackGroup, RoadPanelGroup, SidewalkGroup, SidewalkUvGroup, SidewalkCrackGroup, AlleySidewalkGroup, AlleySidewalkUvGroup, AlleySidewalkCrackGroup, GravelGroup, ShoulderGroup, RailGroup, RailUvGroup, ResetGroup, AboutGroup)]
+    [SettingsUIGroupOrder(LauncherGroup, TreeGroup, DetailGroup, CacheGroup, TerrainGroup, ShadowsGroup, SharpnessGroup, BloomGroup, SkyGroup, RoadGroup, RoadUvGroup, RoadCrackGroup, RoadPanelGroup, SidewalkGroup, SidewalkUvGroup, SidewalkCrackGroup, AlleySidewalkGroup, AlleySidewalkUvGroup, AlleySidewalkCrackGroup, GravelGroup, ShoulderGroup, RailGroup, RailUvGroup, ResetGroup, AboutGroup)]
+    [SettingsUIShowGroupName(LauncherGroup, TreeGroup, DetailGroup, CacheGroup, TerrainGroup, ShadowsGroup, SharpnessGroup, BloomGroup, SkyGroup, RoadGroup, RoadUvGroup, RoadCrackGroup, RoadPanelGroup, SidewalkGroup, SidewalkUvGroup, SidewalkCrackGroup, AlleySidewalkGroup, AlleySidewalkUvGroup, AlleySidewalkCrackGroup, GravelGroup, ShoulderGroup, RailGroup, RailUvGroup, ResetGroup, AboutGroup)]
     public sealed partial class Setting : ModSetting
     {
+        public const int MaxTextureUvSize = 3000;
+        public const int MaxTextureDepthStrength = 3000;
+        public const int MaxTextureUvOffset = 300;
+
         public const string AboutGroup = "About";
         public const string LauncherGroup = "Interface";
         public const string MainSection = "Main";
@@ -34,6 +38,8 @@ namespace Advanced_Graphics
         public const string TerrainGroup = "Terrain";
         public const string ShadowsGroup = "Shadows";
         public const string SharpnessGroup = "Sharpness";
+        public const string BloomGroup = "Bloom";
+        public const string SkyGroup = "Sky";
         public const string RoadGroup = "Road materials";
         public const string RoadUvGroup = "Road UV and depth";
         public const string RoadCrackGroup = "Road cracks";
@@ -55,6 +61,14 @@ namespace Advanced_Graphics
         // A separate first group provides the native divider before graphics controls.
         [SettingsUISection(MainSection, LauncherGroup)]
         public bool ShowAppButton { get; set; } = true;
+
+        [SettingsUISection(MainSection, LauncherGroup)]
+        public bool ShowGraphicsAppButton { get; set; } = true;
+
+        [SettingsUIHidden]
+        public float GraphicsWindowX { get; set; } = -1f;
+        [SettingsUIHidden]
+        public float GraphicsWindowY { get; set; } = -1f;
 
         [SettingsUISection(MainSection, TreeGroup)]
         [SettingsUISlider(min = 10, max = 500, step = 10, scalarMultiplier = 1)]
@@ -99,6 +113,84 @@ namespace Advanced_Graphics
             scalarMultiplier = 1, unit = Unit.kFloatTwoFractions)]
         public float TaaSharpenStrength { get; set; }
 
+        public enum TaaStabilityControl { GameDefault, ReducedFlicker, StrongStability }
+
+        // Retain the old serialized enum so saved settings still deserialize.
+        [SettingsUIHidden]
+        public TaaStabilityControl TaaStability { get; set; }
+
+        [SettingsUISection(MainSection, SharpnessGroup)]
+        public bool TaaStabilityEnabled { get; set; }
+
+        [SettingsUISection(MainSection, SharpnessGroup)]
+        [SettingsUISlider(min = 0, max = 1, step = 0.01f,
+            scalarMultiplier = 1, unit = Unit.kFloatTwoFractions)]
+        public float TaaStabilityStrength { get; set; } = 0.5f;
+
+        [SettingsUISection(MainSection, SharpnessGroup)]
+        [SettingsUIButton]
+        public bool ResetTaaStability { set { if (value) { TaaStabilityEnabled = false; TaaStabilityStrength = 0.5f; ApplyAndSave(); } } }
+
+        public enum BloomControl { GameDefault, Enabled, Disabled }
+
+        [SettingsUISection(MainSection, BloomGroup)]
+        public BloomControl BloomMode { get; set; }
+
+        private float m_BloomIntensity = 0.2f;
+        [SettingsUISection(MainSection, BloomGroup)]
+        [SettingsUISlider(min = 0, max = 1, step = 0.01f,
+            scalarMultiplier = 1, unit = Unit.kFloatTwoFractions)]
+        public float BloomIntensity
+        {
+            get => m_BloomIntensity;
+            // Migrate invalid values saved by the earlier 0–5 slider to vanilla intensity.
+            set => m_BloomIntensity = float.IsNaN(value) || float.IsInfinity(value) ||
+                value < 0f || value > 1f ? 0.2f : value;
+        }
+
+        // A separate HDRP celestial halo, independent of the screen-wide Bloom.
+        [SettingsUISection(MainSection, BloomGroup)]
+        [SettingsUISlider(min = 0, max = 5, step = 0.05f,
+            scalarMultiplier = 1, unit = Unit.kFloatTwoFractions)]
+        public float SunBloomStrength { get; set; } = 1f;
+
+        [SettingsUISection(MainSection, SkyGroup)]
+        [SettingsUISlider(min = -5, max = 5, step = 0.05f,
+            scalarMultiplier = 1, unit = Unit.kFloatTwoFractions)]
+        public float SkyExposure { get; set; }
+
+        [SettingsUISection(MainSection, BloomGroup)]
+        [SettingsUIButton]
+        public bool ResetBloom
+        {
+            set { if (value) { ResetBloomDefaults(); ApplyAndSave(); } }
+        }
+
+        [SettingsUISection(MainSection, BloomGroup)]
+        [SettingsUIButton]
+        public bool ResetSunBloom
+        {
+            set { if (value) { SunBloomStrength = 1f; ApplyAndSave(); } }
+        }
+
+        [SettingsUISection(MainSection, SkyGroup)]
+        [SettingsUIButton]
+        public bool ResetSkyExposure
+        {
+            set { if (value) { ResetSkyExposureDefaults(); ApplyAndSave(); } }
+        }
+
+        private void ResetBloomDefaults()
+        {
+            BloomMode = BloomControl.GameDefault;
+            BloomIntensity = 0.2f;
+        }
+
+        private void ResetSkyExposureDefaults()
+        {
+            SkyExposure = 0f;
+        }
+
         [SettingsUIHidden]
         public bool HideDebugControls => !Mod.DebugBackendEnabled;
 
@@ -131,16 +223,16 @@ namespace Advanced_Graphics
             set => SwitchTextureMode(3, ref m_RoadGravelDetail, value);
         }
         [SettingsUISection(GravelSection, GravelGroup)]
-        [SettingsUISlider(min = 50, max = 1000, step = 25, scalarMultiplier = 1)]
+        [SettingsUISlider(min = 50, max = MaxTextureUvSize, step = 25, scalarMultiplier = 1)]
         public int RoadGravelUvSizePercent { get; set; } = 100;
         [SettingsUISection(GravelSection, GravelGroup)]
-        [SettingsUISlider(min = 0, max = 1000, step = 25, scalarMultiplier = 1)]
+        [SettingsUISlider(min = 0, max = MaxTextureDepthStrength, step = 25, scalarMultiplier = 1)]
         public int RoadGravelDepthStrengthPercent { get; set; }
         [SettingsUISection(GravelSection, GravelGroup)]
-        [SettingsUISlider(min = 0, max = 100, step = 5, scalarMultiplier = 1)]
+        [SettingsUISlider(min = 0, max = MaxTextureUvOffset, step = 5, scalarMultiplier = 1)]
         public int RoadGravelUvOffsetX { get; set; }
         [SettingsUISection(GravelSection, GravelGroup)]
-        [SettingsUISlider(min = 0, max = 100, step = 5, scalarMultiplier = 1)]
+        [SettingsUISlider(min = 0, max = MaxTextureUvOffset, step = 5, scalarMultiplier = 1)]
         public int RoadGravelUvOffsetY { get; set; }
         [SettingsUISection(GravelSection, GravelGroup)]
         [SettingsUISlider(min = 0, max = 360, step = 1, scalarMultiplier = 1)]
@@ -170,10 +262,10 @@ namespace Advanced_Graphics
         [SettingsUISection(GravelSidewalkSection, ShoulderGroup)]
         public bool GravelShoulderEnabled { get; set; }
         [SettingsUISection(GravelSidewalkSection, ShoulderGroup)]
-        [SettingsUISlider(min = 50, max = 1000, step = 25, scalarMultiplier = 1)]
+        [SettingsUISlider(min = 50, max = MaxTextureUvSize, step = 25, scalarMultiplier = 1)]
         public int GravelShoulderUvSizePercent { get; set; } = 100;
         [SettingsUISection(GravelSidewalkSection, ShoulderGroup)]
-        [SettingsUISlider(min = 0, max = 1000, step = 25, scalarMultiplier = 1)]
+        [SettingsUISlider(min = 0, max = MaxTextureDepthStrength, step = 25, scalarMultiplier = 1)]
         public int GravelShoulderDepthStrengthPercent { get; set; }
         private int m_GravelShoulderDetail;
         [SettingsUISection(GravelSidewalkSection, ShoulderGroup)]
@@ -184,10 +276,10 @@ namespace Advanced_Graphics
             set => SwitchTextureMode(4, ref m_GravelShoulderDetail, value);
         }
         [SettingsUISection(GravelSidewalkSection, ShoulderGroup)]
-        [SettingsUISlider(min = 0, max = 100, step = 5, scalarMultiplier = 1)]
+        [SettingsUISlider(min = 0, max = MaxTextureUvOffset, step = 5, scalarMultiplier = 1)]
         public int GravelShoulderUvOffsetX { get; set; }
         [SettingsUISection(GravelSidewalkSection, ShoulderGroup)]
-        [SettingsUISlider(min = 0, max = 100, step = 5, scalarMultiplier = 1)]
+        [SettingsUISlider(min = 0, max = MaxTextureUvOffset, step = 5, scalarMultiplier = 1)]
         public int GravelShoulderUvOffsetY { get; set; }
         [SettingsUISection(GravelSidewalkSection, ShoulderGroup)]
         [SettingsUISlider(min = 0, max = 360, step = 1, scalarMultiplier = 1)]
@@ -266,7 +358,7 @@ namespace Advanced_Graphics
         public bool ReloadRoadTexture { set { if (value) Mod.RoadAsphalt?.ReloadCustomTexture(); } }
 
         [SettingsUISection(RoadSection, RoadUvGroup)]
-        [SettingsUISlider(min = 50, max = 1000, step = 25, scalarMultiplier = 1)]
+        [SettingsUISlider(min = 50, max = MaxTextureUvSize, step = 25, scalarMultiplier = 1)]
         public int RoadUvSizePercent { get; set; }
 
         private float m_ParkingTextureScaleFactor = 1f;
@@ -280,15 +372,15 @@ namespace Advanced_Graphics
         }
 
         [SettingsUISection(RoadSection, RoadUvGroup)]
-        [SettingsUISlider(min = 0, max = 1000, step = 25, scalarMultiplier = 1)]
+        [SettingsUISlider(min = 0, max = MaxTextureDepthStrength, step = 25, scalarMultiplier = 1)]
         public int RoadDepthStrengthPercent { get; set; }
 
         [SettingsUISection(RoadSection, RoadUvGroup)]
-        [SettingsUISlider(min = 0, max = 100, step = 5, scalarMultiplier = 1)]
+        [SettingsUISlider(min = 0, max = MaxTextureUvOffset, step = 5, scalarMultiplier = 1)]
         public int RoadUvOffsetX { get; set; }
 
         [SettingsUISection(RoadSection, RoadUvGroup)]
-        [SettingsUISlider(min = 0, max = 100, step = 5, scalarMultiplier = 1)]
+        [SettingsUISlider(min = 0, max = MaxTextureUvOffset, step = 5, scalarMultiplier = 1)]
         public int RoadUvOffsetY { get; set; }
 
         [SettingsUISection(RoadSection, RoadUvGroup)]
@@ -468,19 +560,19 @@ namespace Advanced_Graphics
         public bool ReloadRailTexture { set { if (value) Mod.RailGravel?.ReloadCustomTexture(); } }
 
         [SettingsUISection(RailSection, RailUvGroup)]
-        [SettingsUISlider(min = 50, max = 1000, step = 25, scalarMultiplier = 1)]
+        [SettingsUISlider(min = 50, max = MaxTextureUvSize, step = 25, scalarMultiplier = 1)]
         public int RailGravelUvSizePercent { get; set; }
 
         [SettingsUISection(RailSection, RailUvGroup)]
-        [SettingsUISlider(min = 0, max = 1000, step = 25, scalarMultiplier = 1)]
+        [SettingsUISlider(min = 0, max = MaxTextureDepthStrength, step = 25, scalarMultiplier = 1)]
         public int RailGravelDepthStrengthPercent { get; set; }
 
         [SettingsUISection(RailSection, RailUvGroup)]
-        [SettingsUISlider(min = 0, max = 100, step = 5, scalarMultiplier = 1)]
+        [SettingsUISlider(min = 0, max = MaxTextureUvOffset, step = 5, scalarMultiplier = 1)]
         public int RailGravelUvOffsetX { get; set; }
 
         [SettingsUISection(RailSection, RailUvGroup)]
-        [SettingsUISlider(min = 0, max = 100, step = 5, scalarMultiplier = 1)]
+        [SettingsUISlider(min = 0, max = MaxTextureUvOffset, step = 5, scalarMultiplier = 1)]
         public int RailGravelUvOffsetY { get; set; }
 
         [SettingsUISection(RailSection, RailUvGroup)]
@@ -500,19 +592,19 @@ namespace Advanced_Graphics
         }
 
         [SettingsUISection(SidewalkSection, SidewalkUvGroup)]
-        [SettingsUISlider(min = 50, max = 1000, step = 25, scalarMultiplier = 1)]
+        [SettingsUISlider(min = 50, max = MaxTextureUvSize, step = 25, scalarMultiplier = 1)]
         public int SidewalkUvSizePercent { get; set; }
 
         [SettingsUISection(SidewalkSection, SidewalkUvGroup)]
-        [SettingsUISlider(min = 0, max = 1000, step = 25, scalarMultiplier = 1)]
+        [SettingsUISlider(min = 0, max = MaxTextureDepthStrength, step = 25, scalarMultiplier = 1)]
         public int SidewalkDepthStrengthPercent { get; set; }
 
         [SettingsUISection(SidewalkSection, SidewalkUvGroup)]
-        [SettingsUISlider(min = 0, max = 100, step = 5, scalarMultiplier = 1)]
+        [SettingsUISlider(min = 0, max = MaxTextureUvOffset, step = 5, scalarMultiplier = 1)]
         public int SidewalkUvOffsetX { get; set; }
 
         [SettingsUISection(SidewalkSection, SidewalkUvGroup)]
-        [SettingsUISlider(min = 0, max = 100, step = 5, scalarMultiplier = 1)]
+        [SettingsUISlider(min = 0, max = MaxTextureUvOffset, step = 5, scalarMultiplier = 1)]
         public int SidewalkUvOffsetY { get; set; }
 
         [SettingsUISection(SidewalkSection, SidewalkUvGroup)]
@@ -595,19 +687,19 @@ namespace Advanced_Graphics
         public bool ReloadAlleySidewalkTexture { set { if (value) Mod.AlleySidewalk?.ReloadCustomTexture(); } }
 
         [SettingsUISection(AlleySidewalkSection, AlleySidewalkUvGroup)]
-        [SettingsUISlider(min = 50, max = 1000, step = 25, scalarMultiplier = 1)]
+        [SettingsUISlider(min = 50, max = MaxTextureUvSize, step = 25, scalarMultiplier = 1)]
         public int AlleySidewalkUvSizePercent { get; set; }
 
         [SettingsUISection(AlleySidewalkSection, AlleySidewalkUvGroup)]
-        [SettingsUISlider(min = 0, max = 1000, step = 25, scalarMultiplier = 1)]
+        [SettingsUISlider(min = 0, max = MaxTextureDepthStrength, step = 25, scalarMultiplier = 1)]
         public int AlleySidewalkDepthStrengthPercent { get; set; }
 
         [SettingsUISection(AlleySidewalkSection, AlleySidewalkUvGroup)]
-        [SettingsUISlider(min = 0, max = 100, step = 5, scalarMultiplier = 1)]
+        [SettingsUISlider(min = 0, max = MaxTextureUvOffset, step = 5, scalarMultiplier = 1)]
         public int AlleySidewalkUvOffsetX { get; set; }
 
         [SettingsUISection(AlleySidewalkSection, AlleySidewalkUvGroup)]
-        [SettingsUISlider(min = 0, max = 100, step = 5, scalarMultiplier = 1)]
+        [SettingsUISlider(min = 0, max = MaxTextureUvOffset, step = 5, scalarMultiplier = 1)]
         public int AlleySidewalkUvOffsetY { get; set; }
 
         [SettingsUISection(AlleySidewalkSection, AlleySidewalkUvGroup)]
@@ -672,7 +764,7 @@ namespace Advanced_Graphics
 
         [SettingsUISection(MainSection, ShadowsGroup)]
         [SettingsUIButton]
-        public bool ResetShadowResolution { set { if (value) { ShadowResolution = Mod.Graphics?.DefaultShadowResolution ?? ShadowResolution; ApplyAndSave(); } } }
+        public bool ResetShadowResolution { set { if (value) { ShadowResolution = 0; ApplyAndSave(); } } }
 
         [SettingsUISection(MainSection, ShadowsGroup)]
         [SettingsUIButton]
@@ -703,10 +795,16 @@ namespace Advanced_Graphics
             GeometryCacheSizeMB = DefaultCacheMB;
             TerrainTessellationLevel = DefaultTerrainTessellation;
             TerrainPatchSizeUnits = DefaultTerrainPatchSize;
-            ShadowResolution = Mod.Graphics?.DefaultShadowResolution ?? 2048;
+            ShadowResolution = 0;
             ShadowDistanceMeters = 0;
             SmallShadowCasterThreshold = 0;
             TaaSharpenStrength = 0;
+            TaaStability = TaaStabilityControl.GameDefault;
+            TaaStabilityEnabled = false;
+            TaaStabilityStrength = 0.5f;
+            ResetBloomDefaults();
+            SunBloomStrength = 1f;
+            ResetSkyExposureDefaults();
             RoadAsphaltDetail = 0;
             RoadAsphaltEnabled = false;
             AsphaltSource = RoadTextureSource.Generated;
@@ -718,6 +816,7 @@ namespace Advanced_Graphics
             RoadCrackOpacityPercent = 100;
             RoadCrackRandomnessPercent = 50;
             ShowAppButton = true;
+            ShowGraphicsAppButton = true;
             ShowRoadPanelButton = true;
             ShowSidewalkPanelButton = true;
             ShowRailPanelButton = true;
@@ -868,4 +967,5 @@ namespace Advanced_Graphics
         }
     }
 }
+
 
