@@ -21,6 +21,8 @@ namespace Advanced_Graphics
         {
             base.OnCreate();
             AddUpdateBinding(new GetterValueBinding<string>(Group, "graphicsSettings", () => m_State));
+            AddUpdateBinding(new GetterValueBinding<bool>(Group, "luminaNumberFix",
+                () => Mod.ActiveSetting?.LuminaNumberFix ?? false));
             AddBinding(new TriggerBinding<string>(Group, "setGraphicsSetting", ChangeSetting));
             AddBinding(new TriggerBinding<string>(Group, "setGraphicsWindowPosition", ChangePosition));
         }

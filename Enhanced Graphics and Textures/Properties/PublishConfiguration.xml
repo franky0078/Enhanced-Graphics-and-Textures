@@ -128,20 +128,16 @@
 	<AccessLevel Value="Public" />
 	<Tag Value="Code Mod" />
 	
-	<ModVersion Value="1.2.0" />
+	<ModVersion Value="1.2.1" />
 	
 	<!--Existing value retained. Set this to the game version tested locally before publishing.-->
 	<GameVersion Value="1.6.*" />
 	
 	<ChangeLog>
-		Version 1.2.0
+		Version 1.2.1
 
 
-		- Added Bloom on/off controls and an intensity slider.
-		- Added Sun Bloom controls and Sky Exposure adjustment.
-		- Added a separate in-game graphics panel.
-		- Added a TAA stabilization slider.
-		- Increased the maximum values.
+		- Added Lumina Number fix for German translation under options menu.
 
 	</ChangeLog>
 

@@ -655,7 +655,38 @@ namespace Advanced_Graphics
             AddTaaEntries(entries);
             AddLightingEntries(entries);
             AddGraphicsPanelEntries(entries);
+            AddLuminaNumberFixEntries(entries);
             return entries;
+        }
+
+        private void AddLuminaNumberFixEntries(Dictionary<string, string> entries)
+        {
+            string label, description;
+            switch (m_Language)
+            {
+                case "de":
+                    label = "Lumina-Zahlenkorrektur";
+                    description = "Behebt Kästchen durch Sonderleerzeichen in Zahlenanzeigen wie Angestellte, Stufe und Lager bei aktivem Lumina. Standardmäßig ausgeschaltet.";
+                    break;
+                case "es":
+                    label = "Corrección de cifras para Lumina";
+                    description = "Corrige los cuadros causados por espacios especiales en cifras de empleados, nivel y almacenamiento con Lumina activo. Desactivada por defecto.";
+                    break;
+                case "fr":
+                    label = "Correction des nombres pour Lumina";
+                    description = "Corrige les carrés causés par des espaces spéciaux dans les nombres des employés, du niveau et du stockage avec Lumina activé. Désactivée par défaut.";
+                    break;
+                case "it":
+                    label = "Correzione dei numeri per Lumina";
+                    description = "Corregge i quadratini causati da spazi speciali nei numeri di dipendenti, livello e magazzino con Lumina attivo. Disattivata per impostazione predefinita.";
+                    break;
+                default:
+                    label = "Lumina number display fix";
+                    description = "Fixes boxes caused by special spaces in number displays such as employees, level and storage when Lumina is enabled. Disabled by default.";
+                    break;
+            }
+            entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.LuminaNumberFix))] = label;
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.LuminaNumberFix))] = description;
         }
 
         private void AddParkingScaleEntries(Dictionary<string, string> entries)

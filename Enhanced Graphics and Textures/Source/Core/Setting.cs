@@ -65,6 +65,9 @@ namespace Advanced_Graphics
         [SettingsUISection(MainSection, LauncherGroup)]
         public bool ShowGraphicsAppButton { get; set; } = true;
 
+        [SettingsUISection(MainSection, LauncherGroup)]
+        public bool LuminaNumberFix { get; set; } = false;
+
         [SettingsUIHidden]
         public float GraphicsWindowX { get; set; } = -1f;
         [SettingsUIHidden]
@@ -817,6 +820,7 @@ namespace Advanced_Graphics
             RoadCrackRandomnessPercent = 50;
             ShowAppButton = true;
             ShowGraphicsAppButton = true;
+            LuminaNumberFix = false;
             ShowRoadPanelButton = true;
             ShowSidewalkPanelButton = true;
             ShowRailPanelButton = true;
