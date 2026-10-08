@@ -3,7 +3,7 @@
 	<PropertyGroup>
 		<Configurations>Debug;Release</Configurations>
         <!-- Update this version for each release; keep PublishConfiguration ModVersion in sync. -->
-        <Version>1.2.1</Version>
+        <Version>1.2.2</Version>
         <AssemblyName>Enhanced Graphics and Textures</AssemblyName>
         <RootNamespace>Advanced_Graphics</RootNamespace>
         <EnableDefaultCompileItems>false</EnableDefaultCompileItems>

@@ -128,16 +128,16 @@
 	<AccessLevel Value="Public" />
 	<Tag Value="Code Mod" />
 	
-	<ModVersion Value="1.2.1" />
+	<ModVersion Value="1.2.2" />
 	
 	<!--Existing value retained. Set this to the game version tested locally before publishing.-->
 	<GameVersion Value="1.6.*" />
 	
 	<ChangeLog>
-		Version 1.2.1
+		Version 1.2.2
 
 
-		- Added Lumina Number fix for German translation under options menu.
+		- enhanced lumina number fix for german language to roadtooltip
 
 	</ChangeLog>
 

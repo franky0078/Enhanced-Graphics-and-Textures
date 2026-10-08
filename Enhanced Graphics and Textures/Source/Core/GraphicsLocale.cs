@@ -666,23 +666,23 @@ namespace Advanced_Graphics
             {
                 case "de":
                     label = "Lumina-Zahlenkorrektur";
-                    description = "Behebt Kästchen durch Sonderleerzeichen in Zahlenanzeigen wie Angestellte, Stufe und Lager bei aktivem Lumina. Standardmäßig ausgeschaltet.";
+                    description = "Behebt Kästchen durch Sonderleerzeichen in Zahlenanzeigen bei aktivem Lumina, einschließlich Angestellte, Stufe, Lager und Winkel beim Straßenbau. Standardmäßig ausgeschaltet.";
                     break;
                 case "es":
                     label = "Corrección de cifras para Lumina";
-                    description = "Corrige los cuadros causados por espacios especiales en cifras de empleados, nivel y almacenamiento con Lumina activo. Desactivada por defecto.";
+                    description = "Corrige los cuadros causados por espacios especiales en cifras con Lumina activo, incluidos empleados, nivel, almacenamiento y ángulos al construir carreteras. Desactivada por defecto.";
                     break;
                 case "fr":
                     label = "Correction des nombres pour Lumina";
-                    description = "Corrige les carrés causés par des espaces spéciaux dans les nombres des employés, du niveau et du stockage avec Lumina activé. Désactivée par défaut.";
+                    description = "Corrige les carrés causés par des espaces spéciaux dans les nombres avec Lumina activé, notamment les employés, le niveau, le stockage et les angles lors de la construction de routes. Désactivée par défaut.";
                     break;
                 case "it":
                     label = "Correzione dei numeri per Lumina";
-                    description = "Corregge i quadratini causati da spazi speciali nei numeri di dipendenti, livello e magazzino con Lumina attivo. Disattivata per impostazione predefinita.";
+                    description = "Corregge i quadratini causati da spazi speciali nei numeri con Lumina attivo, inclusi dipendenti, livello, magazzino e angoli durante la costruzione di strade. Disattivata per impostazione predefinita.";
                     break;
                 default:
                     label = "Lumina number display fix";
-                    description = "Fixes boxes caused by special spaces in number displays such as employees, level and storage when Lumina is enabled. Disabled by default.";
+                    description = "Fixes boxes caused by special spaces in number displays when Lumina is enabled, including employees, level, storage and angles during road construction. Disabled by default.";
                     break;
             }
             entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.LuminaNumberFix))] = label;
