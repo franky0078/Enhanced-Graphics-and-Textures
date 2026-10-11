@@ -2,8 +2,6 @@ using UnityEngine;
 
 namespace Advanced_Graphics
 {
-    // Share the road's generated gravel color, authored normal and native
-    // resolution. Only the target material and custom PNG folder differ.
     public partial class GravelShoulderSurfaceSystem : RoadGravelSystem
     {
         protected override string TextureFolder => TextureStorage.GravelShoulder;

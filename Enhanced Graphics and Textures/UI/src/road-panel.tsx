@@ -12,21 +12,23 @@ const alleySidewalkState$ = bindValue<string>(group, "alleySidewalkSettings", "{
 const railState$ = bindValue<string>(group, "railSettings", "{}");
 const gravelState$ = bindValue<string>(group, "gravelSettings", "{}");
 const colorWindowPosition$ = bindValue<string>(group, "colorWindowPosition", "{}");
+const textureGeneralWindowPosition$ = bindValue<string>(group, "textureGeneralWindowPosition", "{}");
 const shoulderState$ = bindValue<string>(group, "shoulderSettings", "{}");
 type Surface = "road" | "sidewalk" | "alley" | "rail" | "gravel" | "shoulder";
 const triggers: Record<Surface, string> = { road: "setRoadSetting", sidewalk: "setSidewalkSetting", alley: "setAlleySidewalkSetting", rail: "setRailSetting", gravel: "setGravelSetting", shoulder: "setShoulderSetting" };
 const prefixes: Record<Surface, string> = { road: "", sidewalk: "Sidewalk", alley: "AlleySidewalk", rail: "RailGravel", gravel: "RoadGravel", shoulder: "GravelShoulder" };
-type Key = "detail" | "uv" | "depth" | "tiling" | "parkingScale" | "offsetX" | "offsetY" |
+type Key = "detail" | "uv" | "depth" | "tiling" | "parkingScale" | "parkingDepth" | "mipBias" | "offsetX" | "offsetY" |
     "rotation" | "cracks" | "crackSize" | "crackWidth" | "crackOpacity" | "randomness";
-type State = Record<Key, number> & { show: boolean; enabled: boolean; filterColor: number; filterOpacity: number; probe?: boolean };
+type State = Record<Key, number> & { show: boolean; enabled: boolean; filterColor: number; filterOpacity: number; probe?: boolean; customCracks?: boolean; crackStatus?: number };
 const initial: State = { show: true, enabled: false, filterColor: 0xffffff, filterOpacity: 100, detail: 0, uv: 100, depth: 0,
-    tiling: 1, parkingScale: 1, offsetX: 0, offsetY: 0, rotation: 0, cracks: 0, crackSize: 100, crackWidth: 100, crackOpacity: 100, randomness: 50 };
+    tiling: 1, parkingScale: 1, parkingDepth: 1, mipBias: 0, offsetX: 0, offsetY: 0, rotation: 0, cracks: 0, crackSize: 100, crackWidth: 100, crackOpacity: 100, randomness: 50 };
 
 const controls: { key: Key; label: string; min: number; max: number; step: number }[] = [
     { key: "detail", label: "Detail", min: 0, max: 2, step: 1 },
     { key: "uv", label: "Uv", min: 50, max: 3000, step: 25 },
     { key: "parkingScale", label: "ParkingScale", min: 0.1, max: 8, step: 0.1 },
     { key: "depth", label: "Depth", min: 0, max: 3000, step: 25 },
+    { key: "parkingDepth", label: "ParkingDepth", min: 0, max: 8, step: 0.1 },
     { key: "offsetX", label: "OffsetX", min: 0, max: 300, step: 5 },
     { key: "offsetY", label: "OffsetY", min: 0, max: 300, step: 5 },
     { key: "rotation", label: "Rotation", min: 0, max: 360, step: 1 },
@@ -150,6 +152,13 @@ export function RoadPanel({ panelClass }: { panelClass: string }) {
         try { return JSON.parse(colorWindowRaw) as { x?: number; y?: number }; }
         catch { return {}; }
     }, [colorWindowRaw]);
+    const generalWindowRaw = useValue(textureGeneralWindowPosition$);
+    const generalWindowPosition = React.useMemo(() => {
+        try { return JSON.parse(generalWindowRaw) as { x?: number; y?: number }; }
+        catch { return {}; }
+    }, [generalWindowRaw]);
+    const [generalOpen, setGeneralOpen] = React.useState(false);
+    const [generalStart, setGeneralStart] = React.useState({ x: 650, y: 100 });
     const mainPanelRef = React.useRef<HTMLDivElement>(null);
     const [colorStart, setColorStart] = React.useState({ x: 650, y: 100 });
     const { translate } = useLocalization();
@@ -251,7 +260,20 @@ export function RoadPanel({ panelClass }: { panelClass: string }) {
                 event.preventDefault();
             }}>
                 <strong>{tabTitle}</strong>
-                <button className={styles.close} onClick={() => setOpen(false)} title={text("Close", "Close")}>×</button>
+                <div className={styles.headerActions}>
+                    <Tooltip tooltip={text("TextureGeneralTitle", "General texture settings")}>
+                        <button type="button" className={`${styles.close} ${styles.settingsButton}`} aria-label={text("TextureGeneralTitle", "General texture settings")}
+                            aria-pressed={generalOpen} onClick={() => {
+                                flushPending();
+                                const rect = mainPanelRef.current?.getBoundingClientRect();
+                                setGeneralStart({ x: rect ? rect.right + 24 : position.x + 564, y: rect?.top ?? position.y });
+                                setGeneralOpen(previous => !previous);
+                            }}>
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6l.6 2.5 2.2 1.3 2.5-.7 3 5.2-1.9 1.8v2.6l1.9 1.8-3 5.2-2.5-.7-2.2 1.3L15 25H9l-.6-2.5-2.2-1.3-2.5.7-3-5.2 1.9-1.8v-2.6L.7 10.5l3-5.2 2.5.7 2.2-1.3L9 3Z" transform="translate(1 0) scale(.85)" fill="none" stroke="currentColor" strokeWidth="2"/><circle cx="11.2" cy="11.9" r="3.3" fill="none" stroke="currentColor" strokeWidth="1.8"/></svg>
+                        </button>
+                    </Tooltip>
+                    <button className={styles.close} onClick={() => setOpen(false)} title={text("Close", "Close")}>×</button>
+                </div>
             </div>
             <div className={styles.body}>
                 <div className={styles.surfaceTabs}>
@@ -283,16 +305,26 @@ export function RoadPanel({ panelClass }: { panelClass: string }) {
                     </span>
                     <span>{text(`${prefix}Enabled`, "Enable surface adjustments")}</span>
                 </button>
-                {controls.filter(control => control.key === "parkingScale" ? surface === "road" :
-                    (surface === "shoulder" || surface === "rail" || surface === "gravel") ? ["detail", "uv", "depth", "offsetX", "offsetY", "rotation"].includes(control.key) : true).map((control, index) => <React.Fragment key={`${surface}:${control.key}`}>
+                {controls.filter(control => (control.key === "parkingScale" || control.key === "parkingDepth") ? surface === "road" :
+                    (surface === "shoulder" || surface === "rail" || surface === "gravel") ? ["detail", "uv", "depth", "offsetX", "offsetY", "rotation"].includes(control.key) : true).map(control => surface === "road" ? { ...control, max: ({ cracks: 1200, crackSize: 1800, crackWidth: 1200, crackOpacity: 600 } as Partial<Record<Key, number>>)[control.key] ?? control.max } : control).map((control, index) => <React.Fragment key={`${surface}:${control.key}`}>
                     {(index === 1 || control.key === "cracks") && <div className={styles.separator} />}
+                    {surface === "road" && control.key === "cracks" && <>
+                        <button type="button" className={styles.moduleToggle} role="checkbox" aria-checked={!!draft.customCracks}
+                            title={text("CustomCracksHint", "Copy Road_Cracks.png to the crack folder. Dark cracks on white or transparent background. Relief is generated automatically.")}
+                            onClick={() => { flushPending(); const enabled = !draft.customCracks; setDraft(prev => ({ ...prev, customCracks: enabled })); trigger(group, "setRoadSetting", `customCracks:${enabled ? 1 : 0}`); }}>
+                            <span className={`${styles.toggleBox} ${draft.customCracks ? styles.toggleOn : ""}`} aria-hidden="true">{draft.customCracks ? "✓" : ""}</span>
+                            <span>{text("CustomCracks", "Custom crack texture")}</span>
+                        </button>
+                        {draft.customCracks && <>
+                            <p className={styles.textureHint}>{text(["CustomCracksPending", "CustomCracksLoaded", "CustomCracksMissing", "CustomCracksInvalid"][draft.crackStatus ?? 0], "")}</p>
+                        </>}
+                    </>}
                     <RoadSlider control={control}
                     label={text(`${prefix}${control.label}`, control.label)} value={draft[control.key]}
-                    displayValue={control.key === "detail" ? [text("Original", "Original"), text("Generated", "Generated"), text("Custom", "Custom PNG")][Math.max(0, Math.min(2, draft.detail))] : undefined}
+                    displayValue={control.key === "detail" ? [text("Original", "Original"), text("Generated", "Generated"), text("Custom", "Custom texture")][Math.max(0, Math.min(2, draft.detail))] : undefined}
                     description={text(`${prefix}Tip${control.label}`, "Adjust the surface appearance.")}
                     onChange={(next, dragging) => set(control.key, next, dragging)} onCommit={flushPending} />
                 </React.Fragment>)}
-                {draft.detail === 2 && <div className={styles.textureHint}>{text(`${prefix}CustomHint`, "Copy the custom PNG to the texture folder and reload it in options.")}</div>}
                 {surface === "gravel" && draft.detail === 2 && <button className={styles.reset} onClick={() => { flushPending(); trigger(group, "reloadGravelTexture", "reload"); }}>{text("RoadGravelReload", "Reload custom texture")}</button>}
                 {surface === "shoulder" && draft.detail === 2 && <button className={styles.reset} onClick={() => { flushPending(); trigger(group, "reloadGravelShoulderTexture", "reload"); }}>{text("RoadGravelReload", "Reload custom texture")}</button>}
                 {surface === "shoulder" && <p className={styles.textureHint}>{text("GravelShoulderHint", "Adjusts the original gravel road edge atlas.")}</p>}
@@ -307,6 +339,11 @@ export function RoadPanel({ panelClass }: { panelClass: string }) {
                 </>}
             </div>
         </div>}
+        {open && generalOpen && <TextureGeneralWindow mipBias={roadValue.mipBias} text={text} panelClass={panelClass}
+            savedPosition={generalWindowPosition} initialPosition={generalStart}
+            onSavePosition={next => trigger(group, "setTextureGeneralWindowPosition", `${next.x.toFixed(1)}:${next.y.toFixed(1)}`)}
+            onClose={() => setGeneralOpen(false)}
+            onApply={next => { flushPending(); trigger(group, "setRoadSetting", `mipBias:${next}`); }} />}
         {open && colorOpen && values[surface].show && <ColorFilterWindow surface={surface}
             title={titles[surface]} color={values[surface].filterColor} opacity={values[surface].filterOpacity} text={text}
             panelClass={panelClass} savedPosition={colorWindowPosition} initialPosition={colorStart}
@@ -317,6 +354,87 @@ export function RoadPanel({ panelClass }: { panelClass: string }) {
 }
 
 
+
+function TextureGeneralWindow({ mipBias, text, panelClass, savedPosition, initialPosition, onSavePosition, onClose, onApply }: {
+    mipBias: number; text: (key: string, fallback: string) => string; panelClass: string;
+    savedPosition: { x?: number; y?: number }; initialPosition: { x: number; y: number };
+    onSavePosition: (position: { x: number; y: number }) => void;
+    onClose: () => void; onApply: (value: number) => void;
+}) {
+    const [draft, setDraft] = React.useState(mipBias);
+    const [position, setPosition] = React.useState(initialPosition);
+    const panelRef = React.useRef<HTMLDivElement>(null);
+    const positionRef = React.useRef(position);
+    const saveRef = React.useRef(onSavePosition);
+    const applyRef = React.useRef(onApply);
+    saveRef.current = onSavePosition; applyRef.current = onApply;
+    const pending = React.useRef<number | null>(null);
+    const timer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+    const drag = React.useRef<{ x: number; y: number; left: number; top: number } | null>(null);
+    const clampPosition = (next: { x: number; y: number }) => {
+        const rect = panelRef.current?.getBoundingClientRect();
+        return { x: Math.max(8, Math.min(Math.max(8, window.innerWidth - (rect?.width || 420) - 8), next.x)),
+            y: Math.max(8, Math.min(Math.max(8, window.innerHeight - (rect?.height || 220) - 8), next.y)) };
+    };
+    const commit = () => {
+        if (timer.current !== null) clearTimeout(timer.current);
+        timer.current = null;
+        if (pending.current === null) return;
+        const next = pending.current; pending.current = null; applyRef.current(next);
+    };
+    React.useEffect(() => { if (pending.current === null) setDraft(mipBias); }, [mipBias]);
+    React.useLayoutEffect(() => {
+        const saved = Number.isFinite(savedPosition.x) && Number.isFinite(savedPosition.y) &&
+            (savedPosition.x ?? -1) >= 0 && (savedPosition.y ?? -1) >= 0;
+        const next = clampPosition(saved ? { x: savedPosition.x!, y: savedPosition.y! } : initialPosition);
+        positionRef.current = next; setPosition(next);
+    }, []);
+    React.useEffect(() => {
+        const move = (event: MouseEvent) => {
+            if (!drag.current) return;
+            const next = clampPosition({ x: drag.current.left + event.clientX - drag.current.x,
+                y: drag.current.top + event.clientY - drag.current.y });
+            positionRef.current = next; setPosition(next);
+        };
+        const up = () => {
+            if (!drag.current) return;
+            drag.current = null; saveRef.current(positionRef.current);
+        };
+        const resize = () => {
+            const next = clampPosition(positionRef.current);
+            positionRef.current = next; setPosition(next);
+        };
+        window.addEventListener("mousemove", move); window.addEventListener("mouseup", up); window.addEventListener("resize", resize);
+        return () => {
+            window.removeEventListener("mousemove", move); window.removeEventListener("mouseup", up); window.removeEventListener("resize", resize);
+            if (drag.current) saveRef.current(positionRef.current);
+            commit();
+        };
+    }, []);
+    return <div ref={panelRef} className={`${panelClass} ${styles.panel} ${styles.generalWindow}`}
+        style={{ left: `${position.x}px`, top: `${position.y}px` }}>
+        <div className={styles.header} onMouseDown={event => {
+            if (event.button !== 0 || (event.target as HTMLElement).closest("button")) return;
+            drag.current = { x: event.clientX, y: event.clientY, left: position.x, top: position.y };
+            event.preventDefault();
+        }}>
+            <strong>{text("TextureGeneralTitle", "General texture settings")}</strong>
+            <button className={styles.close} onClick={() => { commit(); onClose(); }} title={text("Close", "Close")}>×</button>
+        </div>
+        <div className={styles.body}>
+            <p className={styles.textureHint}>{text("TextureGeneralHint", "Applies to all surfaces edited by this mod.")}</p>
+            <RoadSlider control={{ key: "mipBias", label: "SurfaceMipBias", min: -1, max: 1, step: 0.1 }}
+                label={text("SurfaceMipBias", "Texture mip bias")} description={text("TipSurfaceMipBias", "Adjust distant texture detail.")}
+                value={draft} onChange={(next, dragging) => {
+                    setDraft(next); pending.current = next;
+                    if (timer.current !== null) clearTimeout(timer.current);
+                    timer.current = dragging ? null : setTimeout(commit, 120);
+                }} onCommit={commit} />
+            <p className={styles.textureHint}>{text("TextureFiltering16", "Anisotropic filtering: 16×")}</p>
+            <button className={styles.reset} onClick={() => { pending.current = 0; setDraft(0); commit(); }}>{text("Reset", "Reset")}</button>
+        </div>
+    </div>;
+}
 
 function colorHex(value: number) {
     return `#${(value & 0xffffff).toString(16).padStart(6, "0").toUpperCase()}`;
@@ -421,4 +539,5 @@ function ColorFilterWindow({ surface, title, color, opacity, text, panelClass, s
         </div>
     </div>;
 }
+
 

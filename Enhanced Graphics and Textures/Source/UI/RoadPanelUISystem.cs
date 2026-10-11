@@ -30,6 +30,10 @@ namespace Advanced_Graphics
                 "{\"x\":" + (Mod.ActiveSetting?.ColorWindowX ?? -1f).ToString("R", CultureInfo.InvariantCulture) +
                 ",\"y\":" + (Mod.ActiveSetting?.ColorWindowY ?? -1f).ToString("R", CultureInfo.InvariantCulture) + "}"));
             AddBinding(new TriggerBinding<string>(Group, "setColorWindowPosition", ChangeColorWindowPosition));
+            AddUpdateBinding(new GetterValueBinding<string>(Group, "textureGeneralWindowPosition", () =>
+                "{\"x\":" + (Mod.ActiveSetting?.TextureGeneralWindowX ?? -1f).ToString("R", CultureInfo.InvariantCulture) +
+                ",\"y\":" + (Mod.ActiveSetting?.TextureGeneralWindowY ?? -1f).ToString("R", CultureInfo.InvariantCulture) + "}"));
+            AddBinding(new TriggerBinding<string>(Group, "setTextureGeneralWindowPosition", ChangeTextureGeneralWindowPosition));
             AddUpdateBinding(new GetterValueBinding<bool>(Group, "debugEnabled", () => Mod.DebugBackendEnabled));
             AddBinding(new TriggerBinding<string>(Group, "reloadGravelShoulderTexture", _ => Mod.GravelShoulderSurface?.ReloadCustomTexture()));
             AddUpdateBinding(new GetterValueBinding<string>(Group, "roadSettings", () => m_State));
@@ -109,6 +113,22 @@ namespace Advanced_Graphics
             m_SaveAt = UnityEngine.Time.unscaledTime + 0.6f;
         }
 
+        private void ChangeTextureGeneralWindowPosition(string request)
+        {
+            var s = Mod.ActiveSetting;
+            if (s == null || string.IsNullOrEmpty(request)) return;
+            var parts = request.Split(':');
+            if (parts.Length != 2 ||
+                !float.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out float x) ||
+                !float.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out float y) ||
+                float.IsNaN(x) || float.IsInfinity(x) || float.IsNaN(y) || float.IsInfinity(y) ||
+                x < 0 || y < 0 || x > 100000 || y > 100000) return;
+            s.TextureGeneralWindowX = x;
+            s.TextureGeneralWindowY = y;
+            m_SavePending = true;
+            m_SaveAt = UnityEngine.Time.unscaledTime + 0.6f;
+        }
+
         private static string BuildState(Setting s)
         {
             if (s == null) return "{}";
@@ -116,6 +136,10 @@ namespace Advanced_Graphics
                 ",\"enabled\":" + (s.RoadAsphaltEnabled ? "true" : "false") +
                 ",\"detail\":" + s.RoadAsphaltDetail +
                 ",\"uv\":" + s.RoadUvSizePercent +
+                ",\"customCracks\":" + (s.UseCustomRoadCracks ? "true" : "false") +
+                ",\"crackStatus\":" + (Mod.RoadAsphalt?.CustomCrackStatus ?? 0) +
+                ",\"mipBias\":" + s.SurfaceTextureMipBias.ToString("0.0", CultureInfo.InvariantCulture) +
+                ",\"parkingDepth\":" + s.ParkingDepthStrengthFactor.ToString("0.0", CultureInfo.InvariantCulture) +
                 ",\"parkingScale\":" + s.ParkingTextureScaleFactor.ToString("0.0", CultureInfo.InvariantCulture) +
                 ",\"depth\":" + s.RoadDepthStrengthPercent +
                 ",\"tiling\":" + s.RoadTextureTiling.ToString("0.0", CultureInfo.InvariantCulture) +
@@ -362,11 +386,13 @@ namespace Advanced_Graphics
                 return;
             }
             int separator = request.IndexOf(':');
-            if (separator > 0 && (request.Substring(0, separator) == "tiling" || request.Substring(0, separator) == "parkingScale"))
+            if (separator > 0 && (request.Substring(0, separator) == "tiling" || request.Substring(0, separator) == "parkingScale" || request.Substring(0, separator) == "parkingDepth" || request.Substring(0, separator) == "mipBias"))
             {
                 if (!float.TryParse(request.Substring(separator + 1), NumberStyles.Float, CultureInfo.InvariantCulture, out float tiling)) return;
                 if (float.IsNaN(tiling) || float.IsInfinity(tiling)) return;
                 if (request.Substring(0, separator) == "parkingScale") s.ParkingTextureScaleFactor = tiling;
+                else if (request.Substring(0, separator) == "mipBias") s.SurfaceTextureMipBias = tiling;
+                else if (request.Substring(0, separator) == "parkingDepth") s.ParkingDepthStrengthFactor = tiling;
                 else s.RoadTextureTiling = Math.Max(0.1f, Math.Min(8f, (float)Math.Round(tiling, 1)));
                 s.ApplyToSystem();
                 m_State = BuildState(s);
@@ -384,10 +410,11 @@ namespace Advanced_Graphics
                 case "offsetX": s.RoadUvOffsetX = Clamp(value, 0, Setting.MaxTextureUvOffset); break;
                 case "offsetY": s.RoadUvOffsetY = Clamp(value, 0, Setting.MaxTextureUvOffset); break;
                 case "rotation": s.RoadUvRotation = Clamp(value, 0, 360); break;
-                case "cracks": s.RoadCrackCount = Clamp(value, 0, 400); break;
-                case "crackSize": s.RoadCrackSizePercent = Clamp(value, 25, 600); break;
-                case "crackWidth": s.RoadCrackWidthPercent = Clamp(value, 25, 400); break;
-                case "crackOpacity": s.RoadCrackOpacityPercent = Clamp(value, 0, 200); break;
+                case "customCracks": s.UseCustomRoadCracks = value != 0; break;
+                case "cracks": s.RoadCrackCount = Clamp(value, 0, Setting.MaxRoadCrackCount); break;
+                case "crackSize": s.RoadCrackSizePercent = Clamp(value, 25, Setting.MaxRoadCrackSize); break;
+                case "crackWidth": s.RoadCrackWidthPercent = Clamp(value, 25, Setting.MaxRoadCrackWidth); break;
+                case "crackOpacity": s.RoadCrackOpacityPercent = Clamp(value, 0, Setting.MaxRoadCrackOpacity); break;
                 case "randomness": s.RoadCrackRandomnessPercent = Clamp(value, 0, 100); break;
                 default: return;
             }
@@ -400,5 +427,6 @@ namespace Advanced_Graphics
         private static int Clamp(int value, int min, int max) => Math.Max(min, Math.Min(max, value));
     }
 }
+
 
 

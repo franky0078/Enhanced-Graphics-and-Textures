@@ -155,8 +155,7 @@ namespace Advanced_Graphics
                 copy.Apply(true, false);
                 copy.name = "Advanced Graphics Gravel Shoulder " + (normal ? "Normal" : "Color");
                 copy.wrapMode = source.wrapMode;
-                copy.filterMode = source.filterMode;
-                copy.anisoLevel = source.anisoLevel;
+                SurfaceTextureSampling.Apply(copy);
                 return copy;
             }
             catch { if (copy != null) UnityEngine.Object.Destroy(copy); throw; }
@@ -296,6 +295,15 @@ namespace Advanced_Graphics
                 (byte)(a.a * wa + b.a * wb + c.a * wc + d.a * wd));
         }
 
+        internal void UpdateTextureSampling()
+        {
+            foreach (var pair in m_Maps.Values)
+            {
+                SurfaceTextureSampling.Apply(pair.AppliedColor);
+                SurfaceTextureSampling.Apply(pair.AppliedNormal);
+            }
+        }
+
         public void RestoreNow()
         {
             m_Version++;
@@ -320,6 +328,7 @@ namespace Advanced_Graphics
         protected override void OnDestroy() { RestoreNow(); base.OnDestroy(); }
     }
 }
+
 
 
 

@@ -257,6 +257,16 @@ namespace Advanced_Graphics
             m_DecodedNormalSource = m_RepeatedNormalSource = null;
         }
 
+        internal override void UpdateTextureSampling()
+        {
+            base.UpdateTextureSampling();
+            foreach (var pair in m_Atlases.Values)
+            {
+                SurfaceTextureSampling.Apply(pair.FlatColor);
+                SurfaceTextureSampling.Apply(pair.FlatNormal);
+            }
+        }
+
         private static Texture2D FlattenBallastAtlas(Texture source, bool normal)
         {
             var target = RenderTexture.GetTemporary(source.width, source.height, 0,
@@ -289,7 +299,7 @@ namespace Advanced_Graphics
                 copy.name = "Advanced Graphics Road Gravel Base " + (normal ? "Normal" : "Color");
                 copy.filterMode = source.filterMode;
                 copy.wrapMode = source.wrapMode;
-                copy.anisoLevel = source.anisoLevel;
+                SurfaceTextureSampling.Apply(copy);
                 return copy;
             }
             catch
@@ -318,4 +328,5 @@ namespace Advanced_Graphics
 
     }
 }
+
 

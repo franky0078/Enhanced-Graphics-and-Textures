@@ -236,7 +236,7 @@ namespace Advanced_Graphics
                 case "de":
                     asphalt = new[] { "Asphaltstruktur", "0 = Originaltextur; 1 = gleichmäßige generierte Asphaltkörnung; 2 = eigene Road_BaseColor.png. Bei aktivierten Asphalt-Anpassungen wirken UV, Tiefenwirkung und Risse mit jeder Textur.",
                         "UV-Größe", "100 % = ursprüngliche Mustergröße; bis 3000 %. Höher vergrößert die Asphaltkörnung. Die Rissgröße wird separat eingestellt.",
-                        "Texturkachelung", "0,1 bis 8,0 in 0,1-Schritten. Unter 1,0 weniger zusätzliche Risse, über 1,0 mehr. Die Asphaltkörnung bleibt bei allen Stufen gleich groß. Das Worldspace-Material wiederholt dieselbe Kachel weiterhin entlang der Straße.",
+                        "Texturkachelung", "0,1 bis 8,0 in 0,1-Schritten. Eigene Rissmuster: Dichtefaktor 0,25 bei 1; sanfter Anstieg auf 0,60 bei 8. Unter 1 werden weniger Risse verteilt. Die Asphalt-Korngröße bleibt unverändert.",
                         "UV-Versatz X", "Verschiebt das gekachelte Asphaltmuster horizontal. 100 % entspricht wieder 0 %.",
                         "UV-Versatz Y", "Verschiebt das gekachelte Asphaltmuster vertikal. 100 % entspricht wieder 0 %.",
                         "UV-Drehung", "Dreht das Asphaltmuster und seine Tiefenwirkung von 0 bis 360 Grad in Schritten von 1 Grad.",
@@ -245,7 +245,7 @@ namespace Advanced_Graphics
                 case "es":
                     asphalt = new[] { "Detalle del asfalto", "0 = textura original; 1 = asfalto generado; 2 = Road_BaseColor.png propia. Si los ajustes están activados, UV, relieve y grietas funcionan en todos los niveles.",
                         "Tamaño UV", "100 % = tamaño original; hasta 3000 %. Aumenta el grano del asfalto; el tamaño de las grietas es independiente.",
-                        "Repetición de textura", "De 0,1 a 8,0 en pasos de 0,1. Menos de 1,0 reduce las grietas añadidas; más de 1,0 las aumenta. El grano del asfalto no cambia. El material repite el mismo mosaico en la carretera.",
+                        "Repetición de textura", "De 0,1 a 8,0 en pasos de 0,1. Patrones propios: factor de densidad 0,25 en 1; aumento suave hasta 0,60 en 8. Por debajo de 1 hay menos grietas. La grana del asfalto no cambia.",
                         "Desplazamiento UV X", "Desplaza el patrón horizontalmente; 100 % equivale a 0 %.",
                         "Desplazamiento UV Y", "Desplaza el patrón verticalmente; 100 % equivale a 0 %.",
                         "Rotación UV", "Gira el patrón y su relieve de 0 a 360 grados en pasos de 1 grado.",
@@ -254,7 +254,7 @@ namespace Advanced_Graphics
                 case "fr":
                     asphalt = new[] { "Détails de l’asphalte", "0 = texture d’origine ; 1 = asphalte généré ; 2 = votre Road_BaseColor.png. Quand les réglages sont actifs, UV, relief et fissures fonctionnent à tous les niveaux.",
                         "Taille UV", "100 % = taille d’origine ; jusqu’à 3000 %. Agrandit le grain ; la taille des fissures se règle séparément.",
-                        "Répétition de texture", "De 0,1 à 8,0 par pas de 0,1. Sous 1,0 diminue les fissures ajoutées ; au-dessus de 1,0 les augmente. Le grain reste inchangé. Le matériau répète la même tuile sur la route.",
+                        "Répétition de texture", "De 0,1 à 8,0 par pas de 0,1. Motifs personnalisés : densité 0,25 à 1, augmentant doucement jusqu’à 0,60 à 8. Sous 1, moins de fissures. Le grain de l’asphalte reste inchangé.",
                         "Décalage UV X", "Décale le motif horizontalement ; 100 % revient à 0 %.",
                         "Décalage UV Y", "Décale le motif verticalement ; 100 % revient à 0 %.",
                         "Rotation UV", "Fait pivoter le motif et son relief de 0 à 360 degrés par pas de 1 degré.",
@@ -263,7 +263,7 @@ namespace Advanced_Graphics
                 case "it":
                     asphalt = new[] { "Dettaglio asfalto", "0 = texture originale; 1 = asfalto generato; 2 = Road_BaseColor.png personale. Con le regolazioni attive, UV, rilievo e crepe funzionano a tutti i livelli.",
                         "Dimensione UV", "100% = dimensione originale; fino a 3000%. Ingrandisce la grana; la dimensione delle crepe è separata.",
-                        "Ripetizione texture", "Da 0,1 a 8,0 con passi di 0,1. Sotto 1,0 riduce le crepe aggiunte; sopra 1,0 le aumenta. La grana non cambia. Il materiale ripete la stessa tessera sulla strada.",
+                        "Ripetizione texture", "Da 0,1 a 8,0 con passi di 0,1. Motivi personalizzati: densità 0,25 a 1, aumentando gradualmente fino a 0,60 a 8. Sotto 1 ci sono meno crepe. La grana dell’asfalto non cambia.",
                         "Spostamento UV X", "Sposta il motivo in orizzontale; 100% equivale a 0%.",
                         "Spostamento UV Y", "Sposta il motivo in verticale; 100% equivale a 0%.",
                         "Rotazione UV", "Ruota il motivo e il rilievo da 0 a 360 gradi in passi di 1 grado.",
@@ -272,7 +272,7 @@ namespace Advanced_Graphics
                 default:
                     asphalt = new[] { "Asphalt detail", "0 = original texture; 1 = uniform generated asphalt grain; 2 = your Road_BaseColor.png. With asphalt adjustments enabled, UV, depth, and cracks work at every level.",
                         "UV size", "100% = original pattern size; up to 3000%. Enlarges asphalt grain; crack size is controlled separately.",
-                        "Texture tiling", "0.1 to 8.0 in 0.1 steps. Below 1.0 reduces extra cracks, above 1.0 increases them. Asphalt grain size is unaffected. The world-space material still repeats the same tile along the road.",
+                        "Texture tiling", "0.1 to 8.0 in 0.1 steps. Custom patterns: density factor 0.25 at 1, rising gradually to 0.60 at 8. Below 1, fewer cracks are placed. Asphalt grain size is unchanged.",
                         "UV offset X", "Shifts the asphalt pattern horizontally. 100% wraps back to 0%.",
                         "UV offset Y", "Shifts the asphalt pattern vertically. 100% wraps back to 0%.",
                         "UV rotation", "Rotates the pattern and its surface depth from 0 to 360 degrees in 1-degree steps.",
@@ -303,11 +303,11 @@ namespace Advanced_Graphics
             string[] source;
             switch (m_Language)
             {
-                case "de": source = new[] { "Straßentextur", "Generiert oder eigene Road_BaseColor.png. Aus der eigenen Textur wird eine passende Normalmap für die Tiefenwirkung abgeleitet. Asphaltstruktur muss mindestens 1 sein.", "Generiert", "Eigene PNG" }; break;
-                case "es": source = new[] { "Textura de carretera", "Generada o Road_BaseColor.png propia. Se deriva un mapa normal de la textura propia para dar relieve. El detalle debe ser 1 o superior.", "Generada", "PNG propia" }; break;
-                case "fr": source = new[] { "Texture de route", "Générée ou votre Road_BaseColor.png. Une carte normale est créée à partir de votre texture pour donner du relief. Le niveau de détail doit être au moins 1.", "Générée", "PNG personnelle" }; break;
-                case "it": source = new[] { "Texture stradale", "Generata o Road_BaseColor.png personalizzata. Dalla texture personalizzata viene creata una normal map per dare rilievo. Il dettaglio deve essere almeno 1.", "Generata", "PNG personale" }; break;
-                default: source = new[] { "Road texture", "Generated or custom Road_BaseColor.png. A matching normal map is derived from the custom texture for surface relief. Asphalt detail must be at least 1.", "Generated", "Custom PNG" }; break;
+                case "de": source = new[] { "Straßentextur", "Generiert oder eigene Road_BaseColor.png. Aus der eigenen Textur wird eine passende Normalmap für die Tiefenwirkung abgeleitet. Asphaltstruktur muss mindestens 1 sein.", "Generiert", "Eigene Textur" }; break;
+                case "es": source = new[] { "Textura de carretera", "Generada o Road_BaseColor.png propia. Se deriva un mapa normal de la textura propia para dar relieve. El detalle debe ser 1 o superior.", "Generada", "Textura propia" }; break;
+                case "fr": source = new[] { "Texture de route", "Générée ou votre Road_BaseColor.png. Une carte normale est créée à partir de votre texture pour donner du relief. Le niveau de détail doit être au moins 1.", "Générée", "Texture personnalisée" }; break;
+                case "it": source = new[] { "Texture stradale", "Generata o Road_BaseColor.png personalizzata. Dalla texture personalizzata viene creata una normal map per dare rilievo. Il dettaglio deve essere almeno 1.", "Generata", "Texture personalizzata" }; break;
+                default: source = new[] { "Road texture", "Generated or custom Road_BaseColor.png. A matching normal map is derived from the custom texture for surface relief. Asphalt detail must be at least 1.", "Generated", "Custom texture" }; break;
             }
             entries.Add(m_Setting.GetOptionLabelLocaleID(nameof(Setting.AsphaltSource)), source[0]);
             entries.Add(m_Setting.GetOptionDescLocaleID(nameof(Setting.AsphaltSource)), source[1]);
@@ -319,7 +319,7 @@ namespace Advanced_Graphics
                 case "de": textureFiles = new[] { "Texturordner öffnen", "Öffnet den lokalen Ordner für Road_BaseColor.png. Kopiere deine eigene PNG hinein; sie wird nicht mit der Mod veröffentlicht.", "Eigene Textur neu laden", "Lädt Road_BaseColor.png erneut, nachdem du die Datei kopiert oder ersetzt hast. Asphaltstruktur muss auf 2 stehen.", "Stufe 2: Road_BaseColor.png im Texturordner der Mod-Optionen ablegen und danach neu laden." }; break;
                 case "es": textureFiles = new[] { "Abrir carpeta de texturas", "Abre la carpeta local para Road_BaseColor.png. El PNG propio no se distribuye con el mod.", "Recargar textura propia", "Vuelve a leer Road_BaseColor.png. Selecciona el nivel 2.", "Nivel 2: coloca Road_BaseColor.png en la carpeta abierta desde las opciones y vuelve a cargarlo." }; break;
                 case "fr": textureFiles = new[] { "Ouvrir le dossier des textures", "Ouvre le dossier local pour Road_BaseColor.png. Votre PNG n’est pas distribué avec le mod.", "Recharger la texture personnelle", "Relit Road_BaseColor.png. Choisissez le niveau 2.", "Niveau 2 : placez Road_BaseColor.png dans le dossier ouvert depuis les options, puis rechargez-le." }; break;
-                case "it": textureFiles = new[] { "Apri cartella texture", "Apre la cartella locale per Road_BaseColor.png. Il PNG personale non viene distribuito con la mod.", "Ricarica texture personale", "Rilegge Road_BaseColor.png. Seleziona il livello 2.", "Livello 2: copia Road_BaseColor.png nella cartella aperta dalle opzioni e ricaricala." }; break;
+                case "it": textureFiles = new[] { "Apri cartella texture", "Apre la cartella locale per Road_BaseColor.png. Il Texture personalizzata non viene distribuito con la mod.", "Ricarica texture personale", "Rilegge Road_BaseColor.png. Seleziona il livello 2.", "Livello 2: copia Road_BaseColor.png nella cartella aperta dalle opzioni e ricaricala." }; break;
                 default: textureFiles = new[] { "Open texture folder", "Opens the local folder for Road_BaseColor.png. Your PNG is not distributed with the mod.", "Reload custom texture", "Reads Road_BaseColor.png again after copying or replacing the file. Select asphalt detail level 2.", "Level 2: put Road_BaseColor.png in the folder opened from mod options, then reload it." }; break;
             }
             entries.Add(m_Setting.GetOptionLabelLocaleID(nameof(Setting.OpenRoadTextureFolder)), textureFiles[0]);
@@ -352,20 +352,20 @@ namespace Advanced_Graphics
             string[] cracks;
             switch (m_Language)
             {
-                case "de": cracks = new[] { "Rissanzahl", "0 = keine zusätzlichen Risse. Bis zu 400 Risse bei allen Asphaltstufen. Kachelung erhöht die Verteilung auf maximal 800 Risse; mehr Risse verlängern die Neuberechnung.",
-                    "Rissgröße", "Länge zusätzlicher Risse: 25 % = fein, 100 % = normal, bis 600 % = sehr groß. Unabhängig von der UV-Größe; bei allen Stufen mit Rissanzahl über 0.",
+                case "de": cracks = new[] { "Rissanzahl", "0 = keine zusätzlichen Risse. Bis zu 1200 Risse bei allen Asphaltstufen. Kachelung erhöht die Verteilung auf maximal 2400 Risse; mehr Risse verlängern die Neuberechnung.",
+                    "Rissgröße", "Länge zusätzlicher Risse: 25 % = fein, 100 % = normal, bis 1800 % = sehr groß. Unabhängig von der UV-Größe; bei allen Stufen mit Rissanzahl über 0.",
                     "Risszufall", "0 = gleichmäßig verteilte, ruhigere Risse; 100 = unregelmäßigere Positionen und Verläufe. Die Anordnung bleibt bei gleichen Einstellungen reproduzierbar." }; break;
-                case "es": cracks = new[] { "Cantidad de grietas", "0 = ninguna. Hasta 400 en todos los niveles; la repetición aumenta la distribución hasta un máximo de 800. Más grietas requieren más tiempo.",
-                    "Tamaño de grietas", "Longitud: 25 % = finas, 100 % = normal, hasta 600 % = muy grandes. Independiente del tamaño UV.",
+                case "es": cracks = new[] { "Cantidad de grietas", "0 = ninguna. Hasta 1200 en todos los niveles; la repetición aumenta la distribución hasta un máximo de 2400. Más grietas requieren más tiempo.",
+                    "Tamaño de grietas", "Longitud: 25 % = finas, 100 % = normal, hasta 1800 % = muy grandes. Independiente del tamaño UV.",
                     "Aleatoriedad de grietas", "0 = distribución más regular; 100 = posiciones y formas más irregulares. Los mismos ajustes producen el mismo patrón." }; break;
-                case "fr": cracks = new[] { "Nombre de fissures", "0 = aucune. Jusqu’à 400 à tous les niveaux ; la répétition augmente la répartition jusqu’à 800. Plus de fissures augmentent le calcul.",
-                    "Taille des fissures", "Longueur : 25 % = fines, 100 % = normal, jusqu’à 600 % = très grandes. Indépendante de la taille UV.",
+                case "fr": cracks = new[] { "Nombre de fissures", "0 = aucune. Jusqu’à 1200 à tous les niveaux ; la répétition augmente la répartition jusqu’à 2400. Plus de fissures augmentent le calcul.",
+                    "Taille des fissures", "Longueur : 25 % = fines, 100 % = normal, jusqu’à 1800 % = très grandes. Indépendante de la taille UV.",
                     "Aléa des fissures", "0 = répartition plus régulière ; 100 = positions et tracés plus irréguliers. Les mêmes réglages reproduisent le même motif." }; break;
-                case "it": cracks = new[] { "Numero di crepe", "0 = nessuna. Fino a 400 su tutti i livelli; la ripetizione aumenta la distribuzione fino a 800. Più crepe richiedono più calcolo.",
-                    "Dimensione crepe", "Lunghezza: 25% = sottili, 100% = normale, fino a 600% = molto grandi. Indipendente dalla dimensione UV.",
+                case "it": cracks = new[] { "Numero di crepe", "0 = nessuna. Fino a 1200 su tutti i livelli; la ripetizione aumenta la distribuzione fino a 2400. Più crepe richiedono più calcolo.",
+                    "Dimensione crepe", "Lunghezza: 25% = sottili, 100% = normale, fino a 1800% = molto grandi. Indipendente dalla dimensione UV.",
                     "Casualità crepe", "0 = distribuzione più regolare; 100 = posizioni e tracciati più irregolari. Le stesse impostazioni riproducono lo stesso motivo." }; break;
-                default: cracks = new[] { "Crack count", "0 = no extra cracks. Up to 400 on every asphalt level. Tiling increases distribution up to 800 cracks; more cracks take longer to rebuild.",
-                    "Crack size", "Length: 25% = fine, 100% = normal, up to 600% = very large. Independent of UV size; works on all levels when count is above 0.",
+                default: cracks = new[] { "Crack count", "0 = no extra cracks. Up to 1200 on every asphalt level. Tiling increases distribution up to 2400 cracks; more cracks take longer to rebuild.",
+                    "Crack size", "Length: 25% = fine, 100% = normal, up to 1800% = very large. Independent of UV size; works on all levels when count is above 0.",
                     "Crack randomness", "0 = more regular placement and calmer paths; 100 = more irregular positions and paths. Identical settings reproduce the same pattern." }; break;
             }
             var crackSettings = new[] { nameof(Setting.RoadCrackCount), nameof(Setting.RoadCrackSizePercent),
@@ -378,33 +378,33 @@ namespace Advanced_Graphics
             string[] width;
             switch (m_Language)
             {
-                case "de": width = new[] { "Rissbreite", "25 % = schmal, 100 % = bisherige Breite, bis 400 % = breiter. Wirkt auf zusätzliche Risse bei allen Stufen; größere Breite kann die Neuberechnung verlangsamen." }; break;
-                case "es": width = new[] { "Ancho de grietas", "25 % = estrecho, 100 % = ancho anterior, hasta 400 % = más ancho. Afecta a las grietas añadidas en todos los niveles." }; break;
-                case "fr": width = new[] { "Largeur des fissures", "25 % = fin, 100 % = largeur précédente, jusqu’à 400 % = plus large. Agit sur les fissures ajoutées à tous les niveaux." }; break;
-                case "it": width = new[] { "Larghezza crepe", "25% = strette, 100% = larghezza precedente, fino a 400% = più larghe. Agisce sulle crepe aggiunte a tutti i livelli." }; break;
-                default: width = new[] { "Crack width", "25% = narrow, 100% = previous width, up to 400% = wider. Affects cracks added to any asphalt level; wider cracks can take longer to rebuild." }; break;
+                case "de": width = new[] { "Rissbreite", "25 % = schmal, 100 % = bisherige Breite, bis 1200 % = breiter. Wirkt auf zusätzliche Risse bei allen Stufen; größere Breite kann die Neuberechnung verlangsamen." }; break;
+                case "es": width = new[] { "Ancho de grietas", "25 % = estrecho, 100 % = ancho anterior, hasta 1200 % = más ancho. Afecta a las grietas añadidas en todos los niveles." }; break;
+                case "fr": width = new[] { "Largeur des fissures", "25 % = fin, 100 % = largeur précédente, jusqu’à 1200 % = plus large. Agit sur les fissures ajoutées à tous les niveaux." }; break;
+                case "it": width = new[] { "Larghezza crepe", "25% = strette, 100% = larghezza precedente, fino a 1200% = più larghe. Agisce sulle crepe aggiunte a tutti i livelli." }; break;
+                default: width = new[] { "Crack width", "25% = narrow, 100% = previous width, up to 1200% = wider. Affects cracks added to any asphalt level; wider cracks can take longer to rebuild." }; break;
             }
             entries.Add(m_Setting.GetOptionLabelLocaleID(nameof(Setting.RoadCrackWidthPercent)), width[0]);
             entries.Add(m_Setting.GetOptionDescLocaleID(nameof(Setting.RoadCrackWidthPercent)), width[1]);
             string[] opacity;
             switch (m_Language)
             {
-                case "de": opacity = new[] { "Rissdeckkraft", "Standard: 100 %. 0 % blendet zusätzliche Risse aus; 200 % macht sie dunkler und verstärkt ihr Relief. Wirkt bei allen Stufen mit Rissanzahl über 0. Höhere Deckkraft kann unnatürlich aussehen." }; break;
-                case "es": opacity = new[] { "Opacidad de grietas", "Predeterminado: 100 %. 0 % oculta las grietas añadidas; 200 % las oscurece y refuerza su relieve. Requiere más de 0 grietas en cualquier nivel." }; break;
-                case "fr": opacity = new[] { "Opacité des fissures", "Par défaut : 100 %. 0 % masque les fissures ajoutées ; 200 % les assombrit et renforce leur relief. Nécessite des fissures actives à tous les niveaux." }; break;
-                case "it": opacity = new[] { "Opacità crepe", "Predefinito: 100%. 0% nasconde le crepe aggiunte; 200% le scurisce e ne aumenta il rilievo. Richiede crepe attive a qualsiasi livello." }; break;
-                default: opacity = new[] { "Crack opacity", "Default: 100%. 0% hides extra cracks; 200% darkens them and strengthens their relief. Requires a crack count above 0 on any level. High opacity can look unnatural." }; break;
+                case "de": opacity = new[] { "Rissdeckkraft", "Standard: 100 %. 0 % blendet zusätzliche Risse aus; 600 % macht sie dunkler und verstärkt ihr Relief. Wirkt bei allen Stufen mit Rissanzahl über 0. Höhere Deckkraft kann unnatürlich aussehen." }; break;
+                case "es": opacity = new[] { "Opacidad de grietas", "Predeterminado: 100 %. 0 % oculta las grietas añadidas; 600 % las oscurece y refuerza su relieve. Requiere más de 0 grietas en cualquier nivel." }; break;
+                case "fr": opacity = new[] { "Opacité des fissures", "Par défaut : 100 %. 0 % masque les fissures ajoutées ; 600 % les assombrit et renforce leur relief. Nécessite des fissures actives à tous les niveaux." }; break;
+                case "it": opacity = new[] { "Opacità crepe", "Predefinito: 100%. 0% nasconde le crepe aggiunte; 600% le scurisce e ne aumenta il rilievo. Richiede crepe attive a qualsiasi livello." }; break;
+                default: opacity = new[] { "Crack opacity", "Default: 100%. 0% hides extra cracks; 600% darkens them and strengthens their relief. Requires a crack count above 0 on any level. High opacity can look unnatural." }; break;
             }
             entries.Add(m_Setting.GetOptionLabelLocaleID(nameof(Setting.RoadCrackOpacityPercent)), opacity[0]);
             entries.Add(m_Setting.GetOptionDescLocaleID(nameof(Setting.RoadCrackOpacityPercent)), opacity[1]);
             string[] panel;
             switch (m_Language)
             {
-                case "de": panel = new[] { "Asphalt-Fenster", "Asphalt-Button im Spiel anzeigen", "Zeigt einen Button während des Spiels. Er öffnet ein verschiebbares Fenster zur direkten Einstellung des Asphalts ohne die unscharfe Optionsansicht.", "Asphalt", "Asphalt", "Schließen", "Textur", "Generiert", "Eigene PNG", "Asphaltstruktur", "UV-Größe", "Tiefenwirkung", "Kachelung", "UV-Versatz X", "UV-Versatz Y", "Drehung", "Rissanzahl", "Rissgröße", "Risszufall", "Zurücksetzen", "Rissbreite", "Rissdeckkraft" }; break;
-                case "es": panel = new[] { "Ventana de asfalto", "Mostrar botón de asfalto", "Muestra un botón durante el juego para ajustar el asfalto directamente en una ventana movible.", "Asfalto", "Asfalto", "Cerrar", "Textura", "Generada", "PNG propia", "Detalle", "Tamaño UV", "Relieve", "Repetición", "Desplazamiento X", "Desplazamiento Y", "Rotación", "Grietas", "Tamaño de grietas", "Variación", "Restablecer", "Ancho de grietas", "Opacidad de grietas" }; break;
-                case "fr": panel = new[] { "Fenêtre asphalte", "Afficher le bouton asphalte", "Affiche un bouton en jeu ouvrant une fenêtre déplaçable pour régler l’asphalte directement.", "Asphalte", "Asphalte", "Fermer", "Texture", "Générée", "PNG personnelle", "Détails", "Taille UV", "Relief", "Répétition", "Décalage X", "Décalage Y", "Rotation", "Fissures", "Taille fissures", "Variation", "Réinitialiser", "Largeur des fissures", "Opacité des fissures" }; break;
-                case "it": panel = new[] { "Finestra asfalto", "Mostra pulsante asfalto", "Mostra un pulsante nel gioco che apre una finestra mobile per modificare direttamente l’asfalto.", "Asfalto", "Asfalto", "Chiudi", "Texture", "Generata", "PNG personale", "Dettaglio", "Dimensione UV", "Rilievo", "Ripetizione", "Offset X", "Offset Y", "Rotazione", "Crepe", "Dimensione crepe", "Casualità", "Ripristina", "Larghezza crepe", "Opacità crepe" }; break;
-                default: panel = new[] { "Road panel", "Show asphalt button in game", "Shows a button during gameplay to open a movable asphalt settings window without the blurred options view.", "Asphalt", "Asphalt", "Close", "Texture", "Generated", "Custom PNG", "Detail", "UV size", "Surface depth", "Tiling", "UV offset X", "UV offset Y", "Rotation", "Crack count", "Crack size", "Randomness", "Reset", "Crack width", "Crack opacity" }; break;
+                case "de": panel = new[] { "Asphalt-Fenster", "Asphalt-Button im Spiel anzeigen", "Zeigt einen Button während des Spiels. Er öffnet ein verschiebbares Fenster zur direkten Einstellung des Asphalts ohne die unscharfe Optionsansicht.", "Asphalt", "Asphalt", "Schließen", "Textur", "Generiert", "Eigene Textur", "Asphaltstruktur", "UV-Größe", "Tiefenwirkung", "Kachelung", "UV-Versatz X", "UV-Versatz Y", "Drehung", "Rissanzahl", "Rissgröße", "Risszufall", "Zurücksetzen", "Rissbreite", "Rissdeckkraft" }; break;
+                case "es": panel = new[] { "Ventana de asfalto", "Mostrar botón de asfalto", "Muestra un botón durante el juego para ajustar el asfalto directamente en una ventana movible.", "Asfalto", "Asfalto", "Cerrar", "Textura", "Generada", "Textura propia", "Detalle", "Tamaño UV", "Relieve", "Repetición", "Desplazamiento X", "Desplazamiento Y", "Rotación", "Grietas", "Tamaño de grietas", "Variación", "Restablecer", "Ancho de grietas", "Opacidad de grietas" }; break;
+                case "fr": panel = new[] { "Fenêtre asphalte", "Afficher le bouton asphalte", "Affiche un bouton en jeu ouvrant une fenêtre déplaçable pour régler l’asphalte directement.", "Asphalte", "Asphalte", "Fermer", "Texture", "Générée", "Texture personnalisée", "Détails", "Taille UV", "Relief", "Répétition", "Décalage X", "Décalage Y", "Rotation", "Fissures", "Taille fissures", "Variation", "Réinitialiser", "Largeur des fissures", "Opacité des fissures" }; break;
+                case "it": panel = new[] { "Finestra asfalto", "Mostra pulsante asfalto", "Mostra un pulsante nel gioco che apre una finestra mobile per modificare direttamente l’asfalto.", "Asfalto", "Asfalto", "Chiudi", "Texture", "Generata", "Texture personalizzata", "Dettaglio", "Dimensione UV", "Rilievo", "Ripetizione", "Offset X", "Offset Y", "Rotazione", "Crepe", "Dimensione crepe", "Casualità", "Ripristina", "Larghezza crepe", "Opacità crepe" }; break;
+                default: panel = new[] { "Road panel", "Show asphalt button in game", "Shows a button during gameplay to open a movable asphalt settings window without the blurred options view.", "Asphalt", "Asphalt", "Close", "Texture", "Generated", "Custom texture", "Detail", "UV size", "Surface depth", "Tiling", "UV offset X", "UV offset Y", "Rotation", "Crack count", "Crack size", "Randomness", "Reset", "Crack width", "Crack opacity" }; break;
             }
             entries.Add(m_Setting.GetOptionGroupLocaleID(Setting.RoadPanelGroup), panel[0]);
             entries.Add(m_Setting.GetOptionLabelLocaleID(nameof(Setting.ShowRoadPanelButton)), panel[1]);
@@ -516,6 +516,18 @@ namespace Advanced_Graphics
             var sidewalkUIKeys = new[] { "Uv", "Depth", "OffsetX", "OffsetY", "Rotation", "Cracks", "CrackSize", "CrackWidth", "CrackOpacity", "Randomness", "Tiling" };
             var labels = new[] { asphalt[2], depth[0], asphalt[6], asphalt[8], asphalt[10], cracks[0], cracks[2], width[0], opacity[0], cracks[4], asphalt[4] };
             var descriptions = new[] { asphalt[3], depth[1], asphalt[7], asphalt[9], asphalt[11], cracks[1], cracks[3], width[1], opacity[1], cracks[5], asphalt[5] };
+            descriptions[5] = descriptions[5].Replace("1200", "400").Replace("2400", "800");
+            descriptions[6] = descriptions[6].Replace("1800", "600");
+            descriptions[7] = descriptions[7].Replace("1200", "400");
+            descriptions[8] = descriptions[8].Replace("600", "200");
+            switch (m_Language)
+            {
+                case "de": descriptions[10] = "0,1 bis 8,0 in 0,1-Schritten. Unter 1 weniger zusätzliche Risse; über 1 mehr. Die Korngröße bleibt unverändert."; break;
+                case "es": descriptions[10] = "De 0,1 a 8,0 en pasos de 0,1. Por debajo de 1 hay menos grietas añadidas; por encima hay más. La grana no cambia."; break;
+                case "fr": descriptions[10] = "De 0,1 à 8,0 par pas de 0,1. Sous 1, moins de fissures ajoutées ; au-dessus, davantage. Le grain reste inchangé."; break;
+                case "it": descriptions[10] = "Da 0,1 a 8,0 con passi di 0,1. Sotto 1 ci sono meno crepe aggiunte; sopra 1 di più. La grana non cambia."; break;
+                default: descriptions[10] = "0.1 to 8.0 in 0.1 steps. Below 1, fewer extra cracks; above 1, more. Grain size is unchanged."; break;
+            }
             for (int i = 0; i < sidewalkKeys.Length; i++)
             {
                 entries.Add(m_Setting.GetOptionLabelLocaleID(sidewalkKeys[i]), labels[i]);
@@ -651,12 +663,36 @@ namespace Advanced_Graphics
             entries.Add(m_Setting.GetOptionDescLocaleID(nameof(Setting.ShowAppButton)), appButtonDescription);
             entries["AdvancedGraphics.UI.OpenTextureEditor"] = launcherTooltip;
             AddParkingScaleEntries(entries);
+            AddParkingDepthEntries(entries);
+            AddSurfaceSamplingEntries(entries);
             AddColorFilterEntries(entries);
             AddTaaEntries(entries);
             AddLightingEntries(entries);
             AddGraphicsPanelEntries(entries);
             AddLuminaNumberFixEntries(entries);
+            AddCustomCrackEntries(entries);
             return entries;
+        }
+
+        private void AddCustomCrackEntries(Dictionary<string, string> entries)
+        {
+            string[] labels;
+            switch (m_Language)
+            {
+                case "de": labels = new[] { "Eigene Riss-Textur", "Road_Cracks.png in den Riss-Ordner kopieren: dunkle Risse auf weißem oder transparentem Hintergrund, maximal 4096 × 4096 Pixel. Tiefenwirkung wird automatisch berechnet. Anzahl muss größer als 0 sein. Breite streckt das Muster quer.", "Riss-Ordner öffnen", "Riss-Textur neu laden", "Wird bei aktivierter Straße und Rissanzahl größer als 0 geladen.", "Eigene Riss-Textur geladen.", "Road_Cracks.png fehlt; generierte Risse werden verwendet.", "PNG ungültig oder ohne dunkle Risse; generierte Risse werden verwendet." }; break;
+                default: labels = new[] { "Custom crack texture", "Copy Road_Cracks.png to the crack folder: dark cracks on white or transparent background, up to 4096 × 4096 pixels. Relief is generated automatically. Set count above 0. Width stretches the pattern sideways.", "Open crack folder", "Reload crack texture", "Loads when road adjustments are enabled and crack count is above 0.", "Custom crack texture loaded.", "Road_Cracks.png missing; using generated cracks.", "Invalid PNG or no dark cracks; using generated cracks." }; break;
+                case "es": labels = new[] { "Textura de grietas propia", "Copia Road_Cracks.png en la carpeta de grietas: grietas oscuras sobre fondo blanco o transparente, hasta 4096 × 4096 píxeles. Relieve automático. Cantidad mayor que 0. El ancho estira el patrón lateralmente.", "Abrir carpeta de grietas", "Recargar textura de grietas", "Se carga con los ajustes de carretera activados y cantidad mayor que 0.", "Textura de grietas cargada.", "Falta Road_Cracks.png; se usan grietas generadas.", "PNG no válido o sin grietas oscuras; se usan grietas generadas." }; break;
+                case "fr": labels = new[] { "Texture de fissures personnalisée", "Copiez Road_Cracks.png dans le dossier des fissures : fissures sombres sur fond blanc ou transparent, jusqu’à 4096 × 4096 pixels. Relief automatique. Nombre supérieur à 0. La largeur étire le motif latéralement.", "Ouvrir le dossier des fissures", "Recharger la texture de fissures", "Chargement avec les réglages de route activés et un nombre supérieur à 0.", "Texture de fissures chargée.", "Road_Cracks.png absent ; fissures générées utilisées.", "PNG invalide ou sans fissures sombres ; fissures générées utilisées." }; break;
+                case "it": labels = new[] { "Texture crepe personalizzata", "Copia Road_Cracks.png nella cartella delle crepe: crepe scure su sfondo bianco o trasparente, fino a 4096 × 4096 pixel. Rilievo automatico. Quantità maggiore di 0. La larghezza allunga il motivo lateralmente.", "Apri cartella crepe", "Ricarica texture crepe", "Caricamento con regolazioni stradali attive e quantità maggiore di 0.", "Texture crepe caricata.", "Road_Cracks.png mancante; vengono usate crepe generate.", "PNG non valido o senza crepe scure; vengono usate crepe generate." }; break;
+            }
+            string[] keys = { "CustomCracks", "CustomCracksHint", "OpenCrackFolder", "ReloadCracks", "CustomCracksPending", "CustomCracksLoaded", "CustomCracksMissing", "CustomCracksInvalid" };
+            for (int i = 0; i < keys.Length; i++) entries["AdvancedGraphics.UI." + keys[i]] = labels[i];
+            entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.UseCustomRoadCracks))] = labels[0];
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.UseCustomRoadCracks))] = labels[1];
+            entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.OpenRoadCrackFolder))] = labels[2];
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.OpenRoadCrackFolder))] = labels[1];
+            entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.ReloadRoadCracks))] = labels[3];
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.ReloadRoadCracks))] = labels[1];
         }
 
         private void AddLuminaNumberFixEntries(Dictionary<string, string> entries)
@@ -689,6 +725,44 @@ namespace Advanced_Graphics
             entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.LuminaNumberFix))] = description;
         }
 
+        private void AddSurfaceSamplingEntries(Dictionary<string, string> entries)
+        {
+            string[] text;
+            switch (m_Language)
+            {
+                case "de": text = new[] { "Textur-Mip-Bias", "Gilt gemeinsam für alle von dieser Mod bearbeiteten Oberflächen, einschließlich Parkflächen. Negative Werte erhalten mehr Details in der Entfernung, können aber Flimmern verstärken. Positive Werte glätten stärker. Bereich -1 bis 1; Standard 0. Anisotrope Filterung: 16×.", "Allgemeine Textureinstellungen", "Gilt gemeinsam für alle von der Mod bearbeiteten Oberflächen.", "Anisotrope Filterung: 16×" }; break;
+                case "es": text = new[] { "Sesgo mip de texturas", "Se aplica a todas las superficies modificadas por este mod, incluidos los aparcamientos. Los valores negativos conservan más detalles a distancia, pero pueden aumentar el parpadeo. Los positivos suavizan más. Rango de -1 a 1; predeterminado 0. Filtrado anisotrópico: 16×.", "Ajustes generales de texturas", "Se aplica a todas las superficies modificadas por el mod.", "Filtrado anisotrópico: 16×" }; break;
+                case "fr": text = new[] { "Biais mip des textures", "S’applique à toutes les surfaces modifiées par ce mod, y compris les places de stationnement. Les valeurs négatives préservent les détails au loin mais peuvent accentuer le scintillement. Les valeurs positives lissent davantage. Plage de -1 à 1 ; défaut 0. Filtrage anisotrope : 16×.", "Paramètres généraux des textures", "S’applique à toutes les surfaces modifiées par le mod.", "Filtrage anisotrope : 16×" }; break;
+                case "it": text = new[] { "Bias mip delle texture", "Si applica a tutte le superfici modificate da questa mod, inclusi i parcheggi. I valori negativi preservano i dettagli a distanza ma possono aumentare lo sfarfallio. I valori positivi rendono le texture più morbide. Intervallo da -1 a 1; predefinito 0. Filtro anisotropico: 16×.", "Impostazioni generali delle texture", "Si applica a tutte le superfici modificate dalla mod.", "Filtro anisotropico: 16×" }; break;
+                default: text = new[] { "Texture mip bias", "Applies to all surfaces edited by this mod, including parking spaces. Negative values preserve more distant detail but may increase shimmering. Positive values soften textures. Range -1 to 1; default 0. Anisotropic filtering: 16×.", "General texture settings", "Applies to all surfaces edited by this mod.", "Anisotropic filtering: 16×" }; break;
+            }
+            entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.SurfaceTextureMipBias))] = text[0];
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.SurfaceTextureMipBias))] = text[1];
+            entries[m_Setting.GetOptionGroupLocaleID(Setting.TextureGeneralGroup)] = text[2];
+            entries["AdvancedGraphics.UI.TextureGeneralTitle"] = text[2];
+            entries["AdvancedGraphics.UI.TextureGeneralHint"] = text[3];
+            entries["AdvancedGraphics.UI.TextureFiltering16"] = text[4];
+            entries["AdvancedGraphics.UI.SurfaceMipBias"] = text[0];
+            entries["AdvancedGraphics.UI.TipSurfaceMipBias"] = text[1];
+        }
+
+        private void AddParkingDepthEntries(Dictionary<string, string> entries)
+        {
+            string[] text;
+            switch (m_Language)
+            {
+                case "de": text = new[] { "Parkflächen-Tiefenfaktor", "Multipliziert die Tiefenwirkung der Straße auf Parkflächen. 0 = flach; 1 = unverändert; 2 = stärker. Bereich 0 bis 8 in 0,1-Schritten. Für sichtbare Wirkung muss die Straßen-Tiefenwirkung größer als 0 sein. Getrennt je Straßen-Texturmodus gespeichert." }; break;
+                case "es": text = new[] { "Factor de relieve del aparcamiento", "Multiplica el relieve de la carretera en las plazas de aparcamiento. 0 = plano; 1 = sin cambios; 2 = más fuerte. De 0 a 8 en pasos de 0,1. El relieve de la carretera debe ser mayor que 0. Se guarda por modo de textura." }; break;
+                case "fr": text = new[] { "Facteur de relief du stationnement", "Multiplie le relief de la route sur les places de stationnement. 0 = plat ; 1 = inchangé ; 2 = plus fort. De 0 à 8 par pas de 0,1. Le relief de la route doit être supérieur à 0. Enregistré par mode de texture." }; break;
+                case "it": text = new[] { "Fattore rilievo parcheggio", "Moltiplica il rilievo stradale nei posti auto. 0 = piatto; 1 = invariato; 2 = più forte. Da 0 a 8 con passi di 0,1. Il rilievo stradale deve essere maggiore di 0. Salvato per modalità texture." }; break;
+                default: text = new[] { "Parking depth factor", "Multiplies road surface depth on parking spaces. 0 = flat; 1 = unchanged; 2 = stronger. Range 0 to 8 in 0.1 steps. Road surface depth must be above 0 for a visible effect. Saved separately per road texture mode." }; break;
+            }
+            entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.ParkingDepthStrengthFactor))] = text[0];
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.ParkingDepthStrengthFactor))] = text[1];
+            entries["AdvancedGraphics.UI.ParkingDepth"] = text[0];
+            entries["AdvancedGraphics.UI.TipParkingDepth"] = text[1];
+        }
+
         private void AddParkingScaleEntries(Dictionary<string, string> entries)
         {
             string label, description;
@@ -712,7 +786,7 @@ namespace Advanced_Graphics
                     break;
                 default:
                     label = "Parking surface factor";
-                    description = "Asphalt scale on parking spaces: 0.1 to 8.0 in 0.1 steps. 1.0 = initial mod scale; higher = finer, smaller texture, lower = coarser texture. Affects color and surface depth. Saved separately for Original, Generated and Custom PNG.";
+                    description = "Asphalt scale on parking spaces: 0.1 to 8.0 in 0.1 steps. 1.0 = initial mod scale; higher = finer, smaller texture, lower = coarser texture. Affects color and surface depth. Saved separately for Original, Generated and Custom texture.";
                     break;
             }
             entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.ParkingTextureScaleFactor))] = label;
@@ -1185,6 +1259,7 @@ namespace Advanced_Graphics
         }
     }
 }
+
 
 
 

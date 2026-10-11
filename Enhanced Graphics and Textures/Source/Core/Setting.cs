@@ -10,13 +10,28 @@ namespace Advanced_Graphics
 {
     [FileLocation(nameof(Advanced_Graphics))]
     [SettingsUITabOrder(MainSection, RoadSection, SidewalkSection, AlleySidewalkSection, GravelSection, GravelSidewalkSection, RailSection)]
-    [SettingsUIGroupOrder(LauncherGroup, TreeGroup, DetailGroup, CacheGroup, TerrainGroup, ShadowsGroup, SharpnessGroup, BloomGroup, SkyGroup, RoadGroup, RoadUvGroup, RoadCrackGroup, RoadPanelGroup, SidewalkGroup, SidewalkUvGroup, SidewalkCrackGroup, AlleySidewalkGroup, AlleySidewalkUvGroup, AlleySidewalkCrackGroup, GravelGroup, ShoulderGroup, RailGroup, RailUvGroup, ResetGroup, AboutGroup)]
-    [SettingsUIShowGroupName(LauncherGroup, TreeGroup, DetailGroup, CacheGroup, TerrainGroup, ShadowsGroup, SharpnessGroup, BloomGroup, SkyGroup, RoadGroup, RoadUvGroup, RoadCrackGroup, RoadPanelGroup, SidewalkGroup, SidewalkUvGroup, SidewalkCrackGroup, AlleySidewalkGroup, AlleySidewalkUvGroup, AlleySidewalkCrackGroup, GravelGroup, ShoulderGroup, RailGroup, RailUvGroup, ResetGroup, AboutGroup)]
+    [SettingsUIGroupOrder(LauncherGroup, TreeGroup, DetailGroup, CacheGroup, TerrainGroup, ShadowsGroup, SharpnessGroup, TextureGeneralGroup, BloomGroup, SkyGroup, RoadGroup, RoadUvGroup, RoadCrackGroup, RoadPanelGroup, SidewalkGroup, SidewalkUvGroup, SidewalkCrackGroup, AlleySidewalkGroup, AlleySidewalkUvGroup, AlleySidewalkCrackGroup, GravelGroup, ShoulderGroup, RailGroup, RailUvGroup, ResetGroup, AboutGroup)]
+    [SettingsUIShowGroupName(LauncherGroup, TreeGroup, DetailGroup, CacheGroup, TerrainGroup, ShadowsGroup, SharpnessGroup, TextureGeneralGroup, BloomGroup, SkyGroup, RoadGroup, RoadUvGroup, RoadCrackGroup, RoadPanelGroup, SidewalkGroup, SidewalkUvGroup, SidewalkCrackGroup, AlleySidewalkGroup, AlleySidewalkUvGroup, AlleySidewalkCrackGroup, GravelGroup, ShoulderGroup, RailGroup, RailUvGroup, ResetGroup, AboutGroup)]
     public sealed partial class Setting : ModSetting
     {
         public const int MaxTextureUvSize = 3000;
         public const int MaxTextureDepthStrength = 3000;
         public const int MaxTextureUvOffset = 300;
+        public const int MaxRoadCrackCount = 1200;
+        public const int MaxRoadCrackSize = 1800;
+        public const int MaxRoadCrackWidth = 1200;
+        public const int MaxRoadCrackOpacity = 600;
+
+        private float m_SurfaceTextureMipBias;
+        [SettingsUISection(MainSection, TextureGeneralGroup)]
+        [SettingsUISlider(min = -1f, max = 1f, step = 0.1f, scalarMultiplier = 1, unit = Unit.kFloatSingleFraction)]
+        public float SurfaceTextureMipBias
+        {
+            get => m_SurfaceTextureMipBias;
+            set => m_SurfaceTextureMipBias = float.IsNaN(value) || float.IsInfinity(value) ? 0f :
+                Math.Max(-1f, Math.Min(1f, (float)Math.Round(value, 1)));
+        }
+
 
         public const string AboutGroup = "About";
         public const string LauncherGroup = "Interface";
@@ -38,6 +53,7 @@ namespace Advanced_Graphics
         public const string TerrainGroup = "Terrain";
         public const string ShadowsGroup = "Shadows";
         public const string SharpnessGroup = "Sharpness";
+        public const string TextureGeneralGroup = "General texture settings";
         public const string BloomGroup = "Bloom";
         public const string SkyGroup = "Sky";
         public const string RoadGroup = "Road materials";
@@ -67,6 +83,11 @@ namespace Advanced_Graphics
 
         [SettingsUISection(MainSection, LauncherGroup)]
         public bool LuminaNumberFix { get; set; } = false;
+
+        [SettingsUIHidden]
+        public float TextureGeneralWindowX { get; set; } = -1f;
+        [SettingsUIHidden]
+        public float TextureGeneralWindowY { get; set; } = -1f;
 
         [SettingsUIHidden]
         public float GraphicsWindowX { get; set; } = -1f;
@@ -374,6 +395,16 @@ namespace Advanced_Graphics
                 Math.Max(0.1f, Math.Min(8f, (float)Math.Round(value, 1)));
         }
 
+        private float m_ParkingDepthStrengthFactor = 1f;
+        [SettingsUISection(RoadSection, RoadUvGroup)]
+        [SettingsUISlider(min = 0, max = 8f, step = 0.1f, scalarMultiplier = 1, unit = Unit.kFloatSingleFraction)]
+        public float ParkingDepthStrengthFactor
+        {
+            get => m_ParkingDepthStrengthFactor;
+            set => m_ParkingDepthStrengthFactor = float.IsNaN(value) || float.IsInfinity(value) ? 1f :
+                Math.Max(0f, Math.Min(8f, (float)Math.Round(value, 1)));
+        }
+
         [SettingsUISection(RoadSection, RoadUvGroup)]
         [SettingsUISlider(min = 0, max = MaxTextureDepthStrength, step = 25, scalarMultiplier = 1)]
         public int RoadDepthStrengthPercent { get; set; }
@@ -391,19 +422,46 @@ namespace Advanced_Graphics
         public int RoadUvRotation { get; set; }
 
         [SettingsUISection(RoadSection, RoadCrackGroup)]
-        [SettingsUISlider(min = 0, max = 400, step = 10, scalarMultiplier = 1)]
+        [SettingsUISlider(min = 0, max = MaxRoadCrackCount, step = 10, scalarMultiplier = 1)]
         public int RoadCrackCount { get; set; }
 
         [SettingsUISection(RoadSection, RoadCrackGroup)]
-        [SettingsUISlider(min = 25, max = 600, step = 25, scalarMultiplier = 1)]
+        public bool UseCustomRoadCracks
+        {
+            get => m_UseCustomRoadCracks;
+            set => SwitchRoadCrackSource(value);
+        }
+
+        [SettingsUISection(RoadSection, RoadCrackGroup)]
+        [SettingsUIButton]
+        public bool OpenRoadCrackFolder
+        {
+            set
+            {
+                if (!value) return;
+                try
+                {
+                    Directory.CreateDirectory(TextureStorage.RoadCracks);
+                    Process.Start(new ProcessStartInfo { FileName = TextureStorage.RoadCracks, UseShellExecute = true });
+                }
+                catch (Exception ex) { Mod.log.Error(ex, "Could not open road crack folder."); }
+            }
+        }
+
+        [SettingsUISection(RoadSection, RoadCrackGroup)]
+        [SettingsUIButton]
+        public bool ReloadRoadCracks { set { if (value) Mod.RoadAsphalt?.ReloadCustomTexture(); } }
+
+        [SettingsUISection(RoadSection, RoadCrackGroup)]
+        [SettingsUISlider(min = 25, max = MaxRoadCrackSize, step = 25, scalarMultiplier = 1)]
         public int RoadCrackSizePercent { get; set; }
 
         [SettingsUISection(RoadSection, RoadCrackGroup)]
-        [SettingsUISlider(min = 25, max = 400, step = 25, scalarMultiplier = 1)]
+        [SettingsUISlider(min = 25, max = MaxRoadCrackWidth, step = 25, scalarMultiplier = 1)]
         public int RoadCrackWidthPercent { get; set; }
 
         [SettingsUISection(RoadSection, RoadCrackGroup)]
-        [SettingsUISlider(min = 0, max = 200, step = 10, scalarMultiplier = 1)]
+        [SettingsUISlider(min = 0, max = MaxRoadCrackOpacity, step = 10, scalarMultiplier = 1)]
         public int RoadCrackOpacityPercent { get; set; }
 
         [SettingsUISection(RoadSection, RoadCrackGroup)]
@@ -421,13 +479,13 @@ namespace Advanced_Graphics
             set
             {
                 if (!value) return;
-                ClearTextureModeProfiles(0);
                 RoadFilterColor = 0xffffff; RoadFilterOpacityPercent = 0;
                 RoadAsphaltDetail = 0;
                 RoadAsphaltEnabled = false;
                 AsphaltSource = RoadTextureSource.Generated;
                 RoadUvSizePercent = 100;
                 RoadDepthStrengthPercent = 0;
+                UseCustomRoadCracks = false;
                 RoadCrackCount = 0;
                 RoadCrackSizePercent = 100;
                 RoadCrackWidthPercent = 100;
@@ -435,7 +493,9 @@ namespace Advanced_Graphics
                 RoadCrackRandomnessPercent = 50;
                 RoadTextureTiling = 1;
                 ParkingTextureScaleFactor = 1f;
+                ParkingDepthStrengthFactor = 1f;
                 RoadUvOffsetX = RoadUvOffsetY = RoadUvRotation = 0;
+                ClearTextureModeProfiles(0);
                 ApplyAndSave();
             }
         }
@@ -790,8 +850,8 @@ namespace Advanced_Graphics
 
         public override void SetDefaults()
         {
+            SurfaceTextureMipBias = 0f;
             RoadFilterColor = SidewalkFilterColor = AlleySidewalkFilterColor = RoadGravelFilterColor = GravelShoulderFilterColor = RailFilterColor = 0xffffff;
-            ClearAllTextureModeProfiles();
             Mod.Graphics?.Capture();
             TreeLodDistance = 100;
             GlobalDetailScalePercent = 100;
@@ -813,6 +873,7 @@ namespace Advanced_Graphics
             AsphaltSource = RoadTextureSource.Generated;
             RoadUvSizePercent = 100;
             RoadDepthStrengthPercent = 0;
+            UseCustomRoadCracks = false;
             RoadCrackCount = 0;
             RoadCrackSizePercent = 100;
             RoadCrackWidthPercent = 100;
@@ -827,6 +888,7 @@ namespace Advanced_Graphics
             DiagnoseRoadEUAtlas = false;
             RoadTextureTiling = 1;
             ParkingTextureScaleFactor = 1f;
+            ParkingDepthStrengthFactor = 1f;
             RoadUvOffsetX = RoadUvOffsetY = RoadUvRotation = 0;
             SetSidewalkDefaults();
             SetAlleySidewalkDefaults();
@@ -839,6 +901,7 @@ namespace Advanced_Graphics
             GravelShoulderDetail = 0;
             GravelShoulderUvOffsetX = GravelShoulderUvOffsetY = GravelShoulderUvRotation = 0;
             RoadFilterOpacityPercent = SidewalkFilterOpacityPercent = AlleySidewalkFilterOpacityPercent = RoadGravelFilterOpacityPercent = GravelShoulderFilterOpacityPercent = RailFilterOpacityPercent = 100;
+            ClearAllTextureModeProfiles();
         }
 
         private void SetSidewalkDefaults()
@@ -929,6 +992,7 @@ namespace Advanced_Graphics
 
         internal void ApplyToSystem()
         {
+            RoadTextureTiling = Math.Max(0.1f, Math.Min(8f, (float)Math.Round(RoadTextureTiling, 1)));
             CaptureTextureModeProfiles();
             if (Mod.TreeLod != null) Mod.TreeLod.DistancePercent = TreeLodDistance;
             Mod.Graphics?.Apply(this);
@@ -945,7 +1009,7 @@ namespace Advanced_Graphics
             Mod.RoadAsphalt?.Configure(RoadAsphaltEnabled, RoadAsphaltDetail, RoadAsphaltDetail == 2 ? RoadTextureSource.Custom : RoadTextureSource.Generated,
                 RoadUvSizePercent, RoadDepthStrengthPercent, RoadTextureTiling,
                 RoadUvOffsetX, RoadUvOffsetY, RoadUvRotation, RoadCrackCount, RoadCrackSizePercent,
-                RoadCrackWidthPercent, RoadCrackOpacityPercent, RoadCrackRandomnessPercent, RoadFilterColor, RoadFilterOpacityPercent);
+                RoadCrackWidthPercent, RoadCrackOpacityPercent, RoadCrackRandomnessPercent, RoadFilterColor, RoadFilterOpacityPercent, UseCustomRoadCracks);
             Mod.Sidewalk?.Configure(SidewalkEnabled, SidewalkDetail, SidewalkDetail == 2 ? RoadTextureSource.Custom : RoadTextureSource.Generated,
                 SidewalkUvSizePercent, SidewalkDepthStrengthPercent, SidewalkTextureTiling,
                 SidewalkUvOffsetX, SidewalkUvOffsetY, SidewalkUvRotation, SidewalkCrackCount, SidewalkCrackSizePercent,
@@ -968,8 +1032,19 @@ namespace Advanced_Graphics
                 RailGravelUvSizePercent, RailGravelDepthStrengthPercent, 1f,
                 RailGravelUvOffsetX, RailGravelUvOffsetY, RailGravelUvRotation,
                 0, 100, 100, 100, 50, RailFilterColor, RailFilterOpacityPercent);
+            Mod.RoadAsphalt?.UpdateTextureSampling();
+            Mod.Sidewalk?.UpdateTextureSampling();
+            Mod.AlleySidewalk?.UpdateTextureSampling();
+            Mod.RoadGravel?.UpdateTextureSampling();
+            Mod.GravelShoulderSurface?.UpdateTextureSampling();
+            Mod.RailGravel?.UpdateTextureSampling();
+            Mod.GravelShoulder?.UpdateTextureSampling();
+            Mod.SidewalkAtlas?.UpdateTextureSampling();
+            Mod.AlleySidewalkAtlas?.UpdateTextureSampling();
+            Mod.ParkingRoadAtlas?.UpdateTextureSampling();
         }
     }
 }
+
 
 

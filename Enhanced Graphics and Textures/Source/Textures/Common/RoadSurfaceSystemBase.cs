@@ -78,6 +78,7 @@ namespace Advanced_Graphics
         public void ReloadCustomTexture()
         {
             ClearSourceCache();
+            ClearCrackCache();
             m_NormalOnly = false;
             m_TextureDirty = true;
             m_Dirty = true;
@@ -85,22 +86,30 @@ namespace Advanced_Graphics
 
         public void Configure(bool enabled, int level, Setting.RoadTextureSource source, int uvSize, int depth, float tiling,
             int offsetX, int offsetY, int rotation, int crackCount, int crackSize, int crackWidth,
-            int crackOpacity, int crackRandomness, int filterColor = 0xffffff, int filterOpacityPercent = 100)
+            int crackOpacity, int crackRandomness, int filterColor = 0xffffff, int filterOpacityPercent = 100, bool customCracks = false)
         {
+            if (m_CustomCracks != customCracks)
+            {
+                m_CustomCracks = customCracks;
+                m_TextureDirty = true;
+                m_NormalOnly = false;
+                m_Dirty = true;
+            }
             filterOpacityPercent = Math.Max(0, Math.Min(100, filterOpacityPercent));
             filterColor = Math.Max(0, Math.Min(0xffffff, filterColor));
             level = Math.Max(0, Math.Min(2, level));
             uvSize = Math.Max(50, Math.Min(Setting.MaxTextureUvSize, uvSize));
             depth = Math.Max(0, Math.Min(Setting.MaxTextureDepthStrength, depth));
+            bool road = GetType() == typeof(RoadAsphaltSystem);
             tiling = Mathf.Clamp(Mathf.Round(tiling * 10f) / 10f, 0.1f, 8f);
             offsetX = Math.Max(0, Math.Min(Setting.MaxTextureUvOffset, offsetX));
             offsetY = Math.Max(0, Math.Min(Setting.MaxTextureUvOffset, offsetY));
             rotation = Math.Max(0, Math.Min(360, rotation));
             if (rotation == 360) rotation = 0;
-            crackCount = Math.Max(0, Math.Min(400, crackCount));
-            crackSize = Math.Max(25, Math.Min(600, crackSize));
-            crackWidth = Math.Max(25, Math.Min(400, crackWidth));
-            crackOpacity = Math.Max(0, Math.Min(200, crackOpacity));
+            crackCount = Math.Max(0, Math.Min(road ? Setting.MaxRoadCrackCount : 400, crackCount));
+            crackSize = Math.Max(25, Math.Min(road ? Setting.MaxRoadCrackSize : 600, crackSize));
+            crackWidth = Math.Max(25, Math.Min(road ? Setting.MaxRoadCrackWidth : 400, crackWidth));
+            crackOpacity = Math.Max(0, Math.Min(road ? Setting.MaxRoadCrackOpacity : 200, crackOpacity));
             crackRandomness = Math.Max(0, Math.Min(100, crackRandomness));
             if (GetType() == typeof(RoadAsphaltSystem) && (!m_HasLoggedRoadConfiguration || m_Enabled != enabled))
             {
@@ -142,6 +151,12 @@ namespace Advanced_Graphics
             m_CrackOpacity = crackOpacity;
             m_CrackRandomness = crackRandomness;
             m_Dirty = true;
+        }
+
+        internal virtual void UpdateTextureSampling()
+        {
+            SurfaceTextureSampling.Apply(m_Color);
+            SurfaceTextureSampling.Apply(m_Normal);
         }
 
         protected override void OnUpdate()
@@ -424,8 +439,7 @@ namespace Advanced_Graphics
             result.Apply(true, !KeepTileReadable);
             result.name = "Advanced Graphics Road Asphalt Normal";
             result.wrapMode = TextureWrapMode.Repeat;
-            result.filterMode = FilterMode.Trilinear;
-            result.anisoLevel = 8;
+            SurfaceTextureSampling.Apply(result);
             return result;
         }
 
@@ -437,7 +451,13 @@ namespace Advanced_Graphics
             var pixels = source.GetPixels32();
             var mask = new byte[pixels.Length];
             var random = new System.Random(73129 + m_CrackRandomness * 97);
-            int count = Math.Min(800, Mathf.RoundToInt(m_CrackCount * m_Tiling));
+            // A custom image contains a whole crack pattern, so use a lower starting density and add only 0.05 per tiling unit above 1 (0.25 at 1; 0.60 at 8).
+            var customMask = m_CustomCracks ? LoadCrackMask() : null;
+            bool custom = customMask != null;
+            float density = custom ? (m_Tiling <= 1f ? m_Tiling * 0.25f : 0.25f + (m_Tiling - 1f) * 0.05f) : m_Tiling;
+            int limit = GetType() == typeof(RoadAsphaltSystem) ? Setting.MaxRoadCrackCount * 2 : 800;
+            int count = Math.Min(limit, Mathf.RoundToInt(m_CrackCount * density));
+            if (custom && m_CrackCount > 0) count = Math.Max(1, count);
             if (count == 0) return mask;
             int columns = Mathf.CeilToInt(Mathf.Sqrt(count));
             int rows = Mathf.CeilToInt((float)count / columns);
@@ -446,11 +466,21 @@ namespace Advanced_Graphics
             float jitter = m_CrackRandomness / 100f;
             float scale = m_CrackSize / 100f;
             float radius = Math.Max(0.25f, scale * m_CrackWidth / 100f);
+            if (custom) customMask = GetCrackWidthMask();
+            float customAngleOffset = custom ? (float)(random.NextDouble() * Math.PI * 2.0) : 0f;
             for (int i = 0; i < count; i++)
             {
                 float x = ((i % columns) + 0.5f + ((float)random.NextDouble() - 0.5f) * jitter) * cellWidth;
                 float y = ((i / columns) + 0.5f + ((float)random.NextDouble() - 0.5f) * jitter) * cellHeight;
                 float angle = (float)(random.NextDouble() * Math.PI * 2.0);
+                if (customMask != null)
+                {
+                    // Stratify orientations so even a small number of patterns differ visibly.
+                    angle = customAngleOffset + (i * 137.50776f + (float)random.NextDouble() * 45f * jitter) * Mathf.Deg2Rad;
+                    float variation = 1f + ((float)random.NextDouble() - 0.5f) * 0.4f * jitter;
+                    StampCrack(mask, size, customMask, x, y, angle, scale * variation, random.Next(2) == 0);
+                    continue;
+                }
                 int segments = 8 + random.Next(6);
                 for (int segment = 0; segment < segments; segment++)
                 {
@@ -557,8 +587,7 @@ namespace Advanced_Graphics
             texture.Apply(true, !keepReadable);
             texture.name = "Advanced Graphics Road Asphalt " + (linear ? "Normal" : "Color");
             texture.wrapMode = TextureWrapMode.Repeat;
-            texture.filterMode = FilterMode.Trilinear;
-            texture.anisoLevel = 8;
+            SurfaceTextureSampling.Apply(texture);
             return texture;
         }
 
@@ -631,6 +660,7 @@ namespace Advanced_Graphics
             m_Original.Clear();
             DestroyTextures();
             ClearSourceCache();
+            ClearCrackCache();
             m_PollInterval = 120;
             OnSurfaceReset();
         }
@@ -643,5 +673,6 @@ namespace Advanced_Graphics
         }
     }
 }
+
 
 

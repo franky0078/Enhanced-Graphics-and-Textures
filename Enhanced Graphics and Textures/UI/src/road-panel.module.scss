@@ -163,3 +163,11 @@
 
 .graphicsPanel .source .moduleToggle { flex: 1; width: auto; }
 .graphicsPanel .moduleToggle > .toggleBox { flex: 0 0 16rem; }
+
+
+.headerActions { display: flex; align-items: center; gap: 7rem; }
+.settingsButton { display: flex; align-items: center; justify-content: center; padding: 3rem; }
+.settingsButton svg { width: 20rem; height: 20rem; }
+.settingsButton[aria-pressed="true"] { background-color: rgba(58, 125, 158, .95); }
+.generalWindow { z-index: 96; }
+.generalWindow .header strong { flex: 1; min-width: 0; margin-right: 8rem; }

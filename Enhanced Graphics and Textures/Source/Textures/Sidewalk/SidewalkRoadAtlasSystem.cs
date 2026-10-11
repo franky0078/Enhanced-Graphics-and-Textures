@@ -64,6 +64,12 @@ namespace Advanced_Graphics
             m_Dirty = true;
         }
 
+        internal virtual void UpdateTextureSampling()
+        {
+            foreach (var texture in m_ColorCopies.Values) SurfaceTextureSampling.Apply(texture);
+            foreach (var texture in m_NormalCopies.Values) SurfaceTextureSampling.Apply(texture);
+        }
+
         protected override void OnUpdate()
         {
             bool tileChanged = m_SourceColor != Surface?.ActiveColorTexture ||
@@ -252,7 +258,7 @@ namespace Advanced_Graphics
                 original.name = diagnostic ? "Advanced Graphics " + surface + " Diagnostic" :
                     "Advanced Graphics " + surface + " " + (linear ? "Normal" : "Color");
                 original.wrapMode = source.wrapMode;
-                original.filterMode = source.filterMode;
+                SurfaceTextureSampling.Apply(original);
                 return original;
             }
             catch
@@ -353,3 +359,4 @@ namespace Advanced_Graphics
         }
     }
 }
+

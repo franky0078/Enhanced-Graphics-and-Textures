@@ -11,12 +11,10 @@ namespace Advanced_Graphics
         private const string ParkingColorSlot = "_BaseColorMap";
         private const string ParkingNormalSlot = "_NormalMap";
 
-        // ParkingLane7, in pixels of the 2048 reference atlas.
         private const int ReferenceWidth = 2048;
         private const int ParkingEnd = 482;
         private const int SidewalkStart = 516;
         private const int SidewalkEnd = 942;
-        // Asphalt uses worldspace UVs on the carriageway.
         private const int AsphaltRepeatsPerAtlas = 8;
         private const int SidewalkRepeatsPerAtlas = 8;
 
@@ -33,7 +31,7 @@ namespace Advanced_Graphics
         private readonly Dictionary<Texture, Texture2D> m_ParkingNormals = new Dictionary<Texture, Texture2D>();
         private Texture2D m_AsphaltColor, m_AsphaltNormal, m_SidewalkColor, m_SidewalkNormal;
         private int m_ParkingFrames;
-        private float m_ParkingScaleFactor = 1f;
+        private float m_ParkingScaleFactor = 1f, m_ParkingDepthFactor = 1f;
 
         protected override string IsolatedSurfaceLabel => "Parking road";
         protected override bool IsTargetRoad(string name) => name != null &&
@@ -41,12 +39,20 @@ namespace Advanced_Graphics
             name.IndexOf(" - ", StringComparison.Ordinal) >= 0 &&
             name.IndexOf("Parking", StringComparison.OrdinalIgnoreCase) >= 0;
 
+        internal override void UpdateTextureSampling()
+        {
+            base.UpdateTextureSampling();
+            foreach (var texture in m_ParkingColors.Values) SurfaceTextureSampling.Apply(texture);
+            foreach (var texture in m_ParkingNormals.Values) SurfaceTextureSampling.Apply(texture);
+        }
+
         protected override void OnUpdate()
         {
             var settings = Mod.ActiveSetting;
             var asphaltColor = Mod.RoadAsphalt?.ActiveColorTexture;
             var asphaltNormal = asphaltColor != null ? Mod.RoadAsphalt?.ActiveNormalTexture : null;
             float parkingScaleFactor = settings?.ParkingTextureScaleFactor ?? 1f;
+            float parkingDepthFactor = settings?.ParkingDepthStrengthFactor ?? 1f;
             bool sidewalkOverride = settings != null && settings.SidewalkEnabled &&
                 (settings.SidewalkDetail != 0 || settings.SidewalkUvSizePercent != 100 ||
                  settings.SidewalkDepthStrengthPercent != 0 || settings.SidewalkUvOffsetX != 0 ||
@@ -55,7 +61,8 @@ namespace Advanced_Graphics
             var sidewalkNormal = sidewalkColor != null ? Mod.Sidewalk?.ActiveNormalTexture : null;
             bool changed = m_AsphaltColor != asphaltColor || m_AsphaltNormal != asphaltNormal ||
                 m_SidewalkColor != sidewalkColor || m_SidewalkNormal != sidewalkNormal ||
-                (asphaltColor != null && !Mathf.Approximately(m_ParkingScaleFactor, parkingScaleFactor));
+                (asphaltColor != null && (!Mathf.Approximately(m_ParkingScaleFactor, parkingScaleFactor) ||
+                    !Mathf.Approximately(m_ParkingDepthFactor, parkingDepthFactor)));
             if (!changed && ++m_ParkingFrames < 120) return;
             m_ParkingFrames = 0;
             if (changed)
@@ -66,6 +73,7 @@ namespace Advanced_Graphics
                 m_SidewalkColor = sidewalkColor;
                 m_SidewalkNormal = sidewalkNormal;
                 m_ParkingScaleFactor = parkingScaleFactor;
+                m_ParkingDepthFactor = parkingDepthFactor;
             }
             if (asphaltColor == null && sidewalkColor == null)
             {
@@ -140,7 +148,7 @@ namespace Advanced_Graphics
                 var pixels = cached.GetPixels32();
                 if (m_AsphaltColor != null)
                     FillParkingStrip(pixels, cached.width, cached.height, 0, ParkingEnd,
-                        linear ? m_AsphaltNormal : m_AsphaltColor, linear, AsphaltRepeatsPerAtlas * m_ParkingScaleFactor);
+                        linear ? m_AsphaltNormal : m_AsphaltColor, linear, AsphaltRepeatsPerAtlas * m_ParkingScaleFactor, m_ParkingDepthFactor);
                 if (m_SidewalkColor != null)
                     FillParkingStrip(pixels, cached.width, cached.height, SidewalkStart, SidewalkEnd,
                         linear ? m_SidewalkNormal : m_SidewalkColor, linear, SidewalkRepeatsPerAtlas);
@@ -148,15 +156,14 @@ namespace Advanced_Graphics
                 result.Apply(true, true);
                 result.name = "Enhanced Graphics and Textures Parking road " + (linear ? "Normal" : "Color");
                 result.wrapMode = source.wrapMode;
-                result.filterMode = source.filterMode;
-                result.anisoLevel = source.anisoLevel;
+                SurfaceTextureSampling.Apply(result);
                 return result;
             }
             catch { UnityEngine.Object.Destroy(result); throw; }
         }
 
         private static void FillParkingStrip(Color32[] pixels, int width, int height,
-            int referenceLeft, int referenceRight, Texture2D tile, bool linear, float repeatsPerAtlas)
+            int referenceLeft, int referenceRight, Texture2D tile, bool linear, float repeatsPerAtlas, float normalStrength = 1f)
         {
             Texture2D readable = tile;
             bool releaseTile = tile != null && !tile.isReadable;
@@ -181,6 +188,20 @@ namespace Advanced_Graphics
                     }
                     if (linear)
                     {
+                        if (normalStrength == 0f)
+                        {
+                            replacement.r = replacement.g = 128;
+                        }
+                        else if (normalStrength != 1f)
+                        {
+                            // Scale the tangent-space normal before packing it for the parking atlas.
+                            var normal = new Vector3(
+                                (replacement.r / 255f * 2f - 1f) * normalStrength,
+                                (replacement.g / 255f * 2f - 1f) * normalStrength,
+                                Mathf.Max(0.001f, replacement.b / 255f * 2f - 1f)).normalized;
+                            replacement.r = (byte)Mathf.Clamp((normal.x * 0.5f + 0.5f) * 255f, 0f, 255f);
+                            replacement.g = (byte)Mathf.Clamp((normal.y * 0.5f + 0.5f) * 255f, 0f, 255f);
+                        }
                         // Match the existing RoadEU atlas's packed normal channels.
                         replacement.a = replacement.r;
                         replacement.r = original.r;
@@ -238,4 +259,5 @@ namespace Advanced_Graphics
         }
     }
 }
+
 

@@ -123,21 +123,24 @@
 	<Screenshot Value="Properties/Screenshot07.jpg" />
 	<Screenshot Value="Properties/Screenshot08.jpg" />
 	<Screenshot Value="Properties/Screenshot09.jpg" />
-	<!--<Screenshot Value="Properties/Screenshot10.jpg" />-->
+	<Screenshot Value="Properties/Screenshot10.jpg" />
 
 	<AccessLevel Value="Public" />
 	<Tag Value="Code Mod" />
 	
-	<ModVersion Value="1.2.2" />
+	<ModVersion Value="1.3.0" />
 	
 	<!--Existing value retained. Set this to the game version tested locally before publishing.-->
 	<GameVersion Value="1.6.*" />
 	
 	<ChangeLog>
-		Version 1.2.2
+		Version 1.3.0
 
 
-		- enhanced lumina number fix for german language to roadtooltip
+		- Added support for custom road crack textures.
+		- Added a parking surface depth factor.
+		- Added a mipmap bias control for all surfaces.
+		- Fixed crack rotation when randomness is set to zero.
 
 	</ChangeLog>
 

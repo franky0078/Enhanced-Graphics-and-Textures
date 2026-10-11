@@ -8,6 +8,7 @@ namespace Advanced_Graphics
     {
         private static string Root => Path.Combine(Application.persistentDataPath, "ModsData", "Enhanced_Graphics_and_Textures", "Textures");
         internal static string Road => Path.Combine(Root, "Road");
+        internal static string RoadCracks => Path.Combine(Road, "Cracks");
         internal static string Sidewalk => Path.Combine(Root, "Sidewalk");
         internal static string AlleySidewalk => Path.Combine(Root, "AlleySidewalk");
         internal static string Rail => Path.Combine(Root, "Rail");
@@ -15,7 +16,7 @@ namespace Advanced_Graphics
         internal static string GravelShoulder => Path.Combine(Root, "GravelSidewalk");
         internal static void EnsureDirectories()
         {
-            var folders = new[] { Road, Sidewalk, AlleySidewalk, Rail, RoadGravel, GravelShoulder };
+            var folders = new[] { Road, RoadCracks, Sidewalk, AlleySidewalk, Rail, RoadGravel, GravelShoulder };
             foreach (string folder in folders)
             {
                 try { Directory.CreateDirectory(folder); }
@@ -24,3 +25,4 @@ namespace Advanced_Graphics
         }
     }
 }
+
