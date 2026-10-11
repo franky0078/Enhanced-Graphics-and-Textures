@@ -8,6 +8,7 @@ Enhanced Graphics and Textures adds extended graphics controls and an in-game su
 - Shadow resolution and distance
 - Small shadow caster threshold
 - TAA sharpening strength
+- Mipmap bias for all surfaces
 
 Higher settings can increase GPU load and memory use. Adjust one setting at a time and compare both image quality and frame rate.
 

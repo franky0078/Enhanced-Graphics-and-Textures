@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Game.Prefabs;
 using UnityEngine;
 
 namespace Advanced_Graphics
@@ -38,6 +39,10 @@ namespace Advanced_Graphics
             (name.StartsWith("Alley", StringComparison.Ordinal) || name.StartsWith("Small Road", StringComparison.Ordinal)) &&
             name.IndexOf(" - ", StringComparison.Ordinal) >= 0 &&
             name.IndexOf("Parking", StringComparison.OrdinalIgnoreCase) >= 0;
+
+        protected override bool IsTargetRoad(PrefabBase prefab) => prefab != null &&
+            (IsTargetRoad(prefab.name) || (RoadBuilderSurfaceCompatibility.IsRoadBuilderRoad(prefab) &&
+                RoadBuilderSurfaceCompatibility.HasParkingLanes(prefab)));
 
         internal override void UpdateTextureSampling()
         {

@@ -30,6 +30,10 @@ namespace Advanced_Graphics
             name.StartsWith("Alley", StringComparison.Ordinal) &&
             name.IndexOf("Parking", StringComparison.OrdinalIgnoreCase) < 0;
 
+        protected virtual bool IsTargetRoad(PrefabBase prefab) => prefab != null &&
+            (IsTargetRoad(prefab.name) || (RoadBuilderSurfaceCompatibility.IsRoadBuilderRoad(prefab) &&
+                !RoadBuilderSurfaceCompatibility.HasParkingLanes(prefab)));
+
         protected void BeginIsolatedMaterials() => m_AlleyCurrentMaterialSources.Clear();
 
         protected void PrepareIsolatedAlleyMaterial(Material original, Texture2D color, Texture2D normal, bool virtualTexturing)
@@ -70,7 +74,7 @@ namespace Advanced_Graphics
                     if (!targetPrefabs.TryGetValue(prefabEntity, out bool isAlley))
                     {
                         isAlley = prefabs.TryGetPrefab<PrefabBase>(prefabEntity, out var prefab) &&
-                            prefab != null && IsTargetRoad(prefab.name);
+                            prefab != null && IsTargetRoad(prefab);
                         targetPrefabs.Add(prefabEntity, isAlley);
                     }
                     var composition = EntityManager.GetComponentData<Composition>(road);
@@ -182,3 +186,4 @@ namespace Advanced_Graphics
         }
     }
 }
+
