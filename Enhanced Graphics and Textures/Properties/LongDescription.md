@@ -1,4 +1,4 @@
-Enhanced Graphics and Textures adds extended graphics controls and an in-game surface texture editor to Cities: Skylines II.
+Enhanced Graphics and Textures adds extended graphics controls and an in-game surface texture editor
 
 ## Graphics controls
 

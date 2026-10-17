@@ -7,7 +7,7 @@
 	<ShortDescription Value="Extended graphics controls and an in-game texture editor for roads, sidewalks, gravel and railway ballast" />
 	
 	<LongDescription>
-		Enhanced Graphics and Textures adds extended graphics controls and an in-game surface texture editor to Cities: Skylines II.
+		Enhanced Graphics and Textures adds extended graphics controls and an in-game surface texture editor
 
 		## Graphics controls
 
@@ -129,17 +129,16 @@
 	<AccessLevel Value="Public" />
 	<Tag Value="Code Mod" />
 	
-	<ModVersion Value="1.3.1" />
+	<ModVersion Value="1.3.2" />
 	
 	<!--Existing value retained. Set this to the game version tested locally before publishing.-->
 	<GameVersion Value="1.6.*" />
 	
 	<ChangeLog>
-		Version 1.3.1
+		Version 1.3.2
 
 
-		- Improved Road Builder compatibility for parking surfaces and sidewalks.
-		- Fixed surface adjustments not being applied to some Road Builder roads with parking lanes.
+		- remove lumina fix, as it is no longer needed
 
 	</ChangeLog>
 

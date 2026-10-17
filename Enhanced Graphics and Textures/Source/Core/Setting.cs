@@ -81,7 +81,9 @@ namespace Advanced_Graphics
         [SettingsUISection(MainSection, LauncherGroup)]
         public bool ShowGraphicsAppButton { get; set; } = true;
 
-        [SettingsUISection(MainSection, LauncherGroup)]
+        // Legacy Lumina fix is no longer registered in the frontend.
+        // Restore SettingsUISection(MainSection, LauncherGroup) when re-enabling it.
+        [SettingsUIHidden]
         public bool LuminaNumberFix { get; set; } = false;
 
         [SettingsUIHidden]
@@ -330,9 +332,15 @@ namespace Advanced_Graphics
         [SettingsUIButton]
         public bool ResetGravelShoulder
         {
-            set { if (value) { ClearTextureModeProfiles(4); GravelShoulderFilterColor = 0xffffff; GravelShoulderFilterOpacityPercent = 0; GravelShoulderEnabled = false; GravelShoulderUvSizePercent = 100;
-                GravelShoulderDepthStrengthPercent = 0; GravelShoulderDetail = 0;
-                GravelShoulderUvOffsetX = GravelShoulderUvOffsetY = GravelShoulderUvRotation = 0; ApplyAndSave(); } }
+            set
+            {
+                if (value)
+                {
+                    ClearTextureModeProfiles(4); GravelShoulderFilterColor = 0xffffff; GravelShoulderFilterOpacityPercent = 0; GravelShoulderEnabled = false; GravelShoulderUvSizePercent = 100;
+                    GravelShoulderDepthStrengthPercent = 0; GravelShoulderDetail = 0;
+                    GravelShoulderUvOffsetX = GravelShoulderUvOffsetY = GravelShoulderUvRotation = 0; ApplyAndSave();
+                }
+            }
         }
 
         // Kept for migrating saves made with the previous source selector.
@@ -1045,6 +1053,7 @@ namespace Advanced_Graphics
         }
     }
 }
+
 
 
 

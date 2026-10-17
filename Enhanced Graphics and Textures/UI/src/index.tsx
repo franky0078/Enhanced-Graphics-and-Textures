@@ -1,10 +1,10 @@
 import type { ModRegistrar } from "cs2/modding";
 import { RoadPanel } from "./road-panel";
 import { GraphicsPanel } from "./graphics-panel";
-import { registerSelectedInfoFontFix } from "./selected-info-font-fix";
+// import { registerSelectedInfoFontFix } from "./selected-info-font-fix";
 
 const register: ModRegistrar = registry => {
-    registerSelectedInfoFontFix(registry);
+    // registerSelectedInfoFontFix(registry);
     let panelClass = "";
     try {
         panelClass = (registry as any).registry.get(
@@ -17,6 +17,7 @@ const register: ModRegistrar = registry => {
 };
 
 export default register;
+
 
 
 
