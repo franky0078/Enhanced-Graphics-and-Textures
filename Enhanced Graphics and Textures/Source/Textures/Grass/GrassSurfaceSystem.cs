@@ -3,8 +3,6 @@ using UnityEngine;
 
 namespace Advanced_Graphics
 {
-    // The survey identifies RoadGrass as a dedicated worldspace material.
-    // Deliberately exclude AreaDecalShader and terrain, even when they use Grass01.
     public partial class GrassSurfaceSystem : RoadSurfaceSystemBase
     {
         protected override string TextureFolder => TextureStorage.Grass;
@@ -69,7 +67,6 @@ namespace Advanced_Graphics
         protected override Texture2D BuildSurfaceNormal(Texture2D color, int depth, int uvSize, byte[] crackMask)
         {
             // Original mode preserves the game's authored grass relief, including at depth 0.
-            // Generated/custom modes derive relief from the selected color texture.
             if (CurrentLevel != 0) return base.BuildSurfaceNormal(color, depth, uvSize, crackMask);
             if (m_DecodedNormal == null && m_OriginalNormal != null)
             {

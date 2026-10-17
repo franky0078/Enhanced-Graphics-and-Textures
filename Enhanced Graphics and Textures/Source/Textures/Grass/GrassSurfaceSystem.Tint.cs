@@ -5,8 +5,6 @@ namespace Advanced_Graphics
 {
     public partial class GrassSurfaceSystem
     {
-        // Depth-only updates read the existing color pixels again. Keep their
-        // CPU copy alive until the shared worker destroys/replaces the texture.
         protected override bool KeepTileReadable => true;
 
         private sealed class GrassTint
