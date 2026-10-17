@@ -19,6 +19,7 @@ namespace Advanced_Graphics
         internal static RailMaterialInspector RailInspector;
         internal static RailGravelSystem RailGravel;
         internal static RoadGravelSystem RoadGravel;
+        internal static GrassSurfaceSystem Grass;
         internal static GravelShoulderSystem GravelShoulder;
         internal static GravelShoulderSurfaceSystem GravelShoulderSurface;
         internal static RoadAsphaltSystem RoadAsphalt;
@@ -36,9 +37,10 @@ namespace Advanced_Graphics
             // BatchManagerSystem builds the active groups; BatchDataSystem later reads their LOD thresholds. 
             updateSystem.UpdateAfter<TreeLodSystem, BatchManagerSystem>(SystemUpdatePhase.Rendering);
             updateSystem.UpdateAfter<GraphicsCameraSystem, Game.Rendering.LightingSystem>(SystemUpdatePhase.Rendering);
+            updateSystem.UpdateAt<GrassSurfaceSystem>(SystemUpdatePhase.Rendering);
+            updateSystem.UpdateAt<RoadMaterialInspector>(SystemUpdatePhase.Rendering);
             if (DebugBackendEnabled)
             {
-                updateSystem.UpdateAt<RoadMaterialInspector>(SystemUpdatePhase.Rendering);
                 updateSystem.UpdateAt<RailMaterialInspector>(SystemUpdatePhase.Rendering);
             }
             updateSystem.UpdateAt<RailGravelSystem>(SystemUpdatePhase.Rendering);
@@ -54,13 +56,14 @@ namespace Advanced_Graphics
             updateSystem.UpdateAt<RoadPanelUISystem>(SystemUpdatePhase.UIUpdate);
             updateSystem.UpdateAt<GraphicsPanelUISystem>(SystemUpdatePhase.UIUpdate);
             TreeLod = updateSystem.World.GetOrCreateSystemManaged<TreeLodSystem>();
+            RoadInspector = updateSystem.World.GetOrCreateSystemManaged<RoadMaterialInspector>();
             if (DebugBackendEnabled)
             {
-                RoadInspector = updateSystem.World.GetOrCreateSystemManaged<RoadMaterialInspector>();
                 RailInspector = updateSystem.World.GetOrCreateSystemManaged<RailMaterialInspector>();
             }
             RailGravel = updateSystem.World.GetOrCreateSystemManaged<RailGravelSystem>();
             RoadGravel = updateSystem.World.GetOrCreateSystemManaged<RoadGravelSystem>();
+            Grass = updateSystem.World.GetOrCreateSystemManaged<GrassSurfaceSystem>();
             GravelShoulder = updateSystem.World.GetOrCreateSystemManaged<GravelShoulderSystem>();
             GravelShoulderSurface = updateSystem.World.GetOrCreateSystemManaged<GravelShoulderSurfaceSystem>();
             RoadAsphalt = updateSystem.World.GetOrCreateSystemManaged<RoadAsphaltSystem>();
@@ -146,6 +149,8 @@ namespace Advanced_Graphics
             RailInspector = null;
             RailGravel?.RestoreNow();
             RailGravel = null;
+            Grass?.RestoreNow();
+            Grass = null;
             RoadGravel?.RestoreNow();
             RoadGravel = null;
             GravelShoulder?.RestoreNow();

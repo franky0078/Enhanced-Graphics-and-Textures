@@ -9,9 +9,9 @@ using Game.UI;
 namespace Advanced_Graphics
 {
     [FileLocation(nameof(Advanced_Graphics))]
-    [SettingsUITabOrder(MainSection, RoadSection, SidewalkSection, AlleySidewalkSection, GravelSection, GravelSidewalkSection, RailSection)]
-    [SettingsUIGroupOrder(LauncherGroup, TreeGroup, DetailGroup, CacheGroup, TerrainGroup, ShadowsGroup, SharpnessGroup, TextureGeneralGroup, BloomGroup, SkyGroup, RoadGroup, RoadUvGroup, RoadCrackGroup, RoadPanelGroup, SidewalkGroup, SidewalkUvGroup, SidewalkCrackGroup, AlleySidewalkGroup, AlleySidewalkUvGroup, AlleySidewalkCrackGroup, GravelGroup, ShoulderGroup, RailGroup, RailUvGroup, ResetGroup, AboutGroup)]
-    [SettingsUIShowGroupName(LauncherGroup, TreeGroup, DetailGroup, CacheGroup, TerrainGroup, ShadowsGroup, SharpnessGroup, TextureGeneralGroup, BloomGroup, SkyGroup, RoadGroup, RoadUvGroup, RoadCrackGroup, RoadPanelGroup, SidewalkGroup, SidewalkUvGroup, SidewalkCrackGroup, AlleySidewalkGroup, AlleySidewalkUvGroup, AlleySidewalkCrackGroup, GravelGroup, ShoulderGroup, RailGroup, RailUvGroup, ResetGroup, AboutGroup)]
+    [SettingsUITabOrder(MainSection, RoadSection, SidewalkSection, GrassSection, AlleySidewalkSection, GravelSection, GravelSidewalkSection, RailSection)]
+    [SettingsUIGroupOrder(LauncherGroup, TreeGroup, DetailGroup, CacheGroup, TerrainGroup, ShadowsGroup, SharpnessGroup, TextureGeneralGroup, BloomGroup, SkyGroup, RoadGroup, RoadUvGroup, RoadCrackGroup, RoadPanelGroup, SidewalkGroup, SidewalkUvGroup, SidewalkCrackGroup, GrassGroup, AlleySidewalkGroup, AlleySidewalkUvGroup, AlleySidewalkCrackGroup, GravelGroup, ShoulderGroup, RailGroup, RailUvGroup, ResetGroup, AboutGroup)]
+    [SettingsUIShowGroupName(LauncherGroup, TreeGroup, DetailGroup, CacheGroup, TerrainGroup, ShadowsGroup, SharpnessGroup, TextureGeneralGroup, BloomGroup, SkyGroup, RoadGroup, RoadUvGroup, RoadCrackGroup, RoadPanelGroup, SidewalkGroup, SidewalkUvGroup, SidewalkCrackGroup, GrassGroup, AlleySidewalkGroup, AlleySidewalkUvGroup, AlleySidewalkCrackGroup, GravelGroup, ShoulderGroup, RailGroup, RailUvGroup, ResetGroup, AboutGroup)]
     public sealed partial class Setting : ModSetting
     {
         public const int MaxTextureUvSize = 3000;
@@ -234,6 +234,33 @@ namespace Advanced_Graphics
         public bool ExportGravelRoadMaterials
         {
             set { if (value) Mod.RoadInspector?.RequestGravelSurvey(); }
+        }
+
+        [SettingsUISection(SidewalkSection, SidewalkGroup)]
+        [SettingsUIButton]
+        public bool ExportGrassMaterials
+        {
+            set { if (value) Mod.RoadInspector?.RequestGrassSurvey(); }
+        }
+
+        [SettingsUISection(SidewalkSection, SidewalkGroup)]
+        [SettingsUIButton]
+        public bool OpenGrassDiagnosticFolder
+        {
+            set
+            {
+                if (!value) return;
+                try
+                {
+                    Directory.CreateDirectory(RoadMaterialInspector.GrassDiagnosticFolder);
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = RoadMaterialInspector.GrassDiagnosticFolder,
+                        UseShellExecute = true
+                    });
+                }
+                catch (Exception ex) { Mod.log.Error(ex, "Could not open grass diagnostic folder."); }
+            }
         }
 
         [SettingsUISection(GravelSection, GravelGroup)]
@@ -899,6 +926,7 @@ namespace Advanced_Graphics
             ParkingDepthStrengthFactor = 1f;
             RoadUvOffsetX = RoadUvOffsetY = RoadUvRotation = 0;
             SetSidewalkDefaults();
+            SetGrassDefaults();
             SetAlleySidewalkDefaults();
             ResetRailDefaults();
             ResetRoadGravelDefaults();
@@ -1043,6 +1071,8 @@ namespace Advanced_Graphics
             Mod.RoadAsphalt?.UpdateTextureSampling();
             Mod.Sidewalk?.UpdateTextureSampling();
             Mod.AlleySidewalk?.UpdateTextureSampling();
+            ApplyGrassToSystem();
+            Mod.Grass?.UpdateTextureSampling();
             Mod.RoadGravel?.UpdateTextureSampling();
             Mod.GravelShoulderSurface?.UpdateTextureSampling();
             Mod.RailGravel?.UpdateTextureSampling();

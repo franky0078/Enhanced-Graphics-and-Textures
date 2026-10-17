@@ -29,6 +29,7 @@
 		- Road asphalt
 		- Sidewalks
 		- Alley / one-way road sidewalks
+		- Sidewalk grass
 		- Gravel roads
 		- Gravel sidewalks / road edges
 		- Railway ballast
@@ -68,6 +69,7 @@
 		- Road asphalt: Road/Road_BaseColor.png
 		- Sidewalk: Sidewalk/Sidewalk_BaseColor.png
 		- Alley / one-way sidewalk: AlleySidewalk/AlleySidewalk_BaseColor.png
+		- Sidewalk grass: SidewalkGrass/Grass_BaseColor.png
 		- Gravel road: Gravel/RoadGravel_BaseColor.png
 		- Gravel sidewalk / edge: GravelSidewalk/GravelShoulder_BaseColor.png
 		- Railway ballast: Rail/RailGravel_BaseColor.png
@@ -129,16 +131,15 @@
 	<AccessLevel Value="Public" />
 	<Tag Value="Code Mod" />
 	
-	<ModVersion Value="1.3.2" />
+	<ModVersion Value="1.4.0" />
 	
 	<!--Existing value retained. Set this to the game version tested locally before publishing.-->
 	<GameVersion Value="1.6.*" />
 	
 	<ChangeLog>
-		Version 1.3.2
+		Latest changes:
 
-
-		- remove lumina fix, as it is no longer needed
+		- added sidewalk grass customization
 
 	</ChangeLog>
 

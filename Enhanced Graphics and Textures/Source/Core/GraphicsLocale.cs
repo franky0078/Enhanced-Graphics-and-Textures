@@ -323,6 +323,19 @@ namespace Advanced_Graphics
                 default: textureFiles = new[] { "Open texture folder", "Opens the local folder for Road_BaseColor.png. Your PNG is not distributed with the mod.", "Reload custom texture", "Reads Road_BaseColor.png again after copying or replacing the file. Select asphalt detail level 2.", "Level 2: put Road_BaseColor.png in the folder opened from mod options, then reload it." }; break;
             }
             entries.Add(m_Setting.GetOptionLabelLocaleID(nameof(Setting.OpenRoadTextureFolder)), textureFiles[0]);
+            string[] grassSurvey;
+            switch (m_Language)
+            {
+                case "de": grassSurvey = new[] { "Gehweg-Gras untersuchen", "Nach dem Laden einer Stadt mit Grasstreifen die Materialdaten und Texturvorschauen nach Textures/Grass/Diagnostics exportieren. Verändert keine Materialien. Ein einmaliger kurzer Ruckler ist möglich.", "Gras-Diagnoseordner öffnen", "Öffnet Textures/Grass/Diagnostics mit GrassMaterials.txt und den exportierten PNG-Vorschauen." }; break;
+                case "es": grassSurvey = new[] { "Examinar césped de las aceras", "Tras cargar una ciudad con franjas de césped, exporta materiales y vistas previas a Textures/Grass/Diagnostics sin modificarlos. Puede producir una breve pausa.", "Abrir diagnóstico del césped", "Abre Textures/Grass/Diagnostics con GrassMaterials.txt y las vistas previas PNG." }; break;
+                case "fr": grassSurvey = new[] { "Examiner l’herbe des trottoirs", "Après le chargement d’une ville avec des bandes d’herbe, exporte les matériaux et aperçus dans Textures/Grass/Diagnostics sans les modifier. Une courte pause est possible.", "Ouvrir le diagnostic de l’herbe", "Ouvre Textures/Grass/Diagnostics avec GrassMaterials.txt et les aperçus PNG." }; break;
+                case "it": grassSurvey = new[] { "Esamina erba dei marciapiedi", "Dopo aver caricato una città con fasce erbose, esporta materiali e anteprime in Textures/Grass/Diagnostics senza modificarli. È possibile una breve pausa.", "Apri diagnosi erba", "Apre Textures/Grass/Diagnostics con GrassMaterials.txt e le anteprime PNG." }; break;
+                default: grassSurvey = new[] { "Inspect roadside grass", "After loading a city with grass strips, exports materials and texture previews to Textures/Grass/Diagnostics without modifying them. A brief pause may occur.", "Open grass diagnostic folder", "Opens Textures/Grass/Diagnostics with GrassMaterials.txt and the exported PNG previews." }; break;
+            }
+            entries.Add(m_Setting.GetOptionLabelLocaleID(nameof(Setting.ExportGrassMaterials)), grassSurvey[0]);
+            entries.Add(m_Setting.GetOptionDescLocaleID(nameof(Setting.ExportGrassMaterials)), grassSurvey[1]);
+            entries.Add(m_Setting.GetOptionLabelLocaleID(nameof(Setting.OpenGrassDiagnosticFolder)), grassSurvey[2]);
+            entries.Add(m_Setting.GetOptionDescLocaleID(nameof(Setting.OpenGrassDiagnosticFolder)), grassSurvey[3]);
             string[] gravelSurvey;
             switch (m_Language)
             {
@@ -671,7 +684,39 @@ namespace Advanced_Graphics
             AddGraphicsPanelEntries(entries);
             AddLuminaNumberFixEntries(entries);
             AddCustomCrackEntries(entries);
+            AddGrassEntries(entries);
             return entries;
+        }
+
+        private void AddGrassEntries(Dictionary<string, string> entries)
+        {
+            string[] t;
+            switch (m_Language)
+            {
+                case "de": t = new[] { "Gehweg-Gras", "Gehweg-Gras anpassen", "Passt Grasstreifen an Straßen und Gehwegen an.", "Grastextur", "0: Original. 1: Generiertes Gras. 2: Eigene Grass_BaseColor.png.", "Texturgröße", "50 bis 3000. Größere Werte vergrößern das Grasmuster.", "Tiefenwirkung", "0: Originalrelief im Originalmodus, flach bei generierter/eigener Textur. Höhere Werte verstärken das Relief. Keine echte Geometrie.", "UV-Versatz X", "UV-Versatz Y", "Verschiebt die Grastextur zwischen 0 und 300.", "Drehung", "Dreht Grastextur und Normalmap zwischen 0 und 360 Grad.", "Texturordner öffnen", "Öffnet Textures/Grass für Grass_BaseColor.png.", "Eigene Grastextur neu laden", "Lädt Grass_BaseColor.png erneut. Modus 2 wählen; quadratische PNG bis 4096 Pixel.", "Zurücksetzen", "Setzt Gehweg-Gras und alle drei Modusprofile zurück.", "Grass_BaseColor.png in Textures/Grass ablegen und neu laden. Quadratische PNG bis 4096 Pixel." }; break;
+                case "es": t = new[] { "Césped de acera", "Ajustar césped de acera", "Ajusta las franjas de césped junto a calles y aceras.", "Textura de césped", "0: Original. 1: Césped generado. 2: Grass_BaseColor.png propia.", "Tamaño de textura", "De 50 a 3000. Valores mayores amplían el patrón.", "Relieve", "0: relieve original en modo original, plano en otros modos. Valores mayores refuerzan el relieve sin añadir geometría.", "Desplazamiento UV X", "Desplazamiento UV Y", "Desplaza la textura entre 0 y 300.", "Rotación", "Gira la textura y las normales entre 0 y 360 grados.", "Abrir carpeta de texturas", "Abre Textures/Grass para Grass_BaseColor.png.", "Recargar textura de césped", "Recarga Grass_BaseColor.png. Selecciona el modo 2; PNG cuadrado de hasta 4096 píxeles.", "Restablecer", "Restablece el césped y los tres perfiles de modo.", "Coloca Grass_BaseColor.png en Textures/Grass y recarga. PNG cuadrado de hasta 4096 píxeles." }; break;
+                case "fr": t = new[] { "Herbe de trottoir", "Ajuster l’herbe de trottoir", "Ajuste les bandes d’herbe le long des routes et trottoirs.", "Texture d’herbe", "0 : Original. 1 : Herbe générée. 2 : Votre Grass_BaseColor.png.", "Taille de texture", "De 50 à 3000. Les valeurs élevées agrandissent le motif.", "Relief", "0 : relief original en mode original, plat dans les autres modes. Les valeurs élevées renforcent le relief sans ajouter de géométrie.", "Décalage UV X", "Décalage UV Y", "Décale la texture de 0 à 300.", "Rotation", "Tourne la texture et les normales de 0 à 360 degrés.", "Ouvrir le dossier des textures", "Ouvre Textures/Grass pour Grass_BaseColor.png.", "Recharger la texture d’herbe", "Recharge Grass_BaseColor.png. Choisir le mode 2 ; PNG carré jusqu’à 4096 pixels.", "Réinitialiser", "Réinitialise l’herbe et les trois profils de mode.", "Placer Grass_BaseColor.png dans Textures/Grass et recharger. PNG carré jusqu’à 4096 pixels." }; break;
+                case "it": t = new[] { "Erba del marciapiede", "Regola erba del marciapiede", "Regola le fasce erbose lungo strade e marciapiedi.", "Texture erba", "0: Originale. 1: Erba generata. 2: Grass_BaseColor.png personale.", "Dimensione texture", "Da 50 a 3000. Valori maggiori ingrandiscono il motivo.", "Rilievo", "0: rilievo originale in modalità originale, piatto nelle altre modalità. Valori maggiori rafforzano il rilievo senza aggiungere geometria.", "Spostamento UV X", "Spostamento UV Y", "Sposta la texture tra 0 e 300.", "Rotazione", "Ruota texture e normali tra 0 e 360 gradi.", "Apri cartella texture", "Apre Textures/Grass per Grass_BaseColor.png.", "Ricarica texture erba", "Ricarica Grass_BaseColor.png. Scegliere modalità 2; PNG quadrato fino a 4096 pixel.", "Ripristina", "Ripristina l’erba e tutti e tre i profili.", "Copia Grass_BaseColor.png in Textures/Grass e ricarica. PNG quadrato fino a 4096 pixel." }; break;
+                default: t = new[] { "Sidewalk grass", "Adjust sidewalk grass", "Adjusts grass strips along roads and sidewalks.", "Grass texture", "0: Original. 1: Generated grass. 2: Custom Grass_BaseColor.png.", "Texture size", "50 to 3000. Higher values enlarge the grass pattern.", "Depth", "0: authored relief in original mode, flat in generated/custom modes. Higher values strengthen relief without adding geometry.", "UV offset X", "UV offset Y", "Shifts the grass texture from 0 to 300.", "Rotation", "Rotates the grass texture and normal map from 0 to 360 degrees.", "Open texture folder", "Opens Textures/Grass for Grass_BaseColor.png.", "Reload custom grass texture", "Reloads Grass_BaseColor.png. Select mode 2; square PNG up to 4096 pixels.", "Reset", "Resets grass settings and all three mode profiles.", "Place Grass_BaseColor.png in Textures/Grass, then reload it. Square PNG up to 4096 pixels." }; break;
+            }
+            entries[m_Setting.GetOptionTabLocaleID(Setting.GrassSection)] = t[0];
+            entries[m_Setting.GetOptionGroupLocaleID(Setting.GrassGroup)] = t[0];
+            entries["AdvancedGraphics.UI.GrassTitle"] = t[0];
+            string[] properties = { nameof(Setting.GrassEnabled), nameof(Setting.GrassDetail),
+                nameof(Setting.GrassUvSizePercent), nameof(Setting.GrassDepthStrengthPercent),
+                nameof(Setting.GrassUvOffsetX), nameof(Setting.GrassUvOffsetY), nameof(Setting.GrassUvRotation),
+                nameof(Setting.OpenGrassTextureFolder), nameof(Setting.ReloadGrassTexture), nameof(Setting.ResetGrass) };
+            string[] ui = { "Enabled", "Detail", "Uv", "Depth", "OffsetX", "OffsetY", "Rotation", "Open", "Reload", "Reset" };
+            int[] labels = { 1, 3, 5, 7, 9, 10, 12, 14, 16, 18 };
+            int[] tips = { 2, 4, 6, 8, 11, 11, 13, 15, 17, 19 };
+            for (int i = 0; i < properties.Length; i++)
+            {
+                entries[m_Setting.GetOptionLabelLocaleID(properties[i])] = t[labels[i]];
+                entries[m_Setting.GetOptionDescLocaleID(properties[i])] = t[tips[i]];
+                entries["AdvancedGraphics.UI.Grass" + ui[i]] = t[labels[i]];
+                entries["AdvancedGraphics.UI.GrassTip" + ui[i]] = t[tips[i]];
+            }
+            entries["AdvancedGraphics.UI.GrassCustomHint"] = t[20];
         }
 
         private void AddCustomCrackEntries(Dictionary<string, string> entries)

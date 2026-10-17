@@ -36,6 +36,12 @@ namespace Advanced_Graphics
         public int GravelShoulderFilterOpacityPercent { get; set; } = 100;
 
         [SettingsUIHidden]
+        public int GrassFilterColor { get; set; } = 0xffffff;
+
+        [SettingsUIHidden]
+        public int GrassFilterOpacityPercent { get; set; } = 100;
+
+        [SettingsUIHidden]
         public int RailFilterColor { get; set; } = 0xffffff;
 
         [SettingsUIHidden]
@@ -58,6 +64,7 @@ namespace Advanced_Graphics
                 case "alley": AlleySidewalkFilterColor = color; AlleySidewalkFilterOpacityPercent = opacityPercent; break;
                 case "gravel": RoadGravelFilterColor = color; RoadGravelFilterOpacityPercent = opacityPercent; break;
                 case "shoulder": GravelShoulderFilterColor = color; GravelShoulderFilterOpacityPercent = opacityPercent; break;
+                case "grass": GrassFilterColor = color; GrassFilterOpacityPercent = opacityPercent; break;
                 case "rail": RailFilterColor = color; RailFilterOpacityPercent = opacityPercent; break;
                 default: return false;
             }

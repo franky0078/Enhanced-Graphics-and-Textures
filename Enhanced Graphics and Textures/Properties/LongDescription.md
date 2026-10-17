@@ -19,7 +19,9 @@ Adjust these surfaces independently:
 
 - Road asphalt
 - Sidewalks
+- Grass strips along roads and sidewalks
 - Alley / one-way road sidewalks
+- Sidewalk grass
 - Gravel roads
 - Gravel sidewalks / road edges
 - Railway ballast
@@ -29,6 +31,7 @@ Asphalt and sidewalk controls also include procedural cracks with adjustable cou
 Depth controls change the material's normal-map appearance.
 Parking spaces use the selected road asphalt texture, while outer sidewalks use the sidewalk texture settings.
 Color Filter controls for all surfaces
+Grass controls affect RoadGrass street materials; painted grass areas and terrain are excluded. Each grass texture mode keeps its own size, depth, offset and rotation settings.
 
 
 ## How to use
@@ -58,7 +61,9 @@ Use these exact filenames:
 
 - Road asphalt: Road/Road_BaseColor.png
 - Sidewalk: Sidewalk/Sidewalk_BaseColor.png
+- Roadside grass: Grass/Grass_BaseColor.png
 - Alley / one-way sidewalk: AlleySidewalk/AlleySidewalk_BaseColor.png
+- Sidewalk grass: SidewalkGrass/Grass_BaseColor.png
 - Gravel road: Gravel/RoadGravel_BaseColor.png
 - Gravel sidewalk / edge: GravelSidewalk/GravelShoulder_BaseColor.png
 - Railway ballast: Rail/RailGravel_BaseColor.png

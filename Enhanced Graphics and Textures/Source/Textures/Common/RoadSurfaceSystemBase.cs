@@ -72,6 +72,7 @@ namespace Advanced_Graphics
         protected virtual bool BakeUvSizeIntoTexture => true;
         protected virtual int SeamBlendDivisor => 8;
         protected virtual bool NeedsNormalAtZeroDepth => false;
+        protected virtual bool AlwaysBuildSurfaceNormal => false;
         protected virtual bool ReuseColorForDepthChanges => false;
         protected virtual float AuthoredNormalStrength => m_Depth / 100f;
 
@@ -173,7 +174,7 @@ namespace Advanced_Graphics
             try
             {
                 if (m_TextureDirty) BuildTextures();
-                if (m_Color == null || ((m_Depth > 0 || (m_Level == 1 && NeedsNormalAtZeroDepth)) && m_Normal == null))
+                if (m_Color == null || ((m_Depth > 0 || AlwaysBuildSurfaceNormal || (m_Level == 1 && NeedsNormalAtZeroDepth)) && m_Normal == null))
                 {
                     m_TextureDirty = true;
                     m_Dirty = false;
@@ -244,7 +245,7 @@ namespace Advanced_Graphics
         {
             if (m_NormalOnly && m_Color != null)
             {
-                var normalOnly = m_Depth > 0 || (m_Level == 1 && NeedsNormalAtZeroDepth)
+                var normalOnly = m_Depth > 0 || AlwaysBuildSurfaceNormal || (m_Level == 1 && NeedsNormalAtZeroDepth)
                     ? BuildSurfaceNormal(m_Color, m_Depth, m_UvSize, null) : null;
                 RestoreMaterials();
                 if (m_Normal != null) UnityEngine.Object.Destroy(m_Normal);
@@ -274,7 +275,7 @@ namespace Advanced_Graphics
                 color = Transform(sourceColor, false, true);
                 PostprocessSurfaceColor(color, sourceColor);
                 byte[] crackMask = m_CrackCount > 0 && m_CrackOpacity > 0 ? AddCrackOverlay(color) : null;
-                if (m_Depth > 0 || (m_Level == 1 && NeedsNormalAtZeroDepth))
+                if (m_Depth > 0 || AlwaysBuildSurfaceNormal || (m_Level == 1 && NeedsNormalAtZeroDepth))
                     normal = BuildSurfaceNormal(color, m_Depth, m_UvSize, crackMask);
                 TextureColorFilter.Apply(color, m_FilterColor, m_FilterOpacityPercent);
                 color.Apply(true, !KeepTileReadable);

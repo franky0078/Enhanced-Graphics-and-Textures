@@ -17,6 +17,7 @@ namespace Advanced_Graphics
         private string m_AlleySidewalkState = "{}";
         private string m_RailState = "{}";
         private string m_GravelState = "{}", m_ShoulderState = "{}";
+        private string m_GrassState = "{}";
         private bool m_SavePending;
         private float m_SaveAt;
 
@@ -53,6 +54,9 @@ namespace Advanced_Graphics
             AddUpdateBinding(new GetterValueBinding<string>(Group, "shoulderSettings", () => m_ShoulderState));
             AddBinding(new TriggerBinding<string>(Group, "setGravelSetting", request => ChangeGravelSetting(request, false)));
             AddBinding(new TriggerBinding<string>(Group, "setShoulderSetting", request => ChangeGravelSetting(request, true)));
+            AddUpdateBinding(new GetterValueBinding<string>(Group, "grassSettings", () => m_GrassState));
+            AddBinding(new TriggerBinding<string>(Group, "setGrassSetting", ChangeGrassSetting));
+            AddBinding(new TriggerBinding<string>(Group, "reloadGrassTexture", _ => Mod.Grass?.ReloadCustomTexture()));
             AddBinding(new TriggerBinding<string>(Group, "reloadGravelTexture", _ => Mod.RoadGravel?.ReloadCustomTexture()));
         }
 
@@ -62,6 +66,7 @@ namespace Advanced_Graphics
             m_SidewalkState = BuildSidewalkState(Mod.ActiveSetting);
             m_AlleySidewalkState = BuildAlleySidewalkState(Mod.ActiveSetting);
             m_RailState = BuildRailState(Mod.ActiveSetting);
+            m_GrassState = BuildGrassState(Mod.ActiveSetting);
             m_GravelState = BuildGravelState(Mod.ActiveSetting, false);
             m_ShoulderState = BuildGravelState(Mod.ActiveSetting, true);
             base.OnUpdate();
@@ -285,6 +290,43 @@ namespace Advanced_Graphics
             }
             s.ApplyToSystem();
             m_RailState = BuildRailState(s);
+            m_SavePending = true;
+            m_SaveAt = UnityEngine.Time.unscaledTime + 0.6f;
+        }
+
+        private static string BuildGrassState(Setting s)
+        {
+            if (s == null) return "{}";
+            return "{\"filterColor\":" + s.GrassFilterColor + ",\"filterOpacity\":" + s.GrassFilterOpacityPercent + ",\"show\":" + (s.ShowAppButton ? "true" : "false") +
+                ",\"enabled\":" + (s.GrassEnabled ? "true" : "false") +
+                ",\"detail\":" + s.GrassDetail +
+                ",\"uv\":" + s.GrassUvSizePercent +
+                ",\"depth\":" + s.GrassDepthStrengthPercent +
+                ",\"offsetX\":" + s.GrassUvOffsetX +
+                ",\"offsetY\":" + s.GrassUvOffsetY +
+                ",\"rotation\":" + s.GrassUvRotation + "}";
+        }
+
+        private void ChangeGrassSetting(string request)
+        {
+            var s = Mod.ActiveSetting;
+            if (s == null || string.IsNullOrEmpty(request)) return;
+            if (request == "reset") { s.ResetGrass = true; m_GrassState = BuildGrassState(s); return; }
+            int separator = request.IndexOf(':');
+            if (separator <= 0 || !int.TryParse(request.Substring(separator + 1), out int value)) return;
+            switch (request.Substring(0, separator))
+            {
+                case "enabled": s.GrassEnabled = value != 0; break;
+                case "detail": s.GrassDetail = Clamp(value, 0, 2); break;
+                case "uv": s.GrassUvSizePercent = Clamp(value, 50, Setting.MaxTextureUvSize); break;
+                case "depth": s.GrassDepthStrengthPercent = Clamp(value, 0, Setting.MaxTextureDepthStrength); break;
+                case "offsetX": s.GrassUvOffsetX = Clamp(value, 0, Setting.MaxTextureUvOffset); break;
+                case "offsetY": s.GrassUvOffsetY = Clamp(value, 0, Setting.MaxTextureUvOffset); break;
+                case "rotation": s.GrassUvRotation = Clamp(value, 0, 360); break;
+                default: return;
+            }
+            s.ApplyToSystem();
+            m_GrassState = BuildGrassState(s);
             m_SavePending = true;
             m_SaveAt = UnityEngine.Time.unscaledTime + 0.6f;
         }

@@ -95,13 +95,16 @@ namespace Advanced_Graphics
         [SettingsUIHidden]
         public string RailGravelModeProfiles { get; set; } = "";
 
+        [SettingsUIHidden]
+        public string GrassModeProfiles { get; set; } = "";
+
         private bool m_TextureModeProfilesReady;
-        private readonly double[][][] m_TextureModeProfiles = new double[6][][];
+        private readonly double[][][] m_TextureModeProfiles = new double[7][][];
 
         // Called after LoadSettings and existing setting migrations.
         internal void InitializeTextureModeProfiles()
         {
-            for (int surface = 0; surface < 6; surface++) EnsureTextureModeProfiles(surface);
+            for (int surface = 0; surface < 7; surface++) EnsureTextureModeProfiles(surface);
             EnsureRoadCrackProfiles();
             m_TextureModeProfilesReady = true;
             CaptureTextureModeProfiles();
@@ -128,7 +131,7 @@ namespace Advanced_Graphics
         {
             if (!m_TextureModeProfilesReady) return;
             CaptureRoadCrackProfile();
-            for (int surface = 0; surface < 6; surface++)
+            for (int surface = 0; surface < 7; surface++)
             {
                 EnsureTextureModeProfiles(surface);
                 m_TextureModeProfiles[surface][GetTextureMode(surface)] = ReadTextureSliders(surface);
@@ -216,7 +219,7 @@ namespace Advanced_Graphics
 
         private void ClearAllTextureModeProfiles()
         {
-            for (int surface = 0; surface < 6; surface++) ClearTextureModeProfiles(surface);
+            for (int surface = 0; surface < 7; surface++) ClearTextureModeProfiles(surface);
         }
 
         private int GetTextureMode(int surface)
@@ -229,6 +232,7 @@ namespace Advanced_Graphics
                 case 3: return RoadGravelDetail;
                 case 4: return GravelShoulderDetail;
                 case 5: return RailGravelDetail;
+                case 6: return GrassDetail;
                 default: throw new ArgumentOutOfRangeException(nameof(surface));
             }
         }
@@ -243,6 +247,7 @@ namespace Advanced_Graphics
                 case 3: return RoadGravelModeProfiles;
                 case 4: return GravelShoulderModeProfiles;
                 case 5: return RailGravelModeProfiles;
+                case 6: return GrassModeProfiles;
                 default: throw new ArgumentOutOfRangeException(nameof(surface));
             }
         }
@@ -257,6 +262,7 @@ namespace Advanced_Graphics
                 case 3: RoadGravelModeProfiles = value; break;
                 case 4: GravelShoulderModeProfiles = value; break;
                 case 5: RailGravelModeProfiles = value; break;
+                case 6: GrassModeProfiles = value; break;
                 default: throw new ArgumentOutOfRangeException(nameof(surface));
             }
         }
@@ -271,6 +277,7 @@ namespace Advanced_Graphics
                 case 3: return new double[] { RoadGravelUvSizePercent, RoadGravelDepthStrengthPercent, RoadGravelUvOffsetX, RoadGravelUvOffsetY, RoadGravelUvRotation };
                 case 4: return new double[] { GravelShoulderUvSizePercent, GravelShoulderDepthStrengthPercent, GravelShoulderUvOffsetX, GravelShoulderUvOffsetY, GravelShoulderUvRotation };
                 case 5: return new double[] { RailGravelUvSizePercent, RailGravelDepthStrengthPercent, RailGravelUvOffsetX, RailGravelUvOffsetY, RailGravelUvRotation };
+                case 6: return new double[] { GrassUvSizePercent, GrassDepthStrengthPercent, GrassUvOffsetX, GrassUvOffsetY, GrassUvRotation };
                 default: throw new ArgumentOutOfRangeException(nameof(surface));
             }
         }
@@ -340,6 +347,13 @@ namespace Advanced_Graphics
                     RailGravelUvOffsetX = (int)values[2];
                     RailGravelUvOffsetY = (int)values[3];
                     RailGravelUvRotation = (int)values[4];
+                    break;
+                case 6:
+                    GrassUvSizePercent = (int)values[0];
+                    GrassDepthStrengthPercent = (int)values[1];
+                    GrassUvOffsetX = (int)values[2];
+                    GrassUvOffsetY = (int)values[3];
+                    GrassUvRotation = (int)values[4];
                     break;
                 default: throw new ArgumentOutOfRangeException(nameof(surface));
             }

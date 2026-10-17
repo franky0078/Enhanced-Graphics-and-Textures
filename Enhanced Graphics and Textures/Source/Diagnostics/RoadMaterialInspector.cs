@@ -17,6 +17,13 @@ namespace Advanced_Graphics
         private bool m_Requested;
         private bool m_ExportRequested;
         private bool m_GravelRequested;
+        private bool m_GrassRequested;
+
+        public void RequestGrassSurvey()
+        {
+            m_GrassRequested = true;
+            Mod.log.Info("Roadside grass survey requested; load a city with grass sidewalks.");
+        }
 
         public void RequestGravelSurvey()
         {
@@ -38,8 +45,14 @@ namespace Advanced_Graphics
 
         protected override void OnUpdate()
         {
+            if (!m_Requested && !m_ExportRequested && !m_GravelRequested && !m_GrassRequested) return;
+            if (m_GrassRequested)
+            {
+                m_GrassRequested = false;
+                try { ExportGrassMaterials(); }
+                catch (Exception ex) { Mod.log.Error(ex, "Roadside grass material export failed."); }
+            }
             if (!Mod.DebugBackendEnabled) return;
-            if (!m_Requested && !m_ExportRequested && !m_GravelRequested) return;
             if (m_GravelRequested)
             {
                 m_GravelRequested = false;
