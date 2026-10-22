@@ -1,0 +1,9 @@
+<Project>
+  <!-- Mod-Version nur hier ändern, danach das Projekt neu bauen. -->
+  <PropertyGroup>
+    <Version>1.5.0</Version>
+    <AssemblyVersion>$(Version).0</AssemblyVersion>
+    <FileVersion>$(Version).0</FileVersion>
+    <InformationalVersion>$(Version)</InformationalVersion>
+  </PropertyGroup>
+</Project>

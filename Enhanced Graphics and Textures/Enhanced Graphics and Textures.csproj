@@ -1,9 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+    <Import Project="Version.props" />
+
 	<PropertyGroup>
 		<Configurations>Debug;Release</Configurations>
-        <!-- Update this version for each release; keep PublishConfiguration ModVersion in sync. -->
-        <Version>1.4.0</Version>
         <AssemblyName>Enhanced Graphics and Textures</AssemblyName>
         <RootNamespace>Advanced_Graphics</RootNamespace>
         <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
@@ -16,6 +16,8 @@
 	
     <ItemGroup>
         <Compile Include="Source\**\*.cs" />
+        <EmbeddedResource Include="Assets\Textures\Rail\RailGravel_BaseColor.png" LogicalName="Advanced_Graphics.RailGravel_BaseColor.png" />
+        <EmbeddedResource Include="Assets\Textures\Rail\RailGravel_Normal.png" LogicalName="Advanced_Graphics.RailGravel_Normal.png" />
     </ItemGroup>
 
 	<!--Imports must be after PropertyGroup block-->
@@ -93,15 +95,19 @@
 		<None Include="$(ModTargetsFile)" Link="Properties\Mod.targets" />
 	</ItemGroup>
 	<ItemGroup>
-		<UpToDateCheckInput Include="UI\src\**\*.ts;UI\src\**\*.tsx;UI\src\**\*.scss;UI\types\**\*.ts;UI\mod.json;UI\package.json;UI\webpack.config.js" />
+		<UpToDateCheckInput Include="Version.props;UI\tools\sync-version.cjs;UI\src\**\*.ts;UI\src\**\*.tsx;UI\src\**\*.scss;UI\types\**\*.ts;UI\mod.json;UI\package.json;UI\webpack.config.js" />
 	</ItemGroup>
+    <Target Name="SyncEnhancedGraphicsVersion" BeforeTargets="PrepareForBuild">
+        <Exec Command="node &quot;$(UIProjectDirectory)\tools\sync-version.cjs&quot;" WorkingDirectory="$(MSBuildProjectDirectory)" />
+    </Target>
 	<Target Name="RestoreAdvancedGraphicsUI" Inputs="$(UIProjectDirectory)\package-lock.json" Outputs="$(UIProjectDirectory)\node_modules\.advanced-graphics-restored">
 		<Exec Command="npm ci --no-audit --no-fund" WorkingDirectory="$(UIProjectDirectory)" />
 		<Touch Files="$(UIProjectDirectory)\node_modules\.advanced-graphics-restored" AlwaysCreate="true" />
 	</Target>
-	<Target Name="BuildAdvancedGraphicsUI" AfterTargets="AfterBuild" DependsOnTargets="RestoreAdvancedGraphicsUI">
+	<Target Name="BuildAdvancedGraphicsUI" AfterTargets="AfterBuild" DependsOnTargets="SyncEnhancedGraphicsVersion;RestoreAdvancedGraphicsUI">
 		<Exec Command="npm run build" WorkingDirectory="$(UIProjectDirectory)" />
 	</Target>
 
 </Project>
+
 

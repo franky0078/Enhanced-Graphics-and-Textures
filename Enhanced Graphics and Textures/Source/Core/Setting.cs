@@ -976,11 +976,13 @@ namespace Advanced_Graphics
         {
             ClearTextureModeProfiles(5);
             RailFilterColor = 0xffffff; RailFilterOpacityPercent = 0;
-            RailGravelEnabled = false;
-            RailGravelDetail = 0;
-            RailGravelUvSizePercent = 100;
-            RailGravelDepthStrengthPercent = 0;
-            RailGravelUvOffsetX = RailGravelUvOffsetY = RailGravelUvRotation = 0;
+            RailGravelEnabled = true;
+            RailGravelDetail = 1;
+            RailGravelUvSizePercent = 150;
+            RailGravelDepthStrengthPercent = 200;
+            RailGravelUvOffsetX = 0;
+            RailGravelUvOffsetY = 10;
+            RailGravelUvRotation = 53;
         }
 
         private void ResetRoadGravelDefaults()
@@ -1083,6 +1085,7 @@ namespace Advanced_Graphics
         }
     }
 }
+
 
 
 

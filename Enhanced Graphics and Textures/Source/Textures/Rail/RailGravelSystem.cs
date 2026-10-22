@@ -15,6 +15,7 @@ namespace Advanced_Graphics
         protected override string SurfaceName => "Rail gravel";
         protected override bool BakeUvSizeIntoTexture => false;
         protected override bool NeedsNormalAtZeroDepth => true;
+        protected override bool AlwaysBuildSurfaceNormal => CurrentLevel != 0;
 
         private const string AtlasColorSlot = "_BaseColorMap";
         private const string AtlasNormalSlot = "_NormalMap";
@@ -28,6 +29,66 @@ namespace Advanced_Graphics
         private readonly Dictionary<Material, AtlasPair> m_Atlases = new Dictionary<Material, AtlasPair>();
         private readonly HashSet<Material> m_UnavailableAtlases = new HashSet<Material>();
         private Texture m_OriginalWorldspaceNormal;
+        private Texture2D m_CustomNormal;
+        private bool m_CustomNormalLoaded;
+        private Texture2D m_GeneratedNormal;
+
+        // Preserve the custom texture without blurring its borders. Rotation remains free.
+        protected override bool BlendTextureSeams => CurrentLevel == 0;
+        protected override float TextureSampleOffset => CurrentLevel != 0 ? 0f : 0.5f;
+
+        public override void ReloadCustomTexture()
+        {
+            ClearCustomNormal();
+            base.ReloadCustomTexture();
+        }
+
+        private void ClearCustomNormal()
+        {
+            if (m_CustomNormal != null) UnityEngine.Object.Destroy(m_CustomNormal);
+            m_CustomNormal = null;
+            m_CustomNormalLoaded = false;
+        }
+
+        // Optional, unpacked RGB tangent-space normal (OpenGL/+Y), loaded as linear data.
+        private Texture2D LoadCustomNormal()
+        {
+            if (m_CustomNormalLoaded) return m_CustomNormal;
+            m_CustomNormalLoaded = true;
+            string path = Path.Combine(TextureFolder, "RailGravel_Normal.png");
+            if (!File.Exists(path)) return null;
+            Texture2D loaded = null;
+            try
+            {
+                if (new FileInfo(path).Length > 32 * 1024 * 1024)
+                    throw new InvalidDataException("RailGravel_Normal.png exceeds 32 MB.");
+                loaded = new Texture2D(2, 2, TextureFormat.RGBA32, false, true);
+                if (!loaded.LoadImage(File.ReadAllBytes(path), false) ||
+                    loaded.width != loaded.height || loaded.width > 4096)
+                    throw new InvalidDataException("RailGravel_Normal.png must be a square PNG, at most 4096 pixels wide.");
+                var pixels = loaded.GetPixels32();
+                for (int i = 0; i < pixels.Length; i++)
+                {
+                    var p = pixels[i];
+                    var n = new Vector3(p.r / 127.5f - 1f, p.g / 127.5f - 1f,
+                        Mathf.Max(0.001f, p.b / 127.5f - 1f)).normalized;
+                    pixels[i] = new Color32(
+                        (byte)Mathf.Clamp((n.x + 1f) * 127.5f, 0f, 255f),
+                        (byte)Mathf.Clamp((n.y + 1f) * 127.5f, 0f, 255f),
+                        (byte)Mathf.Clamp((n.z + 1f) * 127.5f, 0f, 255f), 255);
+                }
+                loaded.SetPixels32(pixels);
+                loaded.Apply(false, false);
+                m_CustomNormal = loaded;
+                return loaded;
+            }
+            catch (Exception ex)
+            {
+                if (loaded != null) UnityEngine.Object.Destroy(loaded);
+                Mod.log.Error(ex, "Rail custom normal could not be loaded; using color-derived relief.");
+                return null;
+            }
+        }
 
         protected override bool MatchesShader(Material material) => material.shader != null &&
             material.shader.name == "BH/NetCompositionMeshLitShader" &&
@@ -47,44 +108,67 @@ namespace Advanced_Graphics
             return matched;
         }
 
-        protected override Texture2D GenerateNeutralAsphalt()
-        {
-            var texture = LoadOriginalColor();
-            if (texture == null) return null;
-            var pixels = RepeatGravelTwice(texture.GetPixels32(), texture.width);
-            for (int i = 0; i < pixels.Length; i++)
-            {
-                var pixel = pixels[i];
-                float brightness = pixel.r * 0.2126f + pixel.g * 0.7152f + pixel.b * 0.0722f;
-                float shade = Mathf.Clamp(132f + (brightness - 70f) * 1.18f, 70f, 220f);
-                pixel.r = (byte)Mathf.Clamp(shade + 2f, 0f, 255f);
-                pixel.g = (byte)Mathf.Clamp(shade + 1f, 0f, 255f);
-                pixel.b = (byte)Mathf.Clamp(shade, 0f, 255f);
-                pixels[i] = pixel;
-            }
-            texture.SetPixels32(pixels);
-            texture.Apply(false, false);
-            texture.name = "Advanced Graphics Generated Rail Ballast Source";
-            return texture;
-        }
+        protected override Texture2D GenerateNeutralAsphalt() => LoadBundledBallast(false);
 
-        private static Color32[] RepeatGravelTwice(Color32[] source, int width)
+        private static Texture2D LoadBundledBallast(bool normal)
         {
-            var result = new Color32[source.Length];
-            for (int y = 0; y < width; y++)
-            for (int x = 0; x < width; x++)
-                result[y * width + x] = source[((y * 2) % width) * width + (x * 2) % width];
-            return result;
+            string resource = "Advanced_Graphics.RailGravel_" + (normal ? "Normal" : "BaseColor") + ".png";
+            Texture2D texture = null;
+            try
+            {
+                using (var stream = typeof(RailGravelSystem).Assembly.GetManifestResourceStream(resource))
+                {
+                    if (stream == null) throw new InvalidDataException("Missing embedded texture: " + resource);
+                    using (var buffer = new MemoryStream())
+                    {
+                        stream.CopyTo(buffer);
+                        texture = new Texture2D(2, 2, TextureFormat.RGBA32, false, normal);
+                        if (!texture.LoadImage(buffer.ToArray(), false) || texture.width != 2048 || texture.height != 2048)
+                            throw new InvalidDataException("Invalid embedded ballast texture: " + resource);
+                    }
+                }
+                texture.name = "Advanced Graphics Generated Rail Ballast " + (normal ? "Normal" : "Color");
+                return texture;
+            }
+            catch
+            {
+                if (texture != null) UnityEngine.Object.Destroy(texture);
+                throw;
+            }
         }
 
         protected override Texture2D BuildSurfaceNormal(Texture2D color, int depth, int uvSize, byte[] crackMask)
         {
-            if (CurrentLevel <= 1)
+            if (CurrentLevel != 0)
+            {
+                if (CurrentLevel == 1 && m_GeneratedNormal == null)
+                    m_GeneratedNormal = LoadBundledBallast(true);
+                var source = CurrentLevel == 1 ? m_GeneratedNormal : LoadCustomNormal();
+                if (source != null)
+                {
+                    Texture2D transformed = null;
+                    try
+                    {
+                        transformed = Transform(source, true, true);
+                        var pixels = transformed.GetPixels32();
+                        EncodeNormalPixels(pixels);
+                        transformed.SetPixels32(pixels);
+                        transformed.Apply(true, true);
+                        transformed.name = "Advanced Graphics Rail Custom Normal";
+                        return transformed;
+                    }
+                    catch
+                    {
+                        if (transformed != null) UnityEngine.Object.Destroy(transformed);
+                        throw;
+                    }
+                }
+            }
+            if (CurrentLevel == 0)
             {
                 var original = BuildOriginalNormal();
                 if (original != null) return original;
             }
-            // Custom PNGs have no authored normal; derive one from their color.
             int boundedDepth = Mathf.RoundToInt(100f * Mathf.Sqrt(depth / 100f));
             return base.BuildSurfaceNormal(color, boundedDepth, 100, crackMask);
         }
@@ -128,7 +212,7 @@ namespace Advanced_Graphics
                     pixel.a = 255;
                     pixels[i] = pixel;
                 }
-                decoded.SetPixels32(CurrentLevel == 1 ? RepeatGravelTwice(pixels, source.width) : pixels);
+                decoded.SetPixels32(pixels);
                 decoded.Apply(false, false);
                 transformed = Transform(decoded, true, true);
                 pixels = transformed.GetPixels32();
@@ -221,6 +305,9 @@ namespace Advanced_Graphics
 
         protected override void OnSurfaceReset()
         {
+            ClearCustomNormal();
+            if (m_GeneratedNormal != null) UnityEngine.Object.Destroy(m_GeneratedNormal);
+            m_GeneratedNormal = null;
             foreach (var pair in m_Atlases.Values)
             {
                 if (pair.FlatColor != null) UnityEngine.Object.Destroy(pair.FlatColor);
@@ -302,5 +389,6 @@ namespace Advanced_Graphics
 
     }
 }
+
 
 

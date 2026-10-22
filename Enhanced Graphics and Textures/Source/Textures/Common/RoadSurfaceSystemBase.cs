@@ -71,12 +71,15 @@ namespace Advanced_Graphics
         protected int CurrentRotation => m_Rotation;
         protected virtual bool BakeUvSizeIntoTexture => true;
         protected virtual int SeamBlendDivisor => 8;
+        protected virtual bool BlendTextureSeams => true;
+        protected virtual float TextureSampleOffset => 0.5f;
+        protected virtual int TextureRotation => m_Rotation;
         protected virtual bool NeedsNormalAtZeroDepth => false;
         protected virtual bool AlwaysBuildSurfaceNormal => false;
         protected virtual bool ReuseColorForDepthChanges => false;
         protected virtual float AuthoredNormalStrength => m_Depth / 100f;
 
-        public void ReloadCustomTexture()
+        public virtual void ReloadCustomTexture()
         {
             ClearSourceCache();
             ClearCrackCache();
@@ -546,27 +549,34 @@ namespace Advanced_Graphics
             float shiftY = m_OffsetY * size / 100f;
             float tiling = 1f;
             float period = size * tiling * 100f / (BakeUvSizeIntoTexture ? m_UvSize : 100);
-            float seamWidth = outputSize / (float)Mathf.Max(1, SeamBlendDivisor);
-            float angle = m_Rotation * Mathf.Deg2Rad;
+            float seamWidth = BlendTextureSeams ? outputSize / (float)Mathf.Max(1, SeamBlendDivisor) : 0f;
+            int rotation = TextureRotation;
+            float angle = rotation * Mathf.Deg2Rad;
             float cosine = Mathf.Cos(angle), sine = Mathf.Sin(angle);
+            if (!BlendTextureSeams && rotation % 90 == 0)
+            {
+                cosine = Mathf.Round(cosine);
+                sine = Mathf.Round(sine);
+            }
+            float sampleOffset = TextureSampleOffset;
             for (int y = 0; y < outputSize; y++)
             for (int x = 0; x < outputSize; x++)
             {
-                float u = (x + 0.5f) * period / outputSize + shiftX;
-                float v = (y + 0.5f) * period / outputSize + shiftY;
+                float u = (x + sampleOffset) * period / outputSize + shiftX;
+                float v = (y + sampleOffset) * period / outputSize + shiftY;
                 float dx = x < seamWidth ? period : x >= outputSize - seamWidth ? -period : 0f;
                 float dy = y < seamWidth ? period : y >= outputSize - seamWidth ? -period : 0f;
                 float wx = dx == 0f ? 0f : 0.5f * (1f - Math.Min(x, outputSize - 1 - x) / seamWidth);
                 float wy = dy == 0f ? 0f : 0.5f * (1f - Math.Min(y, outputSize - 1 - y) / seamWidth);
-                var pixel = SampleRotated(input, size, u, v, m_Rotation, cosine, sine);
-                if (wx > 0f) pixel = Blend(pixel, SampleRotated(input, size, u + dx, v, m_Rotation, cosine, sine), wx);
+                var pixel = SampleRotated(input, size, u, v, rotation, cosine, sine);
+                if (wx > 0f) pixel = Blend(pixel, SampleRotated(input, size, u + dx, v, rotation, cosine, sine), wx);
                 if (wy > 0f)
                 {
-                    var other = SampleRotated(input, size, u, v + dy, m_Rotation, cosine, sine);
-                    if (wx > 0f) other = Blend(other, SampleRotated(input, size, u + dx, v + dy, m_Rotation, cosine, sine), wx);
+                    var other = SampleRotated(input, size, u, v + dy, rotation, cosine, sine);
+                    if (wx > 0f) other = Blend(other, SampleRotated(input, size, u + dx, v + dy, rotation, cosine, sine), wx);
                     pixel = Blend(pixel, other, wy);
                 }
-                if (linear && m_Rotation != 0)
+                if (linear && rotation != 0)
                 {
                     float nx = pixel.r - 128f, ny = pixel.g - 128f;
                     pixel.r = (byte)Mathf.Clamp(128f + nx * cosine - ny * sine, 0f, 255f);
@@ -674,6 +684,7 @@ namespace Advanced_Graphics
         }
     }
 }
+
 
 
 

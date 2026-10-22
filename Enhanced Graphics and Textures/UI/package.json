@@ -5,6 +5,8 @@
     "node": ">=18"
   },
   "scripts": {
+    "prebuild": "node tools/sync-version.cjs",
+    "predev": "node tools/sync-version.cjs",
     "build": "webpack",
     "dev": "webpack --watch",
     "update": "npx create-csii-ui-mod update",
@@ -36,3 +38,4 @@
     "webpack-cli": "4.10.0"
   }
 }
+

@@ -508,8 +508,8 @@ function ColorFilterWindow({ surface, title, color, opacity, text, panelClass, s
         const next = parsedHex();
         if (next !== draft) choose(next); else setHex(colorHex(draft));
     };
-    const presets = [0xffffff, 0xd6d6d6, 0xa7b4bd, 0x808080, 0xead4b2, 0xc2a780,
-        0xff8a1a, 0xffd91a, 0x1ff238, 0x14dbff, 0x8757ff, 0xe74cff];
+    const presets = [0xffffff, 0xd6d3cc, 0xb5b1a8, 0x8c8982, 0x66645f, 0x45443f,
+        0xd9c9aa, 0xb8a17d, 0x967b59, 0x795f48, 0x8b7566, 0x72745a];
     return <div ref={panelRef} className={`${panelClass} ${styles.panel} ${styles.colorWindow}`} role="dialog" aria-label={`${text("ColorFilter", "Color filter")} – ${title}`}
         style={{ left: `${position.x}px`, top: `${position.y}px` }}>
         <div className={styles.header} onMouseDown={event => {
@@ -549,5 +549,6 @@ function ColorFilterWindow({ surface, title, color, opacity, text, panelClass, s
         </div>
     </div>;
 }
+
 
 

@@ -141,10 +141,14 @@ namespace Advanced_Graphics
 
             if (applied != m_LastIsolatedBatches || shared != m_LastSharedAlleyMeshes)
             {
-                Mod.log.Info(IsolatedSurfaceLabel + " batch isolation: " + applied + " batches adjusted; " + shared +
-                    " shared composition meshes kept original. Other road types excluded.");
+                // Keep change tracking independent of optional diagnostic logging.
                 m_LastIsolatedBatches = applied;
                 m_LastSharedAlleyMeshes = shared;
+                if (Mod.DebugBackendEnabled)
+                {
+                    Mod.log.Info(IsolatedSurfaceLabel + " batch isolation: " + applied + " batches adjusted; " + shared +
+                        " shared composition meshes kept original. Other road types excluded.");
+                }
             }
             return applied;
         }
@@ -186,4 +190,5 @@ namespace Advanced_Graphics
         }
     }
 }
+
 

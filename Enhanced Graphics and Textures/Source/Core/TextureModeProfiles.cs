@@ -146,13 +146,13 @@ namespace Advanced_Graphics
             var profiles = new double[3][];
             for (int mode = 0; mode < 3; mode++)
             {
-                profiles[mode] = DefaultTextureSliders(surface);
+                profiles[mode] = DefaultTextureSliders(surface, mode);
                 if (encoded.Length != 3) continue;
                 var values = encoded[mode].Split(',');
                 // Older asphalt profiles have eleven or twelve sliders. Append parking
                 // factors without losing the three existing profiles.
                 if (values.Length != profiles[mode].Length && !(surface == 0 && (values.Length == 11 || values.Length == 12))) continue;
-                var parsed = DefaultTextureSliders(surface);
+                var parsed = DefaultTextureSliders(surface, mode);
                 bool valid = true;
                 for (int i = 0; i < values.Length; i++)
                 {
@@ -187,7 +187,9 @@ namespace Advanced_Graphics
             }
         }
 
-        private static double[] DefaultTextureSliders(int surface) => surface == 0
+        private static double[] DefaultTextureSliders(int surface, int mode) => surface == 5 && mode == 1
+            ? new double[] { 150, 200, 0, 10, 53 }
+            : surface == 0
             ? new double[] { 100, 0, 0, 0, 0, 0, 100, 100, 100, 50, 1, 1, 1 }
             : surface < 3
             ? new double[] { 100, 0, 0, 0, 0, 0, 100, 100, 100, 50, 1 }
@@ -360,5 +362,6 @@ namespace Advanced_Graphics
         }
     }
 }
+
 
 
