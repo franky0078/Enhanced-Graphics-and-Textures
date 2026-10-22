@@ -15,7 +15,7 @@ namespace Advanced_Graphics
         protected override int MaximumTileResolution => 4096;
         protected override bool KeepTileReadable => true;
         protected override bool CacheSourceColor => true;
-        protected override bool ReuseColorForDepthChanges => true;
+        protected override bool ReuseColorForDepthChanges => false;
         internal bool UsesCustomTexture => CurrentLevel == 2;
         protected override int SeamBlendDivisor => UsesCustomTexture ? 64 : 8;
 
@@ -127,3 +127,4 @@ namespace Advanced_Graphics
         }
     }
 }
+

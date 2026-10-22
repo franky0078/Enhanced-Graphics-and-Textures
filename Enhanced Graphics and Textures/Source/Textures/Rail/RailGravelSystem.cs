@@ -29,66 +29,11 @@ namespace Advanced_Graphics
         private readonly Dictionary<Material, AtlasPair> m_Atlases = new Dictionary<Material, AtlasPair>();
         private readonly HashSet<Material> m_UnavailableAtlases = new HashSet<Material>();
         private Texture m_OriginalWorldspaceNormal;
-        private Texture2D m_CustomNormal;
-        private bool m_CustomNormalLoaded;
         private Texture2D m_GeneratedNormal;
 
         // Preserve the custom texture without blurring its borders. Rotation remains free.
         protected override bool BlendTextureSeams => CurrentLevel == 0;
         protected override float TextureSampleOffset => CurrentLevel != 0 ? 0f : 0.5f;
-
-        public override void ReloadCustomTexture()
-        {
-            ClearCustomNormal();
-            base.ReloadCustomTexture();
-        }
-
-        private void ClearCustomNormal()
-        {
-            if (m_CustomNormal != null) UnityEngine.Object.Destroy(m_CustomNormal);
-            m_CustomNormal = null;
-            m_CustomNormalLoaded = false;
-        }
-
-        // Optional, unpacked RGB tangent-space normal (OpenGL/+Y), loaded as linear data.
-        private Texture2D LoadCustomNormal()
-        {
-            if (m_CustomNormalLoaded) return m_CustomNormal;
-            m_CustomNormalLoaded = true;
-            string path = Path.Combine(TextureFolder, "RailGravel_Normal.png");
-            if (!File.Exists(path)) return null;
-            Texture2D loaded = null;
-            try
-            {
-                if (new FileInfo(path).Length > 32 * 1024 * 1024)
-                    throw new InvalidDataException("RailGravel_Normal.png exceeds 32 MB.");
-                loaded = new Texture2D(2, 2, TextureFormat.RGBA32, false, true);
-                if (!loaded.LoadImage(File.ReadAllBytes(path), false) ||
-                    loaded.width != loaded.height || loaded.width > 4096)
-                    throw new InvalidDataException("RailGravel_Normal.png must be a square PNG, at most 4096 pixels wide.");
-                var pixels = loaded.GetPixels32();
-                for (int i = 0; i < pixels.Length; i++)
-                {
-                    var p = pixels[i];
-                    var n = new Vector3(p.r / 127.5f - 1f, p.g / 127.5f - 1f,
-                        Mathf.Max(0.001f, p.b / 127.5f - 1f)).normalized;
-                    pixels[i] = new Color32(
-                        (byte)Mathf.Clamp((n.x + 1f) * 127.5f, 0f, 255f),
-                        (byte)Mathf.Clamp((n.y + 1f) * 127.5f, 0f, 255f),
-                        (byte)Mathf.Clamp((n.z + 1f) * 127.5f, 0f, 255f), 255);
-                }
-                loaded.SetPixels32(pixels);
-                loaded.Apply(false, false);
-                m_CustomNormal = loaded;
-                return loaded;
-            }
-            catch (Exception ex)
-            {
-                if (loaded != null) UnityEngine.Object.Destroy(loaded);
-                Mod.log.Error(ex, "Rail custom normal could not be loaded; using color-derived relief.");
-                return null;
-            }
-        }
 
         protected override bool MatchesShader(Material material) => material.shader != null &&
             material.shader.name == "BH/NetCompositionMeshLitShader" &&
@@ -139,11 +84,11 @@ namespace Advanced_Graphics
 
         protected override Texture2D BuildSurfaceNormal(Texture2D color, int depth, int uvSize, byte[] crackMask)
         {
-            if (CurrentLevel != 0)
+            if (CurrentLevel == 1)
             {
-                if (CurrentLevel == 1 && m_GeneratedNormal == null)
+                if (m_GeneratedNormal == null)
                     m_GeneratedNormal = LoadBundledBallast(true);
-                var source = CurrentLevel == 1 ? m_GeneratedNormal : LoadCustomNormal();
+                var source = m_GeneratedNormal;
                 if (source != null)
                 {
                     Texture2D transformed = null;
@@ -305,7 +250,6 @@ namespace Advanced_Graphics
 
         protected override void OnSurfaceReset()
         {
-            ClearCustomNormal();
             if (m_GeneratedNormal != null) UnityEngine.Object.Destroy(m_GeneratedNormal);
             m_GeneratedNormal = null;
             foreach (var pair in m_Atlases.Values)
@@ -389,6 +333,7 @@ namespace Advanced_Graphics
 
     }
 }
+
 
 
 

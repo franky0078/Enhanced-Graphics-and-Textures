@@ -22,6 +22,25 @@ namespace Advanced_Graphics
         public const int MaxRoadCrackWidth = 1200;
         public const int MaxRoadCrackOpacity = 600;
 
+        [SettingsUISection(MainSection, TextureGeneralGroup)]
+        [SettingsUIButton]
+        public bool ReloadAllCustomTextures
+        {
+            set { if (value) ReloadAllCustomTexturesNow(); }
+        }
+
+        internal void ReloadAllCustomTexturesNow()
+        {
+            // ReloadCustomTexture also clears the optional normal and crack caches.
+            Mod.RoadAsphalt?.ReloadCustomTexture();
+            Mod.Sidewalk?.ReloadCustomTexture();
+            Mod.AlleySidewalk?.ReloadCustomTexture();
+            Mod.Grass?.ReloadCustomTexture();
+            Mod.RoadGravel?.ReloadCustomTexture();
+            Mod.GravelShoulderSurface?.ReloadCustomTexture();
+            Mod.RailGravel?.ReloadCustomTexture();
+        }
+
         private float m_SurfaceTextureMipBias;
         [SettingsUISection(MainSection, TextureGeneralGroup)]
         [SettingsUISlider(min = -1f, max = 1f, step = 0.1f, scalarMultiplier = 1, unit = Unit.kFloatSingleFraction)]
@@ -236,20 +255,22 @@ namespace Advanced_Graphics
             set { if (value) Mod.RoadInspector?.RequestGravelSurvey(); }
         }
 
-        [SettingsUISection(SidewalkSection, SidewalkGroup)]
+        [SettingsUIHideByCondition(typeof(Setting), nameof(HideDebugControls))]
+        [SettingsUISection(GrassSection, GrassGroup)]
         [SettingsUIButton]
         public bool ExportGrassMaterials
         {
-            set { if (value) Mod.RoadInspector?.RequestGrassSurvey(); }
+            set { if (value && Mod.DebugBackendEnabled) Mod.RoadInspector?.RequestGrassSurvey(); }
         }
 
-        [SettingsUISection(SidewalkSection, SidewalkGroup)]
+        [SettingsUIHideByCondition(typeof(Setting), nameof(HideDebugControls))]
+        [SettingsUISection(GrassSection, GrassGroup)]
         [SettingsUIButton]
         public bool OpenGrassDiagnosticFolder
         {
             set
             {
-                if (!value) return;
+                if (!value || !Mod.DebugBackendEnabled) return;
                 try
                 {
                     Directory.CreateDirectory(RoadMaterialInspector.GrassDiagnosticFolder);
@@ -363,7 +384,7 @@ namespace Advanced_Graphics
             {
                 if (value)
                 {
-                    ClearTextureModeProfiles(4); GravelShoulderFilterColor = 0xffffff; GravelShoulderFilterOpacityPercent = 0; GravelShoulderEnabled = false; GravelShoulderUvSizePercent = 100;
+                    ClearTextureModeProfiles(4); UseGravelShoulderNormalMap = false; GravelShoulderFilterColor = 0xffffff; GravelShoulderFilterOpacityPercent = 0; GravelShoulderEnabled = false; GravelShoulderUvSizePercent = 100;
                     GravelShoulderDepthStrengthPercent = 0; GravelShoulderDetail = 0;
                     GravelShoulderUvOffsetX = GravelShoulderUvOffsetY = GravelShoulderUvRotation = 0; ApplyAndSave();
                 }
@@ -530,7 +551,7 @@ namespace Advanced_Graphics
                 ParkingTextureScaleFactor = 1f;
                 ParkingDepthStrengthFactor = 1f;
                 RoadUvOffsetX = RoadUvOffsetY = RoadUvRotation = 0;
-                ClearTextureModeProfiles(0);
+                ClearTextureModeProfiles(0); UseRoadNormalMap = false;
                 ApplyAndSave();
             }
         }
@@ -885,6 +906,8 @@ namespace Advanced_Graphics
 
         public override void SetDefaults()
         {
+            ResetEndcapValues();
+            UseRoadNormalMap = UseSidewalkNormalMap = UseAlleySidewalkNormalMap = UseRoadGravelNormalMap = UseGravelShoulderNormalMap = UseRailNormalMap = UseGrassNormalMap = false;
             SurfaceTextureMipBias = 0f;
             RoadFilterColor = SidewalkFilterColor = AlleySidewalkFilterColor = RoadGravelFilterColor = GravelShoulderFilterColor = RailFilterColor = 0xffffff;
             Mod.Graphics?.Capture();
@@ -942,7 +965,7 @@ namespace Advanced_Graphics
 
         private void SetSidewalkDefaults()
         {
-            ClearTextureModeProfiles(1);
+            ClearTextureModeProfiles(1); UseSidewalkNormalMap = false;
             SidewalkFilterColor = 0xffffff; SidewalkFilterOpacityPercent = 0;
             SidewalkEnabled = false;
             DiagnoseRoadEUAtlas = false;
@@ -958,7 +981,7 @@ namespace Advanced_Graphics
 
         private void SetAlleySidewalkDefaults()
         {
-            ClearTextureModeProfiles(2);
+            ClearTextureModeProfiles(2); UseAlleySidewalkNormalMap = false;
             AlleySidewalkFilterColor = 0xffffff; AlleySidewalkFilterOpacityPercent = 0;
             ShowAlleySidewalkPanelButton = true;
             AlleySidewalkEnabled = false;
@@ -974,7 +997,7 @@ namespace Advanced_Graphics
 
         private void ResetRailDefaults()
         {
-            ClearTextureModeProfiles(5);
+            ClearTextureModeProfiles(5); UseRailNormalMap = false;
             RailFilterColor = 0xffffff; RailFilterOpacityPercent = 0;
             RailGravelEnabled = true;
             RailGravelDetail = 1;
@@ -987,7 +1010,7 @@ namespace Advanced_Graphics
 
         private void ResetRoadGravelDefaults()
         {
-            ClearTextureModeProfiles(3);
+            ClearTextureModeProfiles(3); UseRoadGravelNormalMap = false;
             RoadGravelFilterColor = 0xffffff; RoadGravelFilterOpacityPercent = 0;
             RoadGravelEnabled = false;
             RoadGravelDetail = 0;
@@ -1085,6 +1108,7 @@ namespace Advanced_Graphics
         }
     }
 }
+
 
 
 

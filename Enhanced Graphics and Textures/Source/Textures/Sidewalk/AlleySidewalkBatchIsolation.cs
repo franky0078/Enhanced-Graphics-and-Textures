@@ -26,13 +26,14 @@ namespace Advanced_Graphics
 
         protected virtual string IsolatedSurfaceLabel => "Alley";
 
-        protected virtual bool IsTargetRoad(string name) => name != null &&
-            name.StartsWith("Alley", StringComparison.Ordinal) &&
-            name.IndexOf("Parking", StringComparison.OrdinalIgnoreCase) < 0;
+        protected virtual bool IsTargetRoad(string name) => name != null && (IsAlleyAtlas
+            ? name.StartsWith("Alley", StringComparison.Ordinal) && name.IndexOf("Parking", StringComparison.OrdinalIgnoreCase) < 0
+            : !name.StartsWith("Alley", StringComparison.Ordinal) && name.IndexOf("Parking", StringComparison.OrdinalIgnoreCase) < 0);
 
         protected virtual bool IsTargetRoad(PrefabBase prefab) => prefab != null &&
-            (IsTargetRoad(prefab.name) || (RoadBuilderSurfaceCompatibility.IsRoadBuilderRoad(prefab) &&
-                !RoadBuilderSurfaceCompatibility.HasParkingLanes(prefab)));
+            (RoadBuilderSurfaceCompatibility.IsRoadBuilderRoad(prefab)
+                ? IsAlleyAtlas && !RoadBuilderSurfaceCompatibility.HasParkingLanes(prefab)
+                : IsTargetRoad(prefab.name));
 
         protected void BeginIsolatedMaterials() => m_AlleyCurrentMaterialSources.Clear();
 
@@ -54,15 +55,17 @@ namespace Advanced_Graphics
             m_AlleyCurrentMaterialSources.Add(original);
         }
 
-        protected int ApplyIsolatedAlleyBatches()
+        protected int ApplyIsolatedAlleyBatches(bool nodesOnly = false)
         {
             var batchManager = World.GetExistingSystemManaged<BatchManagerSystem>();
             var prefabs = World.GetExistingSystemManaged<PrefabSystem>();
             if (batchManager == null || prefabs == null) return 0;
 
             var targetMeshes = new HashSet<Entity>();
+            var edgeMeshes = new HashSet<Entity>();
             var otherMeshes = new HashSet<Entity>();
             var targetPrefabs = new Dictionary<Entity, bool>();
+            var compatibleNodePrefabs = new Dictionary<Entity, bool>();
             var query = GetEntityQuery(ComponentType.ReadOnly<Edge>(), ComponentType.ReadOnly<PrefabRef>(),
                 ComponentType.ReadOnly<Composition>());
             var roads = query.ToEntityArray(Allocator.Temp);
@@ -76,12 +79,19 @@ namespace Advanced_Graphics
                         isAlley = prefabs.TryGetPrefab<PrefabBase>(prefabEntity, out var prefab) &&
                             prefab != null && IsTargetRoad(prefab);
                         targetPrefabs.Add(prefabEntity, isAlley);
+                        compatibleNodePrefabs.Add(prefabEntity, IsAlleyAtlas && prefab != null &&
+                            prefab.name != null && prefab.name.StartsWith("Alley", StringComparison.Ordinal) &&
+                            prefab.name.IndexOf("Parking", StringComparison.OrdinalIgnoreCase) >= 0);
                     }
                     var composition = EntityManager.GetComponentData<Composition>(road);
                     var meshes = isAlley ? targetMeshes : otherMeshes;
                     AddAlleyCompositionMesh(composition.m_Edge, meshes);
-                    AddAlleyCompositionMesh(composition.m_StartNode, meshes);
-                    AddAlleyCompositionMesh(composition.m_EndNode, meshes);
+                    AddAlleyCompositionMesh(composition.m_Edge, edgeMeshes);
+                    if (isAlley || !compatibleNodePrefabs[prefabEntity])
+                    {
+                        AddAlleyCompositionMesh(composition.m_StartNode, meshes);
+                        AddAlleyCompositionMesh(composition.m_EndNode, meshes);
+                    }
                 }
             }
             finally { roads.Dispose(); }
@@ -101,6 +111,8 @@ namespace Advanced_Graphics
                 if (!groups.IsValidGroup(groupIndex)) continue;
                 var group = groups.GetGroupData(groupIndex);
                 if (group.m_MeshType != MeshType.Net || !targetMeshes.Contains(group.m_Mesh)) continue;
+                bool node = !edgeMeshes.Contains(group.m_Mesh);
+                if (nodesOnly && !node) continue;
                 for (int batchIndex = 0; batchIndex < groups.GetBatchCount(groupIndex); batchIndex++)
                 {
                     int index = groups.GetManagedBatchIndex(groupIndex, batchIndex);
@@ -109,6 +121,7 @@ namespace Advanced_Graphics
                     if (batch == null || batch.loadedMaterial == null ||
                         !m_AlleyCurrentMaterialSources.Contains(batch.loadedMaterial) ||
                         !m_AlleyMaterialCopies.TryGetValue(batch.loadedMaterial, out var copy)) continue;
+                    if (node) copy = GetEndcapMaterial(copy);
                     // Respect loading placeholders and replacements owned by another mod.
                     if (batch.material != batch.loadedMaterial && batch.material != copy) continue;
                     if (!m_AlleyBatchBindings.TryGetValue(batch, out var binding))
@@ -181,6 +194,7 @@ namespace Advanced_Graphics
                 }
             }
             m_AlleyBatchBindings.Clear();
+            ReleaseEndcapScaling();
             foreach (var copy in m_AlleyMaterialCopies.Values)
                 if (copy != null) UnityEngine.Object.Destroy(copy);
             m_AlleyMaterialCopies.Clear();
@@ -190,5 +204,6 @@ namespace Advanced_Graphics
         }
     }
 }
+
 
 

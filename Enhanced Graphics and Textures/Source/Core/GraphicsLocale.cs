@@ -14,6 +14,30 @@ namespace Advanced_Graphics
             m_Language = language;
         }
 
+        private void AddCustomNormalEntries(Dictionary<string, string> entries)
+        {
+            string hint;
+            switch (m_Language)
+            {
+                case "de": hint = "{0}_BaseColor.png und optional {0}_Normal.png im selben Texturordner. Normalmap: RGB, OpenGL/+Y, quadratisch, maximal 4096 × 4096. Ohne gültige Normalmap bleibt die bisherige Tiefenberechnung erhalten. Neu laden liest beide Dateien. Mit eigener Normalmap: 0 % flach, 100 % Originalstärke; UV und Drehung gelten gemeinsam."; break;
+                case "es": hint = "{0}_BaseColor.png y, opcionalmente, {0}_Normal.png en la misma carpeta. Normal: RGB, OpenGL/+Y, cuadrada, máximo 4096 × 4096. Sin una normal válida se conserva el cálculo anterior. Recargar lee ambos archivos. Con normal propia: 0 % plano, 100 % intensidad original; UV y rotación compartidos."; break;
+                case "fr": hint = "{0}_BaseColor.png et, en option, {0}_Normal.png dans le même dossier. Normale : RGB, OpenGL/+Y, carrée, maximum 4096 × 4096. Sans normale valide, le calcul précédent est conservé. Recharger relit les deux fichiers. Avec une normale personnelle : 0 % plat, 100 % force originale ; UV et rotation communs."; break;
+                case "it": hint = "{0}_BaseColor.png e, facoltativamente, {0}_Normal.png nella stessa cartella. Normale: RGB, OpenGL/+Y, quadrata, massimo 4096 × 4096. Senza una normale valida rimane il calcolo precedente. Ricaricare legge entrambi i file. Con normale personale: 0 % piatto, 100 % intensità originale; UV e rotazione comuni."; break;
+                default: hint = "{0}_BaseColor.png and optional {0}_Normal.png in the same texture folder. Normal: RGB, OpenGL/+Y, square, up to 4096 × 4096. Without a valid normal map, the previous depth calculation remains. Reload reads both files. With a custom normal: 0 % flat, 100 % original strength; UV and rotation apply to both."; break;
+            }
+            string[] files = { "Road", "Sidewalk", "AlleySidewalk", "RoadGravel", "GravelShoulder", "RailGravel", "Grass" };
+            string[] keys = { "CustomHint", "SidewalkCustomHint", "AlleySidewalkCustomHint", "RoadGravelCustomHint", "GravelShoulderCustomHint", "RailGravelCustomHint", "GrassCustomHint" };
+            string[] reload = { nameof(Setting.ReloadRoadTexture), nameof(Setting.ReloadSidewalkTexture),
+                nameof(Setting.ReloadAlleySidewalkTexture), nameof(Setting.ReloadGravelTexture),
+                nameof(Setting.ReloadGravelShoulderTexture), nameof(Setting.ReloadRailTexture), nameof(Setting.ReloadGrassTexture) };
+            for (int i = 0; i < files.Length; i++)
+            {
+                string text = string.Format(hint, files[i]);
+                entries["AdvancedGraphics.UI." + keys[i]] = text;
+                entries[m_Setting.GetOptionDescLocaleID(reload[i])] = text;
+            }
+        }
+
         public IEnumerable<KeyValuePair<string, string>> ReadEntries(
             IList<IDictionaryEntryError> errors, Dictionary<string, int> indexCounts)
         {
@@ -303,11 +327,11 @@ namespace Advanced_Graphics
             string[] source;
             switch (m_Language)
             {
-                case "de": source = new[] { "Straßentextur", "Generiert oder eigene Road_BaseColor.png. Aus der eigenen Textur wird eine passende Normalmap für die Tiefenwirkung abgeleitet. Asphaltstruktur muss mindestens 1 sein.", "Generiert", "Eigene Textur" }; break;
-                case "es": source = new[] { "Textura de carretera", "Generada o Road_BaseColor.png propia. Se deriva un mapa normal de la textura propia para dar relieve. El detalle debe ser 1 o superior.", "Generada", "Textura propia" }; break;
-                case "fr": source = new[] { "Texture de route", "Générée ou votre Road_BaseColor.png. Une carte normale est créée à partir de votre texture pour donner du relief. Le niveau de détail doit être au moins 1.", "Générée", "Texture personnalisée" }; break;
-                case "it": source = new[] { "Texture stradale", "Generata o Road_BaseColor.png personalizzata. Dalla texture personalizzata viene creata una normal map per dare rilievo. Il dettaglio deve essere almeno 1.", "Generata", "Texture personalizzata" }; break;
-                default: source = new[] { "Road texture", "Generated or custom Road_BaseColor.png. A matching normal map is derived from the custom texture for surface relief. Asphalt detail must be at least 1.", "Generated", "Custom texture" }; break;
+                case "de": source = new[] { "Straßentextur", "Generiert oder eigene Road_BaseColor.png. Optional kann Road_Normal.png verwendet werden; andernfalls bleibt die automatische Tiefenberechnung erhalten. Asphaltstruktur muss mindestens 1 sein.", "Generiert", "Eigene Textur" }; break;
+                case "es": source = new[] { "Textura de carretera", "Generada o Road_BaseColor.png propia. Road_Normal.png es opcional; sin él se conserva el cálculo automático del relieve. El detalle debe ser 1 o superior.", "Generada", "Textura propia" }; break;
+                case "fr": source = new[] { "Texture de route", "Générée ou votre Road_BaseColor.png. Road_Normal.png est facultatif ; sinon le relief est calculé automatiquement. Le niveau de détail doit être au moins 1.", "Générée", "Texture personnalisée" }; break;
+                case "it": source = new[] { "Texture stradale", "Generata o Road_BaseColor.png personalizzata. Road_Normal.png è facoltativa; altrimenti il rilievo viene calcolato automaticamente. Il dettaglio deve essere almeno 1.", "Generata", "Texture personalizzata" }; break;
+                default: source = new[] { "Road texture", "Generated or custom Road_BaseColor.png. Optional Road_Normal.png is used when present; otherwise the automatic depth calculation remains. Asphalt detail must be at least 1.", "Generated", "Custom texture" }; break;
             }
             entries.Add(m_Setting.GetOptionLabelLocaleID(nameof(Setting.AsphaltSource)), source[0]);
             entries.Add(m_Setting.GetOptionDescLocaleID(nameof(Setting.AsphaltSource)), source[1]);
@@ -685,6 +709,10 @@ namespace Advanced_Graphics
             AddLuminaNumberFixEntries(entries);
             AddCustomCrackEntries(entries);
             AddGrassEntries(entries);
+            AddCustomNormalEntries(entries);
+            AddTextureFileControls(entries);
+            AddNormalToggleEntries(entries);
+            AddEndcapEntries(entries);
             return entries;
         }
 
@@ -768,6 +796,131 @@ namespace Advanced_Graphics
             }
             entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.LuminaNumberFix))] = label;
             entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.LuminaNumberFix))] = description;
+        }
+
+        private void AddEndcapEntries(Dictionary<string, string> entries)
+        {
+            string[] text;
+            switch (m_Language)
+            {
+                case "de": text = new[] { "Abschluss-Kachelung U", "Abschluss-Kachelung V", "Straßentyp wählen. Änderungen und Zurücksetzen wirken erst nach Übernehmen. Höhere Werte wiederholen die Textur häufiger. Gemeinsame Alley-/Parkplatz-Endstücke verwenden die Einbahn-Gehweg-Werte.", "Abschluss-Kachelung zurücksetzen", "Normale Straßen", "Einbahn-Gehwege", "Parkplatzstraßen", "Übernehmen" }; break;
+                case "fr": text = new[] { "Répétition des extrémités U", "Répétition des extrémités V", "Choisissez le type de route. Modifications et réinitialisation prennent effet après Appliquer. Les valeurs élevées répètent davantage la texture. Les extrémités communes aux petites routes et parkings utilisent les valeurs des petites routes.", "Réinitialiser les extrémités", "Routes normales", "Petites routes", "Routes de stationnement", "Appliquer" }; break;
+                case "es": text = new[] { "Repetición en extremos U", "Repetición en extremos V", "Elige el tipo de carretera. Los cambios y el restablecimiento se aplican con Aplicar. Los valores altos repiten más la textura. Los extremos compartidos entre calles pequeñas y aparcamientos usan los valores de calles pequeñas.", "Restablecer extremos", "Carreteras normales", "Calles pequeñas", "Calles de aparcamiento", "Aplicar" }; break;
+                case "it": text = new[] { "Ripetizione estremità U", "Ripetizione estremità V", "Scegli il tipo di strada. Modifiche e ripristino hanno effetto dopo Applica. Valori alti ripetono di più la texture. Le estremità condivise fra strade piccole e parcheggi usano i valori delle strade piccole.", "Ripristina estremità", "Strade normali", "Strade piccole", "Strade con parcheggi", "Applica" }; break;
+                default: text = new[] { "End tiling U", "End tiling V", "Choose a road type. Changes and Reset take effect only after Apply. Higher values repeat the texture more often. Shared small-road/parking end meshes use the small-road values.", "Reset end tiling", "Normal roads", "Small-road sidewalks", "Parking roads", "Apply" }; break;
+            }
+            entries["AdvancedGraphics.UI.endcapU"] = text[0];
+            entries["AdvancedGraphics.UI.endcapV"] = text[1];
+            entries["AdvancedGraphics.UI.EndcapHint"] = text[2];
+            entries["AdvancedGraphics.UI.ResetEndcaps"] = text[3];
+            entries["AdvancedGraphics.UI.EndcapNormal"] = text[4];
+            entries["AdvancedGraphics.UI.EndcapAlley"] = text[5];
+            entries["AdvancedGraphics.UI.EndcapParking"] = text[6];
+            entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.SidewalkEndcapU))] = text[4] + " – " + text[0];
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.SidewalkEndcapU))] = text[2];
+            entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.SidewalkEndcapUDraft))] = text[4] + " – " + text[0];
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.SidewalkEndcapUDraft))] = text[2];
+            entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.SidewalkEndcapV))] = text[4] + " – " + text[1];
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.SidewalkEndcapV))] = text[2];
+            entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.SidewalkEndcapVDraft))] = text[4] + " – " + text[1];
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.SidewalkEndcapVDraft))] = text[2];
+            entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.ApplySidewalkEndcap))] = text[7] + " – " + text[4];
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.ApplySidewalkEndcap))] = text[2];
+            entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.AlleyEndcapU))] = text[5] + " – " + text[0];
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.AlleyEndcapU))] = text[2];
+            entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.AlleyEndcapUDraft))] = text[5] + " – " + text[0];
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.AlleyEndcapUDraft))] = text[2];
+            entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.AlleyEndcapV))] = text[5] + " – " + text[1];
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.AlleyEndcapV))] = text[2];
+            entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.AlleyEndcapVDraft))] = text[5] + " – " + text[1];
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.AlleyEndcapVDraft))] = text[2];
+            entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.ApplyAlleyEndcap))] = text[7] + " – " + text[5];
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.ApplyAlleyEndcap))] = text[2];
+            entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.ParkingEndcapU))] = text[6] + " – " + text[0];
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.ParkingEndcapU))] = text[2];
+            entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.ParkingEndcapUDraft))] = text[6] + " – " + text[0];
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.ParkingEndcapUDraft))] = text[2];
+            entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.ParkingEndcapV))] = text[6] + " – " + text[1];
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.ParkingEndcapV))] = text[2];
+            entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.ParkingEndcapVDraft))] = text[6] + " – " + text[1];
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.ParkingEndcapVDraft))] = text[2];
+            entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.ApplyParkingEndcap))] = text[7] + " – " + text[6];
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.ApplyParkingEndcap))] = text[2];
+        }
+
+        private void AddNormalToggleEntries(Dictionary<string, string> entries)
+        {
+            string label, hint;
+            switch (m_Language)
+            {
+                case "de": label = "Eigene Normalmap verwenden"; hint = "Standard aus: bisherige automatische Tiefenberechnung. An: optionale Normalmap verwenden, wenn vorhanden. Im Straßen-Tab gilt dies auch für Riss-Normalmaps. Mitgelieferte generierte Texturen bleiben unverändert."; break;
+                case "es": label = "Usar normal propia"; hint = "Desactivado por defecto: relieve automático. Activado: normal opcional si existe. En Carretera incluye las grietas. Las texturas generadas no cambian."; break;
+                case "fr": label = "Utiliser une normale personnelle"; hint = "Désactivé par défaut : relief automatique. Activé : normale facultative si présente. Route inclut les fissures. Les textures générées restent inchangées."; break;
+                case "it": label = "Usa normale personale"; hint = "Disattivata per default: rilievo automatico. Attivata: normale facoltativa se presente. Strada include le crepe. Le texture generate non cambiano."; break;
+                default: label = "Use custom normal map"; hint = "Off by default: previous automatic relief. On: use optional normal maps when available. The Road tab also controls crack normals. Bundled generated textures are unchanged."; break;
+            }
+            entries["AdvancedGraphics.UI.UseCustomNormal"] = label;
+            entries["AdvancedGraphics.UI.UseCustomNormalHint"] = hint;
+            entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.UseRoadNormalMap))] = label;
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.UseRoadNormalMap))] = hint;
+            entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.UseSidewalkNormalMap))] = label;
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.UseSidewalkNormalMap))] = hint;
+            entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.UseAlleySidewalkNormalMap))] = label;
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.UseAlleySidewalkNormalMap))] = hint;
+            entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.UseRoadGravelNormalMap))] = label;
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.UseRoadGravelNormalMap))] = hint;
+            entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.UseGravelShoulderNormalMap))] = label;
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.UseGravelShoulderNormalMap))] = hint;
+            entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.UseRailNormalMap))] = label;
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.UseRailNormalMap))] = hint;
+            entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.UseGrassNormalMap))] = label;
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.UseGrassNormalMap))] = hint;
+        }
+
+        private void AddTextureFileControls(Dictionary<string, string> entries)
+        {
+            string label, hint, files, cracks;
+            switch (m_Language)
+            {
+                case "de":
+                    label = "Alle Custom-Texturen neu laden";
+                    hint = "Lädt alle eigenen Farbtexturen, optionalen Normalmaps und die Straßen-Rissmaske neu. Einstellungen bleiben erhalten.";
+                    files = "Farbe: {0}_BaseColor.png · Normalmap (optional): {0}_Normal.png. Beide im selben Texturordner.";
+                    cracks = "Road_Cracks.png + optional Road_Cracks_Normal.png im Riss-Ordner. Gleiche Bildmaße, Normalmap in RGB/OpenGL (+Y). Ohne Normalmap wird die Tiefe automatisch berechnet."; break;
+                case "es":
+                    label = "Recargar todas las texturas propias";
+                    hint = "Recarga colores, normales opcionales y la máscara de grietas. Conserva los ajustes.";
+                    files = "Color: {0}_BaseColor.png · Normal opcional: {0}_Normal.png. Ambos en la misma carpeta.";
+                    cracks = "Road_Cracks.png + Road_Cracks_Normal.png opcional en la carpeta de grietas. Mismas dimensiones, normal RGB/OpenGL (+Y). Sin normal, relieve automático."; break;
+                case "fr":
+                    label = "Recharger toutes les textures personnelles";
+                    hint = "Recharge les couleurs, les normales facultatives et le masque de fissures. Conserve les réglages.";
+                    files = "Couleur : {0}_BaseColor.png · Normale facultative : {0}_Normal.png. Dans le même dossier.";
+                    cracks = "Road_Cracks.png + Road_Cracks_Normal.png facultative dans le dossier des fissures. Dimensions identiques, normale RGB/OpenGL (+Y). Sans normale, relief automatique."; break;
+                case "it":
+                    label = "Ricarica tutte le texture personali";
+                    hint = "Ricarica colori, normali facoltative e maschera delle crepe. Mantiene le impostazioni.";
+                    files = "Colore: {0}_BaseColor.png · Normale facoltativa: {0}_Normal.png. Nella stessa cartella.";
+                    cracks = "Road_Cracks.png + Road_Cracks_Normal.png facoltativa nella cartella delle crepe. Stesse dimensioni, normale RGB/OpenGL (+Y). Senza normale, rilievo automatico."; break;
+                default:
+                    label = "Reload all custom textures";
+                    hint = "Reloads all custom color textures, optional normal maps and the road crack mask. Keeps your settings.";
+                    files = "Color: {0}_BaseColor.png · Optional normal: {0}_Normal.png. Both in the same texture folder.";
+                    cracks = "Road_Cracks.png + optional Road_Cracks_Normal.png in the crack folder. Matching dimensions, RGB/OpenGL (+Y) normal. Without a normal map, relief is generated automatically."; break;
+            }
+            entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.ReloadAllCustomTextures))] = label;
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.ReloadAllCustomTextures))] = hint;
+            entries["AdvancedGraphics.UI.ReloadAllCustomTextures"] = label;
+            entries["AdvancedGraphics.UI.ReloadAllCustomTexturesHint"] = hint;
+            entries["AdvancedGraphics.UI.CracksNormalInfo"] = cracks;
+            entries["AdvancedGraphics.UI.CustomCracksHint"] = cracks;
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.UseCustomRoadCracks))] = cracks;
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.ReloadRoadCracks))] = cracks;
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.OpenRoadCrackFolder))] = cracks;
+            string[] surfaces = { "road", "sidewalk", "alley", "gravel", "shoulder", "rail", "grass" };
+            string[] names = { "Road", "Sidewalk", "AlleySidewalk", "RoadGravel", "GravelShoulder", "RailGravel", "Grass" };
+            for (int i = 0; i < surfaces.Length; i++)
+                entries["AdvancedGraphics.UI.CustomFiles_" + surfaces[i]] = string.Format(files, names[i]);
         }
 
         private void AddSurfaceSamplingEntries(Dictionary<string, string> entries)
@@ -1304,6 +1457,7 @@ namespace Advanced_Graphics
         }
     }
 }
+
 
 
 

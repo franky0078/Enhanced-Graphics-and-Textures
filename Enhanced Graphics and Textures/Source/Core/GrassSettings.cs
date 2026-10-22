@@ -68,7 +68,7 @@ namespace Advanced_Graphics
 
         private void SetGrassDefaults()
         {
-            ClearTextureModeProfiles(6);
+            ClearTextureModeProfiles(6); UseGrassNormalMap = false;
             GrassEnabled = false;
             GrassDetail = 0;
             GrassUvSizePercent = 100;
@@ -90,3 +90,4 @@ namespace Advanced_Graphics
         }
     }
 }
+

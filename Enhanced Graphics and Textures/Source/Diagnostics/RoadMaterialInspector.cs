@@ -73,9 +73,6 @@ namespace Advanced_Graphics
 
         private static void ExportSidewalkAtlas()
         {
-            // A street sidewalk may be part of the RoadEU atlas rather than a
-            // separate PathwayPavement world-space map. Exporting the source
-            // images lets us identify the exact region before changing it.
             string folder = Path.Combine(SidewalkSurfaceSystem.SidewalkTextureFolder, "Diagnostics");
             Directory.CreateDirectory(folder);
             var names = new[] { "RoadEU_BaseColor_", "RoadEU_MaskMap_" };
@@ -118,12 +115,11 @@ namespace Advanced_Graphics
             if (!exported[0]) Mod.log.Info("RoadEU color atlas was not found in the loaded city.");
             if (!exported[1]) Mod.log.Info("RoadEU mask atlas was not found in the loaded city.");
             Mod.SidewalkAtlas?.ExportAppliedAtlases(folder);
+            Mod.ParkingRoadAtlas?.ExportParkingAtlases(folder);
         }
 
         private static void Survey()
         {
-            // This allocates and walks all loaded Unity materials. It runs only
-            // on a button click, never continuously in the render loop.
             var materials = Resources.FindObjectsOfTypeAll<Material>();
             var namedRoads = new List<string>();
             var networkMaterials = new List<string>();
@@ -161,8 +157,6 @@ namespace Advanced_Graphics
                     else detail.Append(property).Append("=<empty> ");
                 }
 
-                // Include the shader's declared texture slots even when no
-                // ordinary Texture object is bound (virtual texturing).
                 var signature = shader + " | " + name + " | " + detail;
                 if (roadShaderProperties == null &&
                     (detail.ToString().IndexOf("RoadEUWorldspace_BaseColor_", StringComparison.Ordinal) >= 0 ||
@@ -275,4 +269,5 @@ namespace Advanced_Graphics
         }
     }
 }
+
 

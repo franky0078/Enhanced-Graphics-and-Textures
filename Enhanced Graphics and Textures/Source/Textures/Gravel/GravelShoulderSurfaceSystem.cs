@@ -12,6 +12,7 @@ namespace Advanced_Graphics
         protected override bool CacheSourceColor => true;
         // Depth is applied in the shoulder's worker, without rebuilding tiles.
         protected override float AuthoredNormalStrength => 1f;
+        protected override float CustomNormalStrength => 1f;
         protected override Texture OriginalNormalSource => Mod.RoadGravel?.OriginalGravelNormal;
 
         protected override Texture2D LoadOriginalColor()
@@ -22,3 +23,4 @@ namespace Advanced_Graphics
         protected override void EncodeNormalPixels(Color32[] pixels) { }
     }
 }
+

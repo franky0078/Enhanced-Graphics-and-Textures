@@ -9,6 +9,7 @@ namespace Advanced_Graphics
         private const int CrackMaskSize = 256;
         private bool m_CustomCracks, m_CrackLoadAttempted;
         private byte[] m_CustomCrackMask;
+        private Color32[] m_CustomCrackNormals, m_StampedCrackNormals, m_ColorBeforeCracks;
         private byte[] m_CustomCrackWidthMask;
         private int m_CachedCrackWidth = -1;
         private float m_CustomCrackAspect = 1f;
@@ -18,6 +19,7 @@ namespace Advanced_Graphics
         private void ClearCrackCache()
         {
             m_CustomCrackMask = null;
+            m_CustomCrackNormals = m_StampedCrackNormals = m_ColorBeforeCracks = null;
             m_CustomCrackWidthMask = null;
             m_CachedCrackWidth = -1;
             m_CustomCrackAspect = 1f;
@@ -48,6 +50,8 @@ namespace Advanced_Graphics
                 texture = new Texture2D(2, 2, TextureFormat.RGBA32, false, true);
                 if (!texture.LoadImage(data, false)) throw new InvalidDataException("Could not decode crack PNG.");
                 var pixels = texture.GetPixels32();
+                var normalPixels = LoadCrackNormalPixels(texture.width, texture.height);
+                var normalMask = normalPixels != null ? new Color32[CrackMaskSize * CrackMaskSize] : null;
                 var mask = new byte[CrackMaskSize * CrackMaskSize];
                 bool hasCracks = false;
                 for (int y = 0; y < CrackMaskSize; y++)
@@ -59,19 +63,26 @@ namespace Advanced_Graphics
                     int x1 = Math.Min(texture.width, Math.Max(x0 + 1, (x + 1) * texture.width / CrackMaskSize));
                     int y1 = Math.Min(texture.height, Math.Max(y0 + 1, (y + 1) * texture.height / CrackMaskSize));
                     byte value = 0;
+                    Color32 normalValue = new Color32(128, 128, 255, 255);
                     for (int py = y0; py < y1; py++)
                     for (int px = x0; px < x1; px++)
                     {
                         var p = pixels[py * texture.width + px];
                         float darkness = 1f - (p.r * 0.299f + p.g * 0.587f + p.b * 0.114f) / 255f;
                         byte strength = (byte)Mathf.Clamp(darkness * p.a, 0f, 255f);
-                        if (strength > value) value = strength;
+                        if (strength > value)
+                        {
+                            value = strength;
+                            if (normalPixels != null) normalValue = normalPixels[py * texture.width + px];
+                        }
                     }
                     mask[y * CrackMaskSize + x] = value;
+                    if (normalMask != null) normalMask[y * CrackMaskSize + x] = normalValue;
                     hasCracks |= value > 0;
                 }
                 if (!hasCracks) throw new InvalidDataException("Crack PNG has no visible dark pixels.");
                 m_CustomCrackMask = mask;
+                m_CustomCrackNormals = normalMask;
                 m_CustomCrackAspect = (float)texture.width / texture.height;
                 CustomCrackStatus = 1;
             }
@@ -82,6 +93,58 @@ namespace Advanced_Graphics
             }
             finally { if (texture != null) UnityEngine.Object.Destroy(texture); }
             return m_CustomCrackMask;
+        }
+
+        private Color32[] LoadCrackNormalPixels(int width, int height)
+        {
+            if (!m_UseCustomNormal) return null;
+            string path = Path.Combine(TextureStorage.RoadCracks, "Road_Cracks_Normal.png");
+            if (!File.Exists(path)) return null;
+            Texture2D normal = null;
+            try
+            {
+                if (new FileInfo(path).Length > 32 * 1024 * 1024)
+                    throw new InvalidDataException("Crack normal PNG exceeds 32 MB.");
+                byte[] data = File.ReadAllBytes(path);
+                byte[] signature = { 137, 80, 78, 71, 13, 10, 26, 10 };
+                if (data.Length < 24) throw new InvalidDataException("Invalid crack normal PNG.");
+                for (int i = 0; i < signature.Length; i++)
+                    if (data[i] != signature[i]) throw new InvalidDataException("Crack normal must be a PNG.");
+                if (ReadPngDimension(data, 16) != width || ReadPngDimension(data, 20) != height)
+                    throw new InvalidDataException("Road_Cracks_Normal.png must have the same dimensions as Road_Cracks.png.");
+                normal = new Texture2D(2, 2, TextureFormat.RGBA32, false, true);
+                if (!normal.LoadImage(data, false)) throw new InvalidDataException("Could not decode crack normal PNG.");
+                return normal.GetPixels32();
+            }
+            catch (Exception ex)
+            {
+                Mod.log.Error(ex, "Custom crack normal could not be loaded; using automatic crack relief.");
+                return null;
+            }
+            finally { if (normal != null) UnityEngine.Object.Destroy(normal); }
+        }
+
+        private static Color32 EncodeCrackNormal(Vector3 n) => new Color32(
+            (byte)Mathf.Clamp((n.x + 1f) * 127.5f, 0f, 255f),
+            (byte)Mathf.Clamp((n.y + 1f) * 127.5f, 0f, 255f),
+            (byte)Mathf.Clamp((n.z + 1f) * 127.5f, 0f, 255f), 255);
+
+        private void ApplyAuthoredCrackNormals(Color32[] pixels, byte[] mask, int depth)
+        {
+            if (m_StampedCrackNormals == null || mask == null || depth == 0) return;
+            for (int i = 0; i < pixels.Length; i++)
+            {
+                if (mask[i] == 0) continue;
+                var crack = m_StampedCrackNormals[i];
+                if (crack.a == 0) continue;
+                var p = pixels[i];
+                float baseZ = Mathf.Max(0.001f, p.b / 127.5f - 1f);
+                float crackZ = Mathf.Max(0.001f, crack.b / 127.5f - 1f);
+                float gain = depth / 100f * mask[i] / 255f;
+                var n = new Vector3((p.r / 127.5f - 1f) / baseZ + (crack.r / 127.5f - 1f) / crackZ * gain,
+                    (p.g / 127.5f - 1f) / baseZ + (crack.g / 127.5f - 1f) / crackZ * gain, 1f).normalized;
+                pixels[i] = EncodeCrackNormal(n);
+            }
         }
 
         private static uint ReadPngDimension(byte[] data, int offset) =>
@@ -134,6 +197,7 @@ namespace Advanced_Graphics
             // Match the approximate length of the existing generated cracks.
             float height = Mathf.Clamp(96f * scale * size / 1024f, 4f, size * 2f);
             float width = height * m_CustomCrackAspect;
+            if (m_StampedCrackNormals != null) width *= Mathf.Max(0.01f, m_CrackWidth / 100f);
             float fit = Mathf.Min(1f, size * 2f / Mathf.Max(width, height));
             height *= fit;
             width *= fit;
@@ -155,8 +219,21 @@ namespace Advanced_Graphics
                 int px = ((centerX + dx) % size + size) % size;
                 int py = ((centerY + dy) % size + size) % size;
                 int index = py * size + px;
-                if (value > target[index]) target[index] = value;
+                if (value > target[index])
+                {
+                    target[index] = value;
+                    if (m_StampedCrackNormals != null)
+                    {
+                        var p = m_CustomCrackNormals[sy * CrackMaskSize + sx];
+                        float nx = (p.r / 127.5f - 1f) * (mirror ? -1f : 1f);
+                        float ny = p.g / 127.5f - 1f;
+                        var n = new Vector3(nx * cosine - ny * sine, nx * sine + ny * cosine,
+                            Mathf.Max(0.001f, p.b / 127.5f - 1f)).normalized;
+                        m_StampedCrackNormals[index] = EncodeCrackNormal(n);
+                    }
+                }
             }
         }
     }
 }
+

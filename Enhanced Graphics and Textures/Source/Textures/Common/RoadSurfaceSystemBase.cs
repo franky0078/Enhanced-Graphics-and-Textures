@@ -61,6 +61,7 @@ namespace Advanced_Graphics
         private bool m_Dirty;
         private bool m_TextureDirty;
         private bool m_NormalOnly;
+        private bool m_UseCustomNormal;
         private bool m_Enabled;
         private bool m_HasLoggedRoadConfiguration;
         protected int CurrentUvSize => m_UvSize;
@@ -83,6 +84,7 @@ namespace Advanced_Graphics
         {
             ClearSourceCache();
             ClearCrackCache();
+            ClearCustomNormal();
             m_NormalOnly = false;
             m_TextureDirty = true;
             m_Dirty = true;
@@ -92,6 +94,12 @@ namespace Advanced_Graphics
             int offsetX, int offsetY, int rotation, int crackCount, int crackSize, int crackWidth,
             int crackOpacity, int crackRandomness, int filterColor = 0xffffff, int filterOpacityPercent = 100, bool customCracks = false)
         {
+            bool useNormal = Mod.ActiveSetting?.GetCustomNormalEnabled(TextureFileName) == true;
+            if (m_UseCustomNormal != useNormal)
+            {
+                m_UseCustomNormal = useNormal;
+                ReloadCustomTexture();
+            }
             if (m_CustomCracks != customCracks)
             {
                 m_CustomCracks = customCracks;
@@ -177,7 +185,7 @@ namespace Advanced_Graphics
             try
             {
                 if (m_TextureDirty) BuildTextures();
-                if (m_Color == null || ((m_Depth > 0 || AlwaysBuildSurfaceNormal || (m_Level == 1 && NeedsNormalAtZeroDepth)) && m_Normal == null))
+                if (m_Color == null || (ShouldBuildSurfaceNormal && m_Normal == null))
                 {
                     m_TextureDirty = true;
                     m_Dirty = false;
@@ -246,10 +254,11 @@ namespace Advanced_Graphics
 
         private void BuildTextures()
         {
+            m_ColorBeforeCracks = m_StampedCrackNormals = null;
             if (m_NormalOnly && m_Color != null)
             {
-                var normalOnly = m_Depth > 0 || AlwaysBuildSurfaceNormal || (m_Level == 1 && NeedsNormalAtZeroDepth)
-                    ? BuildSurfaceNormal(m_Color, m_Depth, m_UvSize, null) : null;
+                var normalOnly = ShouldBuildSurfaceNormal
+                    ? BuildSelectedNormal(m_Color, m_Depth, m_UvSize, null) : null;
                 RestoreMaterials();
                 if (m_Normal != null) UnityEngine.Object.Destroy(m_Normal);
                 m_Normal = normalOnly;
@@ -278,8 +287,8 @@ namespace Advanced_Graphics
                 color = Transform(sourceColor, false, true);
                 PostprocessSurfaceColor(color, sourceColor);
                 byte[] crackMask = m_CrackCount > 0 && m_CrackOpacity > 0 ? AddCrackOverlay(color) : null;
-                if (m_Depth > 0 || AlwaysBuildSurfaceNormal || (m_Level == 1 && NeedsNormalAtZeroDepth))
-                    normal = BuildSurfaceNormal(color, m_Depth, m_UvSize, crackMask);
+                if (ShouldBuildSurfaceNormal)
+                    normal = BuildSelectedNormal(color, m_Depth, m_UvSize, crackMask);
                 TextureColorFilter.Apply(color, m_FilterColor, m_FilterOpacityPercent);
                 color.Apply(true, !KeepTileReadable);
             }
@@ -291,6 +300,7 @@ namespace Advanced_Graphics
             }
             finally
             {
+                m_ColorBeforeCracks = m_StampedCrackNormals = null;
                 if (!CacheSourceColor && sourceColor != null) UnityEngine.Object.Destroy(sourceColor);
             }
 
@@ -412,7 +422,7 @@ namespace Advanced_Graphics
         private Texture2D CreateNormalFromColor(Texture2D source, int depth, int uvSize, byte[] crackMask)
         {
             int width = source.width, height = source.height;
-            var colors = source.GetPixels32();
+            var colors = m_ColorBeforeCracks ?? source.GetPixels32();
             var normals = new Color32[colors.Length];
 
             for (int y = 0; y < height; y++)
@@ -425,7 +435,7 @@ namespace Advanced_Graphics
                 float relief = 0.025f * depth / 100f * uvSize / 100f;
                 float nx = (colors[left].r - colors[right].r) * relief;
                 float ny = (colors[down].r - colors[up].r) * relief;
-                if (crackMask != null)
+                if (crackMask != null && m_StampedCrackNormals == null)
                 {
                     float crackRelief = 0.008f * depth / 100f;
                     nx += (crackMask[right] - crackMask[left]) * crackRelief;
@@ -437,6 +447,7 @@ namespace Advanced_Graphics
                     (byte)Mathf.Clamp((n.y * 0.5f + 0.5f) * 255f, 0f, 255f),
                     (byte)Mathf.Clamp((n.z * 0.5f + 0.5f) * 255f, 0f, 255f), 255);
             }
+            ApplyAuthoredCrackNormals(normals, crackMask, depth);
             EncodeNormalPixels(normals);
             var result = new Texture2D(width, height, TextureFormat.RGBA32, true, true);
             result.SetPixels32(normals);
@@ -470,7 +481,12 @@ namespace Advanced_Graphics
             float jitter = m_CrackRandomness / 100f;
             float scale = m_CrackSize / 100f;
             float radius = Math.Max(0.25f, scale * m_CrackWidth / 100f);
-            if (custom) customMask = GetCrackWidthMask();
+            if (custom && m_CustomCrackNormals != null)
+            {
+                m_ColorBeforeCracks = (Color32[])pixels.Clone();
+                m_StampedCrackNormals = new Color32[pixels.Length];
+            }
+            else if (custom) customMask = GetCrackWidthMask();
             float customAngleOffset = custom ? (float)(random.NextDouble() * Math.PI * 2.0) : 0f;
             for (int i = 0; i < count; i++)
             {
@@ -537,11 +553,12 @@ namespace Advanced_Graphics
             }
         }
 
-        protected Texture2D Transform(Texture2D source, bool linear, bool keepReadable)
+        protected Texture2D Transform(Texture2D source, bool linear, bool keepReadable,
+            float? strengthOverride = null, int? resolutionOverride = null)
         {
-            float normalStrength = AuthoredNormalStrength;
+            float normalStrength = strengthOverride ?? AuthoredNormalStrength;
             int size = source.width;
-            int outputSize = Math.Min(size, MaximumTileResolution);
+            int outputSize = Math.Min(resolutionOverride ?? size, MaximumTileResolution);
             if (size != source.height) throw new InvalidDataException("Road asphalt detail texture must be square.");
             var input = source.GetPixels32();
             var output = new Color32[outputSize * outputSize];
@@ -672,6 +689,7 @@ namespace Advanced_Graphics
             DestroyTextures();
             ClearSourceCache();
             ClearCrackCache();
+            ClearCustomNormal();
             m_PollInterval = 120;
             OnSurfaceReset();
         }
@@ -684,6 +702,7 @@ namespace Advanced_Graphics
         }
     }
 }
+
 
 
 

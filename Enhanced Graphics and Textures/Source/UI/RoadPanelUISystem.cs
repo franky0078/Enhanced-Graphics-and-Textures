@@ -1,3 +1,4 @@
+using System.Linq;
 using System;
 using System.Globalization;
 using Colossal.IO.AssetDatabase;
@@ -23,9 +24,32 @@ namespace Advanced_Graphics
 
         public override GameMode gameMode => GameMode.GameOrEditor;
 
+        private void ApplyEndcap(string request)
+        {
+            var s = Mod.ActiveSetting;
+            if (s == null || string.IsNullOrEmpty(request)) return;
+            var parts = request.Split(':');
+            if (parts.Length != 3 || (parts[0] != "sidewalk" && parts[0] != "alley" && parts[0] != "parking")) return;
+            if (!float.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out float u) ||
+                !float.TryParse(parts[2], NumberStyles.Float, CultureInfo.InvariantCulture, out float v) ||
+                float.IsNaN(u) || float.IsInfinity(u) || float.IsNaN(v) || float.IsInfinity(v)) return;
+            // Publish both axes together, only on the explicit Apply action.
+            s.ApplyEndcapValues(parts[0], u, v);
+            s.ApplyToSystem();
+            m_State = BuildState(s);
+            m_SavePending = true;
+            m_SaveAt = UnityEngine.Time.unscaledTime + 0.6f;
+        }
+
         protected override void OnCreate()
         {
             base.OnCreate();
+            AddUpdateBinding(new GetterValueBinding<string>(Group, "normalMapFlags", () =>
+                string.Join(",", new[] { "road", "sidewalk", "alley", "gravel", "shoulder", "rail", "grass" }
+                    .Select(key => Mod.ActiveSetting?.GetCustomNormalEnabled(key) == true ? "1" : "0"))));
+            AddBinding(new TriggerBinding<string>(Group, "setNormalMapEnabled", ChangeNormalMapEnabled));
+            AddBinding(new TriggerBinding<string>(Group, "applyEndcap", ApplyEndcap));
+            AddBinding(new TriggerBinding<string>(Group, "reloadAllCustomTextures", _ => Mod.ActiveSetting?.ReloadAllCustomTexturesNow()));
             AddBinding(new TriggerBinding<string>(Group, "setSurfaceFilterColor", ChangeFilterColor));
             AddUpdateBinding(new GetterValueBinding<string>(Group, "colorWindowPosition", () =>
                 "{\"x\":" + (Mod.ActiveSetting?.ColorWindowX ?? -1f).ToString("R", CultureInfo.InvariantCulture) +
@@ -88,6 +112,17 @@ namespace Advanced_Graphics
             base.OnDestroy();
         }
 
+        private void ChangeNormalMapEnabled(string request)
+        {
+            var s = Mod.ActiveSetting;
+            var parts = request?.Split(':');
+            if (s == null || parts == null || parts.Length != 2 ||
+                (parts[1] != "0" && parts[1] != "1") || !s.SetCustomNormalEnabled(parts[0], parts[1] == "1")) return;
+            s.ApplyToSystem();
+            m_SavePending = true;
+            m_SaveAt = UnityEngine.Time.unscaledTime + 0.6f;
+        }
+
         private void ChangeFilterColor(string request)
         {
             var s = Mod.ActiveSetting;
@@ -144,6 +179,12 @@ namespace Advanced_Graphics
                 ",\"customCracks\":" + (s.UseCustomRoadCracks ? "true" : "false") +
                 ",\"crackStatus\":" + (Mod.RoadAsphalt?.CustomCrackStatus ?? 0) +
                 ",\"mipBias\":" + s.SurfaceTextureMipBias.ToString("0.0", CultureInfo.InvariantCulture) +
+                ",\"endcapU\":" + s.SidewalkEndcapU.ToString("0.0", CultureInfo.InvariantCulture) +
+                ",\"endcapV\":" + s.SidewalkEndcapV.ToString("0.0", CultureInfo.InvariantCulture) +
+                ",\"alleyEndcapU\":" + s.AlleyEndcapU.ToString("0.0", CultureInfo.InvariantCulture) +
+                ",\"alleyEndcapV\":" + s.AlleyEndcapV.ToString("0.0", CultureInfo.InvariantCulture) +
+                ",\"parkingEndcapU\":" + s.ParkingEndcapU.ToString("0.0", CultureInfo.InvariantCulture) +
+                ",\"parkingEndcapV\":" + s.ParkingEndcapV.ToString("0.0", CultureInfo.InvariantCulture) +
                 ",\"parkingDepth\":" + s.ParkingDepthStrengthFactor.ToString("0.0", CultureInfo.InvariantCulture) +
                 ",\"parkingScale\":" + s.ParkingTextureScaleFactor.ToString("0.0", CultureInfo.InvariantCulture) +
                 ",\"depth\":" + s.RoadDepthStrengthPercent +
@@ -469,6 +510,7 @@ namespace Advanced_Graphics
         private static int Clamp(int value, int min, int max) => Math.Max(min, Math.Min(max, value));
     }
 }
+
 
 
 

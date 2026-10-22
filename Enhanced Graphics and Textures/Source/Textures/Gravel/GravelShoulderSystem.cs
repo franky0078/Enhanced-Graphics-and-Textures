@@ -170,6 +170,7 @@ namespace Advanced_Graphics
             var tile = m_Tile;
             var overlayColor = m_TilePixels;
             var overlayNormal = m_NormalTilePixels;
+            bool customNormal = Mod.GravelShoulderSurface?.HasCustomNormal == true;
             int tileWidth = tile != null ? tile.width : 0, tileHeight = tile != null ? tile.height : 0;
             int version = m_Version;
             m_WorkVersion = version;
@@ -183,9 +184,9 @@ namespace Advanced_Graphics
                     var pair = maps[i];
                     bool needsColor = pair.AppliedFilterOpacityPercent != filterOpacityPercent || pair.AppliedFilterColor != filterColor || pair.AppliedSize != size || pair.AppliedOffsetX != offsetX ||
                         pair.AppliedOffsetY != offsetY || pair.AppliedRotation != rotation || !ReferenceEquals(pair.AppliedTile, tile);
-                    var color = needsColor ? ResampleStrip(pair.SourceColor, pair.ColorWork, pair.Width, pair.Height, pair.Band, size, depth, false, version, offsetX, offsetY, rotation, overlayColor, tileWidth, tileHeight, detail, filterColor, filterOpacityPercent) : null;
+                    var color = needsColor ? ResampleStrip(pair.SourceColor, pair.ColorWork, pair.Width, pair.Height, pair.Band, size, depth, false, version, offsetX, offsetY, rotation, overlayColor, tileWidth, tileHeight, detail, filterColor, filterOpacityPercent, customNormal) : null;
                     if (needsColor && color == null) return null;
-                    var normal = ResampleStrip(pair.SourceNormal, pair.NormalWork, pair.Width, pair.Height, pair.Band, size, depth, true, version, offsetX, offsetY, rotation, overlayNormal, tileWidth, tileHeight, detail, filterColor, filterOpacityPercent);
+                    var normal = ResampleStrip(pair.SourceNormal, pair.NormalWork, pair.Width, pair.Height, pair.Band, size, depth, true, version, offsetX, offsetY, rotation, overlayNormal, tileWidth, tileHeight, detail, filterColor, filterOpacityPercent, customNormal);
                     if (normal == null) return null;
                     results[i] = new Result { Maps = pair, Color = color, Normal = normal, Size = size, OffsetX = offsetX, OffsetY = offsetY, Rotation = rotation, Tile = tile, FilterColor = filterColor, FilterOpacityPercent = filterOpacityPercent };
                 }
@@ -238,7 +239,7 @@ namespace Advanced_Graphics
 
         private Color32[] ResampleStrip(Color32[] original, Color32[] pixels, int width, int height, int band,
             int size, int depth, bool normal, int version, int offsetX, int offsetY, int rotation,
-            Color32[] overlay, int tileWidth, int tileHeight, int detail, int filterColor, int filterOpacityPercent)
+            Color32[] overlay, int tileWidth, int tileHeight, int detail, int filterColor, int filterOpacityPercent, bool customNormal)
         {
             float scale = 100f / size, strength = 1f + DepthGain * depth / 100f;
             float angle = rotation * (float)Math.PI / 180f;
@@ -260,7 +261,7 @@ namespace Advanced_Graphics
                         double rotatedX = nx * cos + ny * sin;
                         ny = -nx * sin + ny * cos; nx = rotatedX;
                         double nz = Math.Sqrt(Math.Max(0.001, 1.0 - nx * nx - ny * ny));
-                        double gain = overlay == null ? strength : detail == 1
+                        double gain = overlay == null ? strength : customNormal ? depth / 100.0 : detail == 1
                             ? RoadGravelSystem.GravelNormalStrength(depth) : Math.Sqrt(depth / 100.0);
                         nx *= gain; ny *= gain;
                         double length = Math.Sqrt(nx * nx + ny * ny + nz * nz);
@@ -328,6 +329,7 @@ namespace Advanced_Graphics
         protected override void OnDestroy() { RestoreNow(); base.OnDestroy(); }
     }
 }
+
 
 
 

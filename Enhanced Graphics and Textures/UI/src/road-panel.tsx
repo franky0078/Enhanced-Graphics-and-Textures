@@ -5,6 +5,7 @@ import { Tooltip } from "cs2/ui";
 import styles from "./road-panel.module.scss";
 
 const group = "Advanced_Graphics";
+const normalMapFlags$ = bindValue<string>(group, "normalMapFlags", "0,0,0,0,0,0,0");
 const debugEnabled$ = bindValue<boolean>(group, "debugEnabled", false);
 const state$ = bindValue<string>(group, "roadSettings", "{}");
 const grassState$ = bindValue<string>(group, "grassSettings", "{}");
@@ -18,11 +19,11 @@ const shoulderState$ = bindValue<string>(group, "shoulderSettings", "{}");
 type Surface = "road" | "sidewalk" | "alley" | "rail" | "gravel" | "shoulder" | "grass";
 const triggers: Record<Surface, string> = { grass: "setGrassSetting", road: "setRoadSetting", sidewalk: "setSidewalkSetting", alley: "setAlleySidewalkSetting", rail: "setRailSetting", gravel: "setGravelSetting", shoulder: "setShoulderSetting" };
 const prefixes: Record<Surface, string> = { grass: "Grass", road: "", sidewalk: "Sidewalk", alley: "AlleySidewalk", rail: "RailGravel", gravel: "RoadGravel", shoulder: "GravelShoulder" };
-type Key = "detail" | "uv" | "depth" | "tiling" | "parkingScale" | "parkingDepth" | "mipBias" | "offsetX" | "offsetY" |
+type Key = "alleyEndcapU" | "alleyEndcapV" | "parkingEndcapU" | "parkingEndcapV" | "endcapU" | "endcapV" | "detail" | "uv" | "depth" | "tiling" | "parkingScale" | "parkingDepth" | "mipBias" | "offsetX" | "offsetY" |
     "rotation" | "cracks" | "crackSize" | "crackWidth" | "crackOpacity" | "randomness";
 type State = Record<Key, number> & { show: boolean; enabled: boolean; filterColor: number; filterOpacity: number; probe?: boolean; customCracks?: boolean; crackStatus?: number };
 const initial: State = { show: true, enabled: false, filterColor: 0xffffff, filterOpacity: 100, detail: 0, uv: 100, depth: 0,
-    tiling: 1, parkingScale: 1, parkingDepth: 1, mipBias: 0, offsetX: 0, offsetY: 0, rotation: 0, cracks: 0, crackSize: 100, crackWidth: 100, crackOpacity: 100, randomness: 50 };
+    alleyEndcapU: 1, alleyEndcapV: 1, parkingEndcapU: 1, parkingEndcapV: 1, endcapU: 1, endcapV: 1, tiling: 1, parkingScale: 1, parkingDepth: 1, mipBias: 0, offsetX: 0, offsetY: 0, rotation: 0, cracks: 0, crackSize: 100, crackWidth: 100, crackOpacity: 100, randomness: 50 };
 
 const controls: { key: Key; label: string; min: number; max: number; step: number }[] = [
     { key: "detail", label: "Detail", min: 0, max: 2, step: 1 },
@@ -149,6 +150,8 @@ export function RoadPanel({ panelClass }: { panelClass: string }) {
     const gravelRaw = useValue(gravelState$);
     const shoulderRaw = useValue(shoulderState$);
     const debugEnabled = useValue(debugEnabled$);
+    const normalFlags = useValue(normalMapFlags$).split(",");
+
     const colorWindowRaw = useValue(colorWindowPosition$);
     const colorWindowPosition = React.useMemo(() => {
         try { return JSON.parse(colorWindowRaw) as { x?: number; y?: number }; }
@@ -322,6 +325,7 @@ export function RoadPanel({ panelClass }: { panelClass: string }) {
                             <span>{text("CustomCracks", "Custom crack texture")}</span>
                         </button>
                         {draft.customCracks && <>
+                            <p className={styles.textureHint}>{text("CracksNormalInfo", "Road_Cracks.png + optional Road_Cracks_Normal.png. Matching dimensions; automatic relief without a normal map.")}</p>
                             <p className={styles.textureHint}>{text(["CustomCracksPending", "CustomCracksLoaded", "CustomCracksMissing", "CustomCracksInvalid"][draft.crackStatus ?? 0], "")}</p>
                         </>}
                     </>}
@@ -331,10 +335,10 @@ export function RoadPanel({ panelClass }: { panelClass: string }) {
                     description={text(`${prefix}Tip${control.label}`, "Adjust the surface appearance.")}
                     onChange={(next, dragging) => set(control.key, next, dragging)} onCommit={flushPending} />
                 </React.Fragment>)}
+                {draft.detail === 2 && <p className={styles.textureHint}>{text(`CustomFiles_${surface}`, "")}</p>}
                 {surface === "gravel" && draft.detail === 2 && <button className={styles.reset} onClick={() => { flushPending(); trigger(group, "reloadGravelTexture", "reload"); }}>{text("RoadGravelReload", "Reload custom texture")}</button>}
                 {surface === "grass" && draft.detail === 2 && <>
                     <button className={styles.reset} onClick={() => { flushPending(); trigger(group, "reloadGrassTexture", "reload"); }}>{text("GrassReload", "Reload custom grass texture")}</button>
-                    <p className={styles.textureHint}>{text("GrassCustomHint", "Copy Grass_BaseColor.png into Textures/Grass, then reload it.")}</p>
                 </>}
                 {surface === "shoulder" && draft.detail === 2 && <button className={styles.reset} onClick={() => { flushPending(); trigger(group, "reloadGravelShoulderTexture", "reload"); }}>{text("RoadGravelReload", "Reload custom texture")}</button>}
                 {surface === "shoulder" && <p className={styles.textureHint}>{text("GravelShoulderHint", "Adjusts the original gravel road edge atlas.")}</p>}
@@ -349,7 +353,8 @@ export function RoadPanel({ panelClass }: { panelClass: string }) {
                 </>}
             </div>
         </div>}
-        {open && generalOpen && <TextureGeneralWindow mipBias={roadValue.mipBias} text={text} panelClass={panelClass}
+        {open && generalOpen && <TextureGeneralWindow endcapValues={roadValue} endcapKind={surface === "alley" ? "alley" : surface === "road" ? "parking" : "sidewalk"} normalEnabled={normalFlags[["road", "sidewalk", "alley", "gravel", "shoulder", "rail", "grass"].indexOf(surface)] === "1"} surfaceTitle={titles[surface]}
+            onNormalChange={enabled => { flushPending(); trigger(group, "setNormalMapEnabled", `${surface}:${enabled ? 1 : 0}`); }} mipBias={roadValue.mipBias} text={text} panelClass={panelClass}
             savedPosition={generalWindowPosition} initialPosition={generalStart}
             onSavePosition={next => trigger(group, "setTextureGeneralWindowPosition", `${next.x.toFixed(1)}:${next.y.toFixed(1)}`)}
             onClose={() => setGeneralOpen(false)}
@@ -365,7 +370,9 @@ export function RoadPanel({ panelClass }: { panelClass: string }) {
 
 
 
-function TextureGeneralWindow({ mipBias, text, panelClass, savedPosition, initialPosition, onSavePosition, onClose, onApply }: {
+function TextureGeneralWindow({ endcapValues, endcapKind, normalEnabled, surfaceTitle, onNormalChange, mipBias, text, panelClass, savedPosition, initialPosition, onSavePosition, onClose, onApply }: {
+    endcapValues: State; endcapKind: EndcapKind;
+    normalEnabled: boolean; surfaceTitle: string; onNormalChange: (enabled: boolean) => void;
     mipBias: number; text: (key: string, fallback: string) => string; panelClass: string;
     savedPosition: { x?: number; y?: number }; initialPosition: { x: number; y: number };
     onSavePosition: (position: { x: number; y: number }) => void;
@@ -432,6 +439,13 @@ function TextureGeneralWindow({ mipBias, text, panelClass, savedPosition, initia
             <button className={styles.close} onClick={() => { commit(); onClose(); }} title={text("Close", "Close")}>×</button>
         </div>
         <div className={styles.body}>
+            <button type="button" className={styles.moduleToggle} role="checkbox" aria-checked={normalEnabled}
+                title={text("UseCustomNormalHint", "Off: automatic relief. On: use optional custom normals when available.")}
+                onClick={() => onNormalChange(!normalEnabled)}>
+                <span className={`${styles.toggleBox} ${normalEnabled ? styles.toggleOn : ""}`} aria-hidden="true">{normalEnabled ? "✓" : ""}</span>
+                <span>{text("UseCustomNormal", "Use custom normal map")} – {surfaceTitle}</span>
+            </button>
+            <EndcapSliders values={endcapValues} initialKind={endcapKind} text={text} />
             <p className={styles.textureHint}>{text("TextureGeneralHint", "Applies to all surfaces edited by this mod.")}</p>
             <RoadSlider control={{ key: "mipBias", label: "SurfaceMipBias", min: -1, max: 1, step: 0.1 }}
                 label={text("SurfaceMipBias", "Texture mip bias")} description={text("TipSurfaceMipBias", "Adjust distant texture detail.")}
@@ -441,6 +455,8 @@ function TextureGeneralWindow({ mipBias, text, panelClass, savedPosition, initia
                     timer.current = dragging ? null : setTimeout(commit, 120);
                 }} onCommit={commit} />
             <p className={styles.textureHint}>{text("TextureFiltering16", "Anisotropic filtering: 16×")}</p>
+            <button className={styles.reset} title={text("ReloadAllCustomTexturesHint", "Reloads all custom color and normal maps, including the road crack mask.")}
+                onClick={() => { commit(); trigger(group, "reloadAllCustomTextures", "reload"); }}>{text("ReloadAllCustomTextures", "Reload all custom textures")}</button>
             <button className={styles.reset} onClick={() => { pending.current = 0; setDraft(0); commit(); }}>{text("Reset", "Reset")}</button>
         </div>
     </div>;
@@ -544,7 +560,7 @@ function ColorFilterWindow({ surface, title, color, opacity, text, panelClass, s
                     onKeyDown={event => { event.stopPropagation(); if (event.key === "Enter") event.currentTarget.blur(); }} /></div>
             <div className={styles.colorActions}>
                 <button className={styles.reset} onClick={() => { const next = parsedHex(); setDraft(next); setHex(colorHex(next)); onApply(next, draftOpacity); }}>{text("ApplyColor", "Apply")}</button>
-                <button className={styles.reset} onClick={() => { setDraft(color); setHex(colorHex(color)); setDraftOpacity(0); onApply(color, 0); }}>{text("ResetColor", "Reset color")}</button>
+                <button className={styles.reset} onClick={() => { setDraft(0xffffff); setHex("#FFFFFF"); setDraftOpacity(0); onApply(0xffffff, 0); }}>{text("ResetColor", "Reset color")}</button>
             </div>
         </div>
     </div>;
@@ -552,3 +568,38 @@ function ColorFilterWindow({ surface, title, color, opacity, text, panelClass, s
 
 
 
+
+
+type EndcapKind = "sidewalk" | "alley" | "parking";
+function EndcapSliders({ values, initialKind, text }: { values: State; initialKind: EndcapKind; text: (key: string, fallback: string) => string }) {
+    const [kind, setKind] = React.useState<EndcapKind>(initialKind);
+    const u = kind === "alley" ? values.alleyEndcapU : kind === "parking" ? values.parkingEndcapU : values.endcapU;
+    const v = kind === "alley" ? values.alleyEndcapV : kind === "parking" ? values.parkingEndcapV : values.endcapV;
+    const [draft, setDraft] = React.useState({ endcapU: u, endcapV: v });
+    React.useEffect(() => setKind(initialKind), [initialKind]);
+    React.useEffect(() => setDraft({ endcapU: u, endcapV: v }), [kind, u, v]);
+    const labels: Record<EndcapKind, string> = {
+        sidewalk: text("EndcapNormal", "Normal roads"),
+        alley: text("EndcapAlley", "Small-road sidewalks"),
+        parking: text("EndcapParking", "Parking roads")
+    };
+    return <>
+        <p className={styles.textureHint}>{text("EndcapHint", "Choose a road type. Edits take effect only when you click Apply. Higher values repeat the texture more often.")}</p>
+        <div className={styles.colorActions}>
+            {(["sidewalk", "alley", "parking"] as const).map(item => <button key={item} className={styles.reset}
+                aria-pressed={kind === item} onClick={() => setKind(item)}>{kind === item ? "✓ " : ""}{labels[item]}</button>)}
+        </div>
+        {(["endcapU", "endcapV"] as const).map(key => <RoadSlider key={key}
+            control={{ key, label: key, min: 0.1, max: 8, step: 0.1 }}
+            label={text(key, key === "endcapU" ? "End tiling U" : "End tiling V")}
+            description={text("EndcapHint", "Edits take effect only when you click Apply.")}
+            value={draft[key]} onChange={next => setDraft(previous => ({ ...previous, [key]: next }))}
+            onCommit={() => {}} />)}
+        <div className={styles.colorActions}>
+            <button className={styles.reset} onClick={() =>
+                trigger(group, "applyEndcap", `${kind}:${draft.endcapU}:${draft.endcapV}`)}>{text("ApplyColor", "Apply")}</button>
+            <button className={styles.reset} onClick={() => setDraft({ endcapU: 1, endcapV: 1 })}>
+                {text("ResetEndcaps", "Reset end tiling")}</button>
+        </div>
+    </>;
+}

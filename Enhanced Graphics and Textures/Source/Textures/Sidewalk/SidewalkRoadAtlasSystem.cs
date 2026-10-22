@@ -32,11 +32,25 @@ namespace Advanced_Graphics
 
         private readonly Dictionary<Material, Original> m_Materials = new Dictionary<Material, Original>();
         private readonly Dictionary<Texture, Texture2D> m_ColorCopies = new Dictionary<Texture, Texture2D>();
-        private readonly Dictionary<Texture, Texture2D> m_NormalCopies = new Dictionary<Texture, Texture2D>();
+        private readonly Dictionary<(Texture, Texture), Texture2D> m_NormalCopies = new Dictionary<(Texture, Texture), Texture2D>();
         private Texture2D m_SourceColor, m_SourceNormal;
         private bool m_Enabled, m_Diagnostic, m_BuiltDiagnostic, m_BuiltCustom, m_Dirty;
         private bool m_LoggedMissing;
         private int m_Frames;
+
+        internal bool OwnsAppliedAtlas(Texture texture, bool normal)
+        {
+            if (texture == null) return false;
+            if (normal)
+            {
+                foreach (var copy in m_NormalCopies.Values) if (copy == texture) return true;
+            }
+            else
+            {
+                foreach (var copy in m_ColorCopies.Values) if (copy == texture) return true;
+            }
+            return false;
+        }
 
         internal Texture FindOriginalColorAtlas()
         {
@@ -68,13 +82,15 @@ namespace Advanced_Graphics
         {
             foreach (var texture in m_ColorCopies.Values) SurfaceTextureSampling.Apply(texture);
             foreach (var texture in m_NormalCopies.Values) SurfaceTextureSampling.Apply(texture);
+            foreach (var texture in m_EndcapTextures.Values) SurfaceTextureSampling.Apply(texture);
         }
 
         protected override void OnUpdate()
         {
+            bool scaleChanged = RefreshEndcapScale();
             bool tileChanged = m_SourceColor != Surface?.ActiveColorTexture ||
                 m_SourceNormal != Surface?.ActiveNormalTexture;
-            if (!m_Dirty && !tileChanged && ++m_Frames < 120) return;
+            if (!m_Dirty && !tileChanged && !scaleChanged && ++m_Frames < 120) return;
             m_Frames = 0;
             m_Dirty = false;
             if (!m_Enabled)
@@ -94,6 +110,7 @@ namespace Advanced_Graphics
 
             try
             {
+                if (scaleChanged) RestoreIsolatedAlleyBatches();
                 if (m_SourceColor != color || m_SourceNormal != normal ||
                     m_BuiltDiagnostic != m_Diagnostic || m_BuiltCustom != customTexture)
                 {
@@ -108,11 +125,17 @@ namespace Advanced_Graphics
                 int added = 0;
                 int applied = 0;
                 int virtualMaterials = 0;
-                if (IsAlleyAtlas) m_AlleyCurrentMaterialSources.Clear();
+                m_AlleyCurrentMaterialSources.Clear();
                 foreach (var material in Resources.FindObjectsOfTypeAll<Material>())
                 {
                     if (material == null || material.shader == null || material.shader.name != ShaderName ||
                         !material.HasProperty(ColorSlot)) continue;
+                    if (material.name.StartsWith("Enhanced Graphics and Textures", StringComparison.Ordinal)) continue;
+                    // The regular sidewalk system can rebuild its shared RoadEU atlas.
+                    if (IsAlleyAtlas && m_Materials.TryGetValue(material, out var previous) &&
+                        (material.GetTexture(ColorSlot) != previous.Color ||
+                         (material.HasProperty(NormalSlot) && material.GetTexture(NormalSlot) != previous.Normal)))
+                        m_Materials.Remove(material);
                     if (!m_Materials.TryGetValue(material, out var original))
                     {
                         Texture baseColor = material.GetTexture(ColorSlot);
@@ -120,15 +143,18 @@ namespace Advanced_Graphics
                         bool alleyShoulder = material.name != null &&
                             material.name.StartsWith("Batch (", StringComparison.Ordinal) &&
                             baseColor.name.StartsWith(AlleyColorPrefix, StringComparison.Ordinal);
-                        if (IsAlleyAtlas ? !alleyShoulder : !baseColor.name.StartsWith(ColorPrefix, StringComparison.Ordinal)) continue;
+                        bool roadEndAtlas = baseColor.name.StartsWith(ColorPrefix, StringComparison.Ordinal) ||
+                            (IsAlleyAtlas && Mod.SidewalkAtlas?.OwnsAppliedAtlas(baseColor, false) == true);
+                        if (IsAlleyAtlas ? !(alleyShoulder || roadEndAtlas) : !roadEndAtlas) continue;
                         Texture baseNormal = material.HasProperty(NormalSlot) ? material.GetTexture(NormalSlot) : null;
                         original = new Original
                         {
                             Color = baseColor,
                             AlleyShoulder = alleyShoulder,
                             VirtualTexturing = material.IsKeywordEnabled("ENABLE_VT"),
-                            Normal = baseNormal != null && baseNormal.name.StartsWith(
-                                alleyShoulder ? AlleyNormalPrefix : NormalPrefix, StringComparison.Ordinal)
+                            Normal = baseNormal != null && (baseNormal.name.StartsWith(
+                                alleyShoulder ? AlleyNormalPrefix : NormalPrefix, StringComparison.Ordinal) ||
+                                (IsAlleyAtlas && Mod.SidewalkAtlas?.OwnsAppliedAtlas(baseNormal, true) == true))
                                 ? baseNormal : null
                         };
                         m_Materials.Add(material, original);
@@ -140,17 +166,17 @@ namespace Advanced_Graphics
                     if (!m_ColorCopies.TryGetValue(original.Color, out var colorCopy))
                     {
                         colorCopy = BuildAtlas(original.Color, color, false, m_Diagnostic, customTexture,
-                            original.AlleyShoulder);
+                            original.AlleyShoulder, original.Color);
                         m_ColorCopies.Add(original.Color, colorCopy);
                     }
                     Texture2D normalCopy = null;
                     if (!m_Diagnostic && normal != null && original.Normal != null)
                     {
-                        if (!m_NormalCopies.TryGetValue(original.Normal, out normalCopy))
+                        if (!m_NormalCopies.TryGetValue((original.Normal, original.Color), out normalCopy))
                         {
                             normalCopy = BuildAtlas(original.Normal, normal, true, false, customTexture,
-                                original.AlleyShoulder);
-                            m_NormalCopies.Add(original.Normal, normalCopy);
+                                original.AlleyShoulder, original.Color);
+                            m_NormalCopies.Add((original.Normal, original.Color), normalCopy);
                         }
                     }
                     var currentColor = material.GetTexture(ColorSlot);
@@ -162,12 +188,14 @@ namespace Advanced_Graphics
                         PrepareIsolatedAlleyMaterial(material, colorCopy, normalCopy, original.VirtualTexturing);
                         continue;
                     }
+                    if (EndcapScaleActive) PrepareIsolatedAlleyMaterial(material, colorCopy, normalCopy, original.VirtualTexturing);
                     material.SetTexture(ColorSlot, colorCopy);
                     if (normalCopy != null) material.SetTexture(NormalSlot, normalCopy);
                     if (original.VirtualTexturing) { material.DisableKeyword("ENABLE_VT"); virtualMaterials++; }
                     applied++;
                 }
                 if (IsAlleyAtlas) applied = ApplyIsolatedAlleyBatches();
+                else if (EndcapScaleActive) ApplyIsolatedAlleyBatches(nodesOnly: true);
                 string region = m_Diagnostic ? "color regions red/yellow/blue/cyan/magenta/green"
                     : (IsAlleyAtlas ? "ParkingLane7 atlas on isolated Alley batches" : "sidewalk region x=318..758");
                 if (added > 0) Mod.log.Info($"{SurfaceLabel} atlas: {m_Materials.Count} matched materials ({added} new), {applied} applied, {virtualMaterials} switched from ENABLE_VT; {region}; source tile {color.width}x{color.height}.");
@@ -184,7 +212,7 @@ namespace Advanced_Graphics
         }
 
         private Texture2D BuildAtlas(Texture source, Texture overlay, bool linear, bool diagnostic,
-            bool customTexture, bool alleyShoulder = false)
+            bool customTexture, bool alleyShoulder = false, Texture referenceColor = null)
         {
             if (source.width > 4096 || source.height > 4096)
                 throw new InvalidOperationException("RoadEU atlas exceeds 4096 pixels per side.");
@@ -211,9 +239,13 @@ namespace Advanced_Graphics
                 int right = diagnostic || alleyShoulder ? width : Mathf.RoundToInt(width * (X1 / 1024f));
                 int bottom = diagnostic ? 0 : Mathf.RoundToInt(height * (1f - Y1 / 2048f));
                 int top = diagnostic ? height : Mathf.RoundToInt(height * (1f - Y0 / 2048f));
-                int stripWidth = alleyShoulder ? Mathf.Max(1, width / 8) : Mathf.Max(1, right - left);
-                int repeats = customTexture && !diagnostic
-                    ? Mathf.Max(1, Mathf.RoundToInt((top - bottom) / (float)stripWidth)) : 0;
+                // Both atlases use the same UV domain even if their resolutions/aspects differ.
+                float referenceAspect = referenceColor != null
+                    ? referenceColor.height / (float)referenceColor.width : 2f;
+                float stripFraction = alleyShoulder ? 1f / 8f : (X1 - X0) / 1024f;
+                float verticalRepeats = referenceAspect / stripFraction;
+                if (customTexture && !diagnostic)
+                    verticalRepeats = Mathf.Max(1, Mathf.RoundToInt(verticalRepeats));
                 for (int y = bottom; y < top; y++)
                 for (int x = left; x < right; x++)
                 {
@@ -233,10 +265,11 @@ namespace Advanced_Graphics
                     }
                     else
                     {
-                        int u = (int)((long)(x - left) * detail.width / stripWidth) % detail.width;
-                        int v = repeats > 0
-                            ? (int)((long)(y - bottom) * detail.height * repeats / (top - bottom)) % detail.height
-                            : (int)((long)(y - bottom) * detail.height / stripWidth) % detail.height;
+                        float originU = alleyShoulder ? 0f : X0 / 1024f;
+                        int u = Mathf.FloorToInt(((x / (float)width - originU) / stripFraction) * detail.width);
+                        int v = Mathf.FloorToInt(y / (float)height * verticalRepeats * detail.height);
+                        u = (u % detail.width + detail.width) % detail.width;
+                        v = (v % detail.height + detail.height) % detail.height;
                         replacement = tile[v * detail.width + u];
                     }
                     if (linear)
@@ -309,7 +342,7 @@ namespace Advanced_Graphics
                 if (pair.Key == null || !m_ColorCopies.TryGetValue(pair.Value.Color, out var copy) ||
                     pair.Key.GetTexture(ColorSlot) != copy) continue;
                 SaveTexture(copy, Path.Combine(folder, "RoadEU_AppliedSidewalk_Atlas.png"));
-                if (pair.Value.Normal != null && m_NormalCopies.TryGetValue(pair.Value.Normal, out var normalCopy) &&
+                if (pair.Value.Normal != null && m_NormalCopies.TryGetValue((pair.Value.Normal, pair.Value.Color), out var normalCopy) &&
                     pair.Key.GetTexture(NormalSlot) == normalCopy)
                 {
                     SaveTexture(pair.Value.Normal, Path.Combine(folder, "RoadEU_OriginalNormal_Atlas.png"), true);
@@ -341,7 +374,7 @@ namespace Advanced_Graphics
                     material.SetTexture(ColorSlot, pair.Value.Color);
                     if (pair.Value.VirtualTexturing) material.EnableKeyword("ENABLE_VT");
                 }
-                if (pair.Value.Normal != null && m_NormalCopies.TryGetValue(pair.Value.Normal, out var normalCopy) &&
+                if (pair.Value.Normal != null && m_NormalCopies.TryGetValue((pair.Value.Normal, pair.Value.Color), out var normalCopy) &&
                     material.GetTexture(NormalSlot) == normalCopy)
                     material.SetTexture(NormalSlot, pair.Value.Normal);
             }
@@ -359,4 +392,5 @@ namespace Advanced_Graphics
         }
     }
 }
+
 
