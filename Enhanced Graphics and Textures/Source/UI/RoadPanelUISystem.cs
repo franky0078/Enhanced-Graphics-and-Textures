@@ -19,6 +19,7 @@ namespace Advanced_Graphics
         private string m_RailState = "{}";
         private string m_GravelState = "{}", m_ShoulderState = "{}";
         private string m_GrassState = "{}";
+        private string m_FootpathState = "{}";
         private bool m_SavePending;
         private float m_SaveAt;
 
@@ -45,7 +46,7 @@ namespace Advanced_Graphics
         {
             base.OnCreate();
             AddUpdateBinding(new GetterValueBinding<string>(Group, "normalMapFlags", () =>
-                string.Join(",", new[] { "road", "sidewalk", "alley", "gravel", "shoulder", "rail", "grass" }
+                string.Join(",", new[] { "road", "sidewalk", "alley", "gravel", "shoulder", "rail", "grass", "footpath" }
                     .Select(key => Mod.ActiveSetting?.GetCustomNormalEnabled(key) == true ? "1" : "0"))));
             AddBinding(new TriggerBinding<string>(Group, "setNormalMapEnabled", ChangeNormalMapEnabled));
             AddBinding(new TriggerBinding<string>(Group, "applyEndcap", ApplyEndcap));
@@ -79,8 +80,11 @@ namespace Advanced_Graphics
             AddBinding(new TriggerBinding<string>(Group, "setGravelSetting", request => ChangeGravelSetting(request, false)));
             AddBinding(new TriggerBinding<string>(Group, "setShoulderSetting", request => ChangeGravelSetting(request, true)));
             AddUpdateBinding(new GetterValueBinding<string>(Group, "grassSettings", () => m_GrassState));
+            AddUpdateBinding(new GetterValueBinding<string>(Group, "footpathSettings", () => m_FootpathState));
             AddBinding(new TriggerBinding<string>(Group, "setGrassSetting", ChangeGrassSetting));
+            AddBinding(new TriggerBinding<string>(Group, "setFootpathSetting", ChangeFootpathSetting));
             AddBinding(new TriggerBinding<string>(Group, "reloadGrassTexture", _ => Mod.Grass?.ReloadCustomTexture()));
+            AddBinding(new TriggerBinding<string>(Group, "reloadFootpathTexture", _ => Mod.Footpath?.ReloadCustomTexture()));
             AddBinding(new TriggerBinding<string>(Group, "reloadGravelTexture", _ => Mod.RoadGravel?.ReloadCustomTexture()));
         }
 
@@ -91,6 +95,7 @@ namespace Advanced_Graphics
             m_AlleySidewalkState = BuildAlleySidewalkState(Mod.ActiveSetting);
             m_RailState = BuildRailState(Mod.ActiveSetting);
             m_GrassState = BuildGrassState(Mod.ActiveSetting);
+            m_FootpathState = BuildFootpathState(Mod.ActiveSetting);
             m_GravelState = BuildGravelState(Mod.ActiveSetting, false);
             m_ShoulderState = BuildGravelState(Mod.ActiveSetting, true);
             base.OnUpdate();
@@ -368,6 +373,43 @@ namespace Advanced_Graphics
             }
             s.ApplyToSystem();
             m_GrassState = BuildGrassState(s);
+            m_SavePending = true;
+            m_SaveAt = UnityEngine.Time.unscaledTime + 0.6f;
+        }
+
+        private static string BuildFootpathState(Setting s)
+        {
+            if (s == null) return "{}";
+            return "{\"filterColor\":" + s.FootpathFilterColor + ",\"filterOpacity\":" + s.FootpathFilterOpacityPercent + ",\"show\":" + (s.ShowAppButton ? "true" : "false") +
+                ",\"enabled\":" + (s.FootpathEnabled ? "true" : "false") +
+                ",\"detail\":" + s.FootpathDetail +
+                ",\"uv\":" + s.FootpathUvSizePercent +
+                ",\"depth\":" + s.FootpathDepthStrengthPercent +
+                ",\"offsetX\":" + s.FootpathUvOffsetX +
+                ",\"offsetY\":" + s.FootpathUvOffsetY +
+                ",\"rotation\":" + s.FootpathUvRotation + "}";
+        }
+
+        private void ChangeFootpathSetting(string request)
+        {
+            var s = Mod.ActiveSetting;
+            if (s == null || string.IsNullOrEmpty(request)) return;
+            if (request == "reset") { s.ResetFootpath = true; m_FootpathState = BuildFootpathState(s); return; }
+            int separator = request.IndexOf(':');
+            if (separator <= 0 || !int.TryParse(request.Substring(separator + 1), out int value)) return;
+            switch (request.Substring(0, separator))
+            {
+                case "enabled": s.FootpathEnabled = value != 0; break;
+                case "detail": s.FootpathDetail = Clamp(value, 0, 2); break;
+                case "uv": s.FootpathUvSizePercent = Clamp(value, 10, Setting.MaxTextureUvSize); break;
+                case "depth": s.FootpathDepthStrengthPercent = Clamp(value, 0, Setting.MaxTextureDepthStrength); break;
+                case "offsetX": s.FootpathUvOffsetX = Clamp(value, 0, Setting.MaxTextureUvOffset); break;
+                case "offsetY": s.FootpathUvOffsetY = Clamp(value, 0, Setting.MaxTextureUvOffset); break;
+                case "rotation": s.FootpathUvRotation = Clamp(value, 0, 360); break;
+                default: return;
+            }
+            s.ApplyToSystem();
+            m_FootpathState = BuildFootpathState(s);
             m_SavePending = true;
             m_SaveAt = UnityEngine.Time.unscaledTime + 0.6f;
         }

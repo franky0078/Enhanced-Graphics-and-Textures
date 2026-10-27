@@ -20,6 +20,7 @@ namespace Advanced_Graphics
         internal static RailGravelSystem RailGravel;
         internal static RoadGravelSystem RoadGravel;
         internal static GrassSurfaceSystem Grass;
+        internal static FootpathSurfaceSystem Footpath;
         internal static GravelShoulderSystem GravelShoulder;
         internal static GravelShoulderSurfaceSystem GravelShoulderSurface;
         internal static RoadAsphaltSystem RoadAsphalt;
@@ -38,6 +39,7 @@ namespace Advanced_Graphics
             updateSystem.UpdateAfter<TreeLodSystem, BatchManagerSystem>(SystemUpdatePhase.Rendering);
             updateSystem.UpdateAfter<GraphicsCameraSystem, Game.Rendering.LightingSystem>(SystemUpdatePhase.Rendering);
             updateSystem.UpdateAt<GrassSurfaceSystem>(SystemUpdatePhase.Rendering);
+            updateSystem.UpdateAt<FootpathSurfaceSystem>(SystemUpdatePhase.Rendering);
             updateSystem.UpdateAt<RoadMaterialInspector>(SystemUpdatePhase.Rendering);
             if (DebugBackendEnabled)
             {
@@ -64,6 +66,7 @@ namespace Advanced_Graphics
             RailGravel = updateSystem.World.GetOrCreateSystemManaged<RailGravelSystem>();
             RoadGravel = updateSystem.World.GetOrCreateSystemManaged<RoadGravelSystem>();
             Grass = updateSystem.World.GetOrCreateSystemManaged<GrassSurfaceSystem>();
+            Footpath = updateSystem.World.GetOrCreateSystemManaged<FootpathSurfaceSystem>();
             GravelShoulder = updateSystem.World.GetOrCreateSystemManaged<GravelShoulderSystem>();
             GravelShoulderSurface = updateSystem.World.GetOrCreateSystemManaged<GravelShoulderSurfaceSystem>();
             RoadAsphalt = updateSystem.World.GetOrCreateSystemManaged<RoadAsphaltSystem>();
@@ -151,6 +154,8 @@ namespace Advanced_Graphics
             RailGravel = null;
             Grass?.RestoreNow();
             Grass = null;
+            Footpath?.RestoreNow();
+            Footpath = null;
             RoadGravel?.RestoreNow();
             RoadGravel = null;
             GravelShoulder?.RestoreNow();

@@ -4,7 +4,7 @@ Enhanced Graphics and Textures adds extended graphics controls and an in-game su
 
 
 <p align="center">
-  <img src="Enhanced%20Graphics%20and%20Textures/Properties/Screenshot01.jpg"
+  <img src="Enhanced%20Graphics%20and%20Textures/Properties/Thumbnail.jpg"
        alt="Enhanced Graphics and Textures"
        width="600">
 </p>
@@ -30,6 +30,7 @@ Adjust these surfaces independently:
 
 - Road asphalt
 - Sidewalks
+- Footpaths
 - Alley / one-way road sidewalks
 - Sidewalk grass
 - Gravel roads
@@ -71,6 +72,7 @@ Use these exact filenames:
 
 - Road asphalt: Road/Road_BaseColor.png and Road/Road_Normal.png
 - Sidewalk: Sidewalk/Sidewalk_BaseColor.png and Sidewalk/Sidewalk_Normal.png
+- Footpath: Footpath/Footpath_BaseColor.png and Footpath/Footpath_Normal.png
 - Alley / one-way sidewalk: AlleySidewalk/AlleySidewalk_BaseColor.png and AlleySidewalk/AlleySidewalk_Normal.png
 - Sidewalk grass: SidewalkGrass/Grass_BaseColor.png and SidewalkGrass/Grass_Normal.png
 - Gravel road: Gravel/RoadGravel_BaseColor.png and Gravel/RoadGravel_Normal.png

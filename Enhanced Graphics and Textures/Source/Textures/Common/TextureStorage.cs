@@ -11,13 +11,14 @@ namespace Advanced_Graphics
         internal static string RoadCracks => Path.Combine(Road, "Cracks");
         internal static string Sidewalk => Path.Combine(Root, "Sidewalk");
         internal static string AlleySidewalk => Path.Combine(Root, "AlleySidewalk");
+        internal static string Footpath => Path.Combine(Root, "Footpath");
         internal static string Grass => Path.Combine(Root, "Grass");
         internal static string Rail => Path.Combine(Root, "Rail");
         internal static string RoadGravel => Path.Combine(Root, "Gravel");
         internal static string GravelShoulder => Path.Combine(Root, "GravelSidewalk");
         internal static void EnsureDirectories()
         {
-            var folders = new[] { Road, RoadCracks, Grass, Sidewalk, AlleySidewalk, Rail, RoadGravel, GravelShoulder };
+            var folders = new[] { Road, RoadCracks, Footpath, Grass, Sidewalk, AlleySidewalk, Rail, RoadGravel, GravelShoulder };
             foreach (string folder in folders)
             {
                 try { Directory.CreateDirectory(folder); }

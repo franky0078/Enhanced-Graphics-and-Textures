@@ -71,6 +71,7 @@ namespace Advanced_Graphics
         protected int CurrentOffsetY => m_OffsetY;
         protected int CurrentRotation => m_Rotation;
         protected virtual bool BakeUvSizeIntoTexture => true;
+        protected virtual int MinimumUvSize => 50;
         protected virtual int SeamBlendDivisor => 8;
         protected virtual bool BlendTextureSeams => true;
         protected virtual float TextureSampleOffset => 0.5f;
@@ -110,7 +111,7 @@ namespace Advanced_Graphics
             filterOpacityPercent = Math.Max(0, Math.Min(100, filterOpacityPercent));
             filterColor = Math.Max(0, Math.Min(0xffffff, filterColor));
             level = Math.Max(0, Math.Min(2, level));
-            uvSize = Math.Max(50, Math.Min(Setting.MaxTextureUvSize, uvSize));
+            uvSize = Math.Max(MinimumUvSize, Math.Min(Setting.MaxTextureUvSize, uvSize));
             depth = Math.Max(0, Math.Min(Setting.MaxTextureDepthStrength, depth));
             bool road = GetType() == typeof(RoadAsphaltSystem);
             tiling = Mathf.Clamp(Mathf.Round(tiling * 10f) / 10f, 0.1f, 8f);

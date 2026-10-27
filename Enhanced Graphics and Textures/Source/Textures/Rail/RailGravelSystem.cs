@@ -55,7 +55,7 @@ namespace Advanced_Graphics
 
         protected override Texture2D GenerateNeutralAsphalt() => LoadBundledBallast(false);
 
-        private static Texture2D LoadBundledBallast(bool normal)
+        internal static Texture2D LoadBundledBallast(bool normal)
         {
             string resource = "Advanced_Graphics.RailGravel_" + (normal ? "Normal" : "BaseColor") + ".png";
             Texture2D texture = null;

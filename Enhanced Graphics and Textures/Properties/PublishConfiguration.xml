@@ -29,6 +29,7 @@
 
 		- Road asphalt
 		- Sidewalks
+		- Footpaths
 		- Alley / one-way road sidewalks
 		- Sidewalk grass
 		- Gravel roads
@@ -70,6 +71,7 @@
 
 		- Road asphalt: Road/Road_BaseColor.png and Road/Road_Normal.png
 		- Sidewalk: Sidewalk/Sidewalk_BaseColor.png and Sidewalk/Sidewalk_Normal.png
+		- Footpath: Footpath/Footpath_BaseColor.png and Footpath/Footpath_Normal.png
 		- Alley / one-way sidewalk: AlleySidewalk/AlleySidewalk_BaseColor.png and AlleySidewalk/AlleySidewalk_Normal.png
 		- Sidewalk grass: SidewalkGrass/Grass_BaseColor.png and SidewalkGrass/Grass_Normal.png
 		- Gravel road: Gravel/RoadGravel_BaseColor.png and Gravel/RoadGravel_Normal.png
@@ -139,7 +141,7 @@
 	<AccessLevel Value="Public" />
 	<Tag Value="Code Mod" />
 	
-	<ModVersion Value="1.5.0" />
+	<ModVersion Value="1.6.0" />
 	
 	<!--Existing value retained. Set this to the game version tested locally before publishing.-->
 	<GameVersion Value="1.6.*" />
@@ -147,12 +149,7 @@
 	<ChangeLog>
 		Latest changes:
 
-		- added new texture for railway ballast
-		- added new color predefined filter for all surfaces
-		- added normal map depth control for all surfaces incl. cracks
-		- added option to activate normal map depth(default is off)
-		- added scaling factor for all sidewalk road endings
-		- fix alley sidewalk texture not showing up on endings
+		- added footpath texture controls
 
 	</ChangeLog>
 

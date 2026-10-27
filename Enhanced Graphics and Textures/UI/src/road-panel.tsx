@@ -9,6 +9,7 @@ const normalMapFlags$ = bindValue<string>(group, "normalMapFlags", "0,0,0,0,0,0,
 const debugEnabled$ = bindValue<boolean>(group, "debugEnabled", false);
 const state$ = bindValue<string>(group, "roadSettings", "{}");
 const grassState$ = bindValue<string>(group, "grassSettings", "{}");
+const footpathState$ = bindValue<string>(group, "footpathSettings", "{}");
 const sidewalkState$ = bindValue<string>(group, "sidewalkSettings", "{}");
 const alleySidewalkState$ = bindValue<string>(group, "alleySidewalkSettings", "{}");
 const railState$ = bindValue<string>(group, "railSettings", "{}");
@@ -16,9 +17,9 @@ const gravelState$ = bindValue<string>(group, "gravelSettings", "{}");
 const colorWindowPosition$ = bindValue<string>(group, "colorWindowPosition", "{}");
 const textureGeneralWindowPosition$ = bindValue<string>(group, "textureGeneralWindowPosition", "{}");
 const shoulderState$ = bindValue<string>(group, "shoulderSettings", "{}");
-type Surface = "road" | "sidewalk" | "alley" | "rail" | "gravel" | "shoulder" | "grass";
-const triggers: Record<Surface, string> = { grass: "setGrassSetting", road: "setRoadSetting", sidewalk: "setSidewalkSetting", alley: "setAlleySidewalkSetting", rail: "setRailSetting", gravel: "setGravelSetting", shoulder: "setShoulderSetting" };
-const prefixes: Record<Surface, string> = { grass: "Grass", road: "", sidewalk: "Sidewalk", alley: "AlleySidewalk", rail: "RailGravel", gravel: "RoadGravel", shoulder: "GravelShoulder" };
+type Surface = "road" | "sidewalk" | "alley" | "rail" | "gravel" | "shoulder" | "grass" | "footpath";
+const triggers: Record<Surface, string> = { footpath: "setFootpathSetting", grass: "setGrassSetting", road: "setRoadSetting", sidewalk: "setSidewalkSetting", alley: "setAlleySidewalkSetting", rail: "setRailSetting", gravel: "setGravelSetting", shoulder: "setShoulderSetting" };
+const prefixes: Record<Surface, string> = { footpath: "Footpath", grass: "Grass", road: "", sidewalk: "Sidewalk", alley: "AlleySidewalk", rail: "RailGravel", gravel: "RoadGravel", shoulder: "GravelShoulder" };
 type Key = "alleyEndcapU" | "alleyEndcapV" | "parkingEndcapU" | "parkingEndcapV" | "endcapU" | "endcapV" | "detail" | "uv" | "depth" | "tiling" | "parkingScale" | "parkingDepth" | "mipBias" | "offsetX" | "offsetY" |
     "rotation" | "cracks" | "crackSize" | "crackWidth" | "crackOpacity" | "randomness";
 type State = Record<Key, number> & { show: boolean; enabled: boolean; filterColor: number; filterOpacity: number; probe?: boolean; customCracks?: boolean; crackStatus?: number };
@@ -144,6 +145,7 @@ export function RoadSlider({ control, label, description, value, displayValue, o
 export function RoadPanel({ panelClass }: { panelClass: string }) {
     const raw = useValue(state$);
     const grassRaw = useValue(grassState$);
+    const footpathRaw = useValue(footpathState$);
     const sidewalkRaw = useValue(sidewalkState$);
     const alleyRaw = useValue(alleySidewalkState$);
     const railRaw = useValue(railState$);
@@ -203,13 +205,17 @@ export function RoadPanel({ panelClass }: { panelClass: string }) {
         try { return { ...initial, ...JSON.parse(grassRaw) } as State; }
         catch { return initial; }
     }, [grassRaw]);
+    const footpathValue = React.useMemo(() => {
+        try { return { ...initial, ...JSON.parse(footpathRaw) } as State; }
+        catch { return initial; }
+    }, [footpathRaw]);
     const railVisible = railValue.show;
-    const values: Record<Surface, State> = { grass: grassValue, road: roadValue, sidewalk: sidewalkValue, alley: alleyValue, rail: railValue, gravel: gravelValue, shoulder: shoulderValue };
-    const surfaces: Surface[] = ["road", "sidewalk", "grass", "alley", "gravel", "shoulder", "rail"];
+    const values: Record<Surface, State> = { footpath: footpathValue, grass: grassValue, road: roadValue, sidewalk: sidewalkValue, alley: alleyValue, rail: railValue, gravel: gravelValue, shoulder: shoulderValue };
+    const surfaces: Surface[] = ["road", "sidewalk", "footpath", "grass", "alley", "gravel", "shoulder", "rail"];
     const value = values[surface];
     React.useEffect(() => {
         if (!values[surface].show) setSurface(surfaces.find(key => values[key].show) ?? "road");
-    }, [surface, grassValue.show, roadValue.show, sidewalkValue.show, alleyValue.show, railVisible, gravelValue.show, shoulderValue.show]);
+    }, [surface, footpathValue.show, grassValue.show, roadValue.show, sidewalkValue.show, alleyValue.show, railVisible, gravelValue.show, shoulderValue.show]);
     React.useEffect(() => setDraft(value), [value]);
     const text = (key: string, fallback: string) => translate(`AdvancedGraphics.UI.${key}`, fallback) ?? fallback;
 
@@ -246,7 +252,7 @@ export function RoadPanel({ panelClass }: { panelClass: string }) {
         pendingTimer.current = dragging ? null : setTimeout(flushPending, 120);
     };
     if (!surfaces.some(key => values[key].show)) return null;
-    const titles: Record<Surface, string> = { grass: text("GrassTitle", "Sidewalk grass"), road: text("Title", "Road"), sidewalk: text("Sidewalk", "Sidewalk"), alley: text("AlleySidewalk", "Small-road sidewalk"), rail: text("Rail", "Rail"), gravel: text("RoadGravelTitle", "Gravel road"), shoulder: text("GravelShoulderTitle", "Gravel sidewalk") };
+    const titles: Record<Surface, string> = { footpath: text("FootpathTitle", "Footpath"), grass: text("GrassTitle", "Sidewalk grass"), road: text("Title", "Road"), sidewalk: text("Sidewalk", "Sidewalk"), alley: text("AlleySidewalk", "Small-road sidewalk"), rail: text("Rail", "Rail"), gravel: text("RoadGravelTitle", "Gravel road"), shoulder: text("GravelShoulderTitle", "Gravel sidewalk") };
     const tabTitle = titles[surface];
     const launcherTitle = text("OpenTextureEditor", "Enhanced Graphics and Textures – open texture editor");
     const prefix = prefixes[surface];
@@ -315,7 +321,7 @@ export function RoadPanel({ panelClass }: { panelClass: string }) {
                     <span>{text(`${prefix}Enabled`, "Enable surface adjustments")}</span>
                 </button>
                 {controls.filter(control => (control.key === "parkingScale" || control.key === "parkingDepth") ? surface === "road" :
-                    (surface === "grass" || surface === "shoulder" || surface === "rail" || surface === "gravel") ? ["detail", "uv", "depth", "offsetX", "offsetY", "rotation"].includes(control.key) : true).map(control => surface === "road" ? { ...control, max: ({ cracks: 1200, crackSize: 1800, crackWidth: 1200, crackOpacity: 600 } as Partial<Record<Key, number>>)[control.key] ?? control.max } : control).map((control, index) => <React.Fragment key={`${surface}:${control.key}`}>
+                    (surface === "footpath" || surface === "grass" || surface === "shoulder" || surface === "rail" || surface === "gravel") ? ["detail", "uv", "depth", "offsetX", "offsetY", "rotation"].includes(control.key) : true).map(control => surface === "footpath" && control.key === "uv" ? { ...control, min: 10, step: 5 } : surface === "road" ? { ...control, max: ({ cracks: 1200, crackSize: 1800, crackWidth: 1200, crackOpacity: 600 } as Partial<Record<Key, number>>)[control.key] ?? control.max } : control).map((control, index) => <React.Fragment key={`${surface}:${control.key}`}>
                     {(index === 1 || control.key === "cracks") && <div className={styles.separator} />}
                     {surface === "road" && control.key === "cracks" && <>
                         <button type="button" className={styles.moduleToggle} role="checkbox" aria-checked={!!draft.customCracks}
@@ -340,6 +346,9 @@ export function RoadPanel({ panelClass }: { panelClass: string }) {
                 {surface === "grass" && draft.detail === 2 && <>
                     <button className={styles.reset} onClick={() => { flushPending(); trigger(group, "reloadGrassTexture", "reload"); }}>{text("GrassReload", "Reload custom grass texture")}</button>
                 </>}
+                {surface === "footpath" && draft.detail === 2 && <>
+                    <button className={styles.reset} onClick={() => { flushPending(); trigger(group, "reloadFootpathTexture", "reload"); }}>{text("FootpathReload", "Reload custom footpath texture")}</button>
+                </>}
                 {surface === "shoulder" && draft.detail === 2 && <button className={styles.reset} onClick={() => { flushPending(); trigger(group, "reloadGravelShoulderTexture", "reload"); }}>{text("RoadGravelReload", "Reload custom texture")}</button>}
                 {surface === "shoulder" && <p className={styles.textureHint}>{text("GravelShoulderHint", "Adjusts the original gravel road edge atlas.")}</p>}
                 <Tooltip tooltip={text(`${prefix}TipReset`, "Restore surface defaults.")}><button className={styles.reset}
@@ -353,7 +362,7 @@ export function RoadPanel({ panelClass }: { panelClass: string }) {
                 </>}
             </div>
         </div>}
-        {open && generalOpen && <TextureGeneralWindow endcapValues={roadValue} endcapKind={surface === "alley" ? "alley" : surface === "road" ? "parking" : "sidewalk"} normalEnabled={normalFlags[["road", "sidewalk", "alley", "gravel", "shoulder", "rail", "grass"].indexOf(surface)] === "1"} surfaceTitle={titles[surface]}
+        {open && generalOpen && <TextureGeneralWindow endcapValues={roadValue} endcapKind={surface === "alley" ? "alley" : surface === "road" ? "parking" : "sidewalk"} normalEnabled={normalFlags[["road", "sidewalk", "alley", "gravel", "shoulder", "rail", "grass", "footpath"].indexOf(surface)] === "1"} surfaceTitle={titles[surface]}
             onNormalChange={enabled => { flushPending(); trigger(group, "setNormalMapEnabled", `${surface}:${enabled ? 1 : 0}`); }} mipBias={roadValue.mipBias} text={text} panelClass={panelClass}
             savedPosition={generalWindowPosition} initialPosition={generalStart}
             onSavePosition={next => trigger(group, "setTextureGeneralWindowPosition", `${next.x.toFixed(1)}:${next.y.toFixed(1)}`)}

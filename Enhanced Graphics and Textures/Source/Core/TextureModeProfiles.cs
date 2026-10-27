@@ -98,13 +98,16 @@ namespace Advanced_Graphics
         [SettingsUIHidden]
         public string GrassModeProfiles { get; set; } = "";
 
+        [SettingsUIHidden]
+        public string FootpathModeProfiles { get; set; } = "";
+
         private bool m_TextureModeProfilesReady;
-        private readonly double[][][] m_TextureModeProfiles = new double[7][][];
+        private readonly double[][][] m_TextureModeProfiles = new double[8][][];
 
         // Called after LoadSettings and existing setting migrations.
         internal void InitializeTextureModeProfiles()
         {
-            for (int surface = 0; surface < 7; surface++) EnsureTextureModeProfiles(surface);
+            for (int surface = 0; surface < 8; surface++) EnsureTextureModeProfiles(surface);
             EnsureRoadCrackProfiles();
             m_TextureModeProfilesReady = true;
             CaptureTextureModeProfiles();
@@ -131,7 +134,7 @@ namespace Advanced_Graphics
         {
             if (!m_TextureModeProfilesReady) return;
             CaptureRoadCrackProfile();
-            for (int surface = 0; surface < 7; surface++)
+            for (int surface = 0; surface < 8; surface++)
             {
                 EnsureTextureModeProfiles(surface);
                 m_TextureModeProfiles[surface][GetTextureMode(surface)] = ReadTextureSliders(surface);
@@ -172,7 +175,7 @@ namespace Advanced_Graphics
         {
             switch (index)
             {
-                case 0: return value >= 50 && value <= MaxTextureUvSize;
+                case 0: return value >= (surface == 7 ? 10 : 50) && value <= MaxTextureUvSize;
                 case 1: return value >= 0 && value <= MaxTextureDepthStrength;
                 case 2: case 3: return value >= 0 && value <= MaxTextureUvOffset;
                 case 9: return value >= 0 && value <= 100;
@@ -221,7 +224,7 @@ namespace Advanced_Graphics
 
         private void ClearAllTextureModeProfiles()
         {
-            for (int surface = 0; surface < 7; surface++) ClearTextureModeProfiles(surface);
+            for (int surface = 0; surface < 8; surface++) ClearTextureModeProfiles(surface);
         }
 
         private int GetTextureMode(int surface)
@@ -235,6 +238,7 @@ namespace Advanced_Graphics
                 case 4: return GravelShoulderDetail;
                 case 5: return RailGravelDetail;
                 case 6: return GrassDetail;
+                case 7: return FootpathDetail;
                 default: throw new ArgumentOutOfRangeException(nameof(surface));
             }
         }
@@ -250,6 +254,7 @@ namespace Advanced_Graphics
                 case 4: return GravelShoulderModeProfiles;
                 case 5: return RailGravelModeProfiles;
                 case 6: return GrassModeProfiles;
+                case 7: return FootpathModeProfiles;
                 default: throw new ArgumentOutOfRangeException(nameof(surface));
             }
         }
@@ -265,6 +270,7 @@ namespace Advanced_Graphics
                 case 4: GravelShoulderModeProfiles = value; break;
                 case 5: RailGravelModeProfiles = value; break;
                 case 6: GrassModeProfiles = value; break;
+                case 7: FootpathModeProfiles = value; break;
                 default: throw new ArgumentOutOfRangeException(nameof(surface));
             }
         }
@@ -280,6 +286,7 @@ namespace Advanced_Graphics
                 case 4: return new double[] { GravelShoulderUvSizePercent, GravelShoulderDepthStrengthPercent, GravelShoulderUvOffsetX, GravelShoulderUvOffsetY, GravelShoulderUvRotation };
                 case 5: return new double[] { RailGravelUvSizePercent, RailGravelDepthStrengthPercent, RailGravelUvOffsetX, RailGravelUvOffsetY, RailGravelUvRotation };
                 case 6: return new double[] { GrassUvSizePercent, GrassDepthStrengthPercent, GrassUvOffsetX, GrassUvOffsetY, GrassUvRotation };
+                case 7: return new double[] { FootpathUvSizePercent, FootpathDepthStrengthPercent, FootpathUvOffsetX, FootpathUvOffsetY, FootpathUvRotation };
                 default: throw new ArgumentOutOfRangeException(nameof(surface));
             }
         }
@@ -356,6 +363,13 @@ namespace Advanced_Graphics
                     GrassUvOffsetX = (int)values[2];
                     GrassUvOffsetY = (int)values[3];
                     GrassUvRotation = (int)values[4];
+                    break;
+                case 7:
+                    FootpathUvSizePercent = (int)values[0];
+                    FootpathDepthStrengthPercent = (int)values[1];
+                    FootpathUvOffsetX = (int)values[2];
+                    FootpathUvOffsetY = (int)values[3];
+                    FootpathUvRotation = (int)values[4];
                     break;
                 default: throw new ArgumentOutOfRangeException(nameof(surface));
             }

@@ -25,11 +25,11 @@ namespace Advanced_Graphics
                 case "it": hint = "{0}_BaseColor.png e, facoltativamente, {0}_Normal.png nella stessa cartella. Normale: RGB, OpenGL/+Y, quadrata, massimo 4096 × 4096. Senza una normale valida rimane il calcolo precedente. Ricaricare legge entrambi i file. Con normale personale: 0 % piatto, 100 % intensità originale; UV e rotazione comuni."; break;
                 default: hint = "{0}_BaseColor.png and optional {0}_Normal.png in the same texture folder. Normal: RGB, OpenGL/+Y, square, up to 4096 × 4096. Without a valid normal map, the previous depth calculation remains. Reload reads both files. With a custom normal: 0 % flat, 100 % original strength; UV and rotation apply to both."; break;
             }
-            string[] files = { "Road", "Sidewalk", "AlleySidewalk", "RoadGravel", "GravelShoulder", "RailGravel", "Grass" };
-            string[] keys = { "CustomHint", "SidewalkCustomHint", "AlleySidewalkCustomHint", "RoadGravelCustomHint", "GravelShoulderCustomHint", "RailGravelCustomHint", "GrassCustomHint" };
+            string[] files = { "Road", "Sidewalk", "AlleySidewalk", "RoadGravel", "GravelShoulder", "RailGravel", "Grass", "Footpath" };
+            string[] keys = { "CustomHint", "SidewalkCustomHint", "AlleySidewalkCustomHint", "RoadGravelCustomHint", "GravelShoulderCustomHint", "RailGravelCustomHint", "GrassCustomHint", "FootpathCustomHint" };
             string[] reload = { nameof(Setting.ReloadRoadTexture), nameof(Setting.ReloadSidewalkTexture),
                 nameof(Setting.ReloadAlleySidewalkTexture), nameof(Setting.ReloadGravelTexture),
-                nameof(Setting.ReloadGravelShoulderTexture), nameof(Setting.ReloadRailTexture), nameof(Setting.ReloadGrassTexture) };
+                nameof(Setting.ReloadGravelShoulderTexture), nameof(Setting.ReloadRailTexture), nameof(Setting.ReloadGrassTexture), nameof(Setting.ReloadFootpathTexture) };
             for (int i = 0; i < files.Length; i++)
             {
                 string text = string.Format(hint, files[i]);
@@ -709,6 +709,7 @@ namespace Advanced_Graphics
             AddLuminaNumberFixEntries(entries);
             AddCustomCrackEntries(entries);
             AddGrassEntries(entries);
+            AddFootpathEntries(entries);
             AddCustomNormalEntries(entries);
             AddTextureFileControls(entries);
             AddNormalToggleEntries(entries);
@@ -745,6 +746,37 @@ namespace Advanced_Graphics
                 entries["AdvancedGraphics.UI.GrassTip" + ui[i]] = t[tips[i]];
             }
             entries["AdvancedGraphics.UI.GrassCustomHint"] = t[20];
+        }
+
+        private void AddFootpathEntries(Dictionary<string, string> entries)
+        {
+            string[] t;
+            switch (m_Language)
+            {
+                case "de": t = new[] { "Fußweg", "Fußweg anpassen", "Passt frei platzierbare gepflasterte Fußwege an.", "Fußwegtextur", "0: Original. 1: Generierter Schotter. 2: Eigene Footpath_BaseColor.png.", "Texturgröße", "10 bis 3000. Größere Werte vergrößern das Pflastermuster.", "Tiefenwirkung", "0: Originalrelief im Originalmodus, flach bei generierter/eigener Textur. Höhere Werte verstärken das Relief. Keine echte Geometrie.", "UV-Versatz X", "UV-Versatz Y", "Verschiebt die Fußwegtextur zwischen 0 und 300.", "Drehung", "Dreht Fußwegtextur und Normalmap zwischen 0 und 360 Grad.", "Texturordner öffnen", "Öffnet Textures/Footpath für Footpath_BaseColor.png.", "Eigene Fußwegtextur neu laden", "Lädt Footpath_BaseColor.png erneut. Modus 2 wählen; quadratische PNG bis 4096 Pixel.", "Zurücksetzen", "Setzt Fußweg und alle drei Modusprofile zurück.", "Footpath_BaseColor.png in Textures/Footpath ablegen und neu laden. Quadratische PNG bis 4096 Pixel." }; break;
+                case "es": t = new[] { "Sendero peatonal", "Ajustar sendero peatonal", "Ajusta los senderos pavimentados independientes.", "Textura del sendero", "0: Original. 1: Grava generada. 2: Footpath_BaseColor.png propia.", "Tamaño de textura", "De 10 a 3000. Valores mayores amplían el patrón.", "Relieve", "0: relieve original en modo original, plano en otros modos. Valores mayores refuerzan el relieve sin añadir geometría.", "Desplazamiento UV X", "Desplazamiento UV Y", "Desplaza la textura entre 0 y 300.", "Rotación", "Gira la textura y las normales entre 0 y 360 grados.", "Abrir carpeta de texturas", "Abre Textures/Footpath para Footpath_BaseColor.png.", "Recargar textura del sendero", "Recarga Footpath_BaseColor.png. Selecciona el modo 2; PNG cuadrado de hasta 4096 píxeles.", "Restablecer", "Restablece el sendero y los tres perfiles de modo.", "Coloca Footpath_BaseColor.png en Textures/Footpath y recarga. PNG cuadrado de hasta 4096 píxeles." }; break;
+                case "fr": t = new[] { "Chemin piéton", "Ajuster le chemin piéton", "Ajuste les chemins pavés indépendants.", "Texture du chemin", "0 : Original. 1 : Gravier généré. 2 : Votre Footpath_BaseColor.png.", "Taille de texture", "De 10 à 3000. Les valeurs élevées agrandissent le motif.", "Relief", "0 : relief original en mode original, plat dans les autres modes. Les valeurs élevées renforcent le relief sans ajouter de géométrie.", "Décalage UV X", "Décalage UV Y", "Décale la texture de 0 à 300.", "Rotation", "Tourne la texture et les normales de 0 à 360 degrés.", "Ouvrir le dossier des textures", "Ouvre Textures/Footpath pour Footpath_BaseColor.png.", "Recharger la texture du chemin", "Recharge Footpath_BaseColor.png. Choisir le mode 2 ; PNG carré jusqu’à 4096 pixels.", "Réinitialiser", "Réinitialise le chemin et les trois profils de mode.", "Placer Footpath_BaseColor.png dans Textures/Footpath et recharger. PNG carré jusqu’à 4096 pixels." }; break;
+                case "it": t = new[] { "Percorso pedonale", "Regola percorso pedonale", "Regola i percorsi pavimentati indipendenti.", "Texture percorso", "0: Originale. 1: Ghiaia generata. 2: Footpath_BaseColor.png personale.", "Dimensione texture", "Da 10 a 3000. Valori maggiori ingrandiscono il motivo.", "Rilievo", "0: rilievo originale in modalità originale, piatto nelle altre modalità. Valori maggiori rafforzano il rilievo senza aggiungere geometria.", "Spostamento UV X", "Spostamento UV Y", "Sposta la texture tra 0 e 300.", "Rotazione", "Ruota texture e normali tra 0 e 360 gradi.", "Apri cartella texture", "Apre Textures/Footpath per Footpath_BaseColor.png.", "Ricarica texture percorso", "Ricarica Footpath_BaseColor.png. Scegliere modalità 2; PNG quadrato fino a 4096 pixel.", "Ripristina", "Ripristina il percorso e tutti e tre i profili.", "Copia Footpath_BaseColor.png in Textures/Footpath e ricarica. PNG quadrato fino a 4096 pixel." }; break;
+                default: t = new[] { "Footpath", "Adjust footpath", "Adjusts independently placed paved footpaths.", "Footpath texture", "0: Original. 1: Generated gravel. 2: Custom Footpath_BaseColor.png.", "Texture size", "10 to 3000. Higher values enlarge the paving pattern.", "Depth", "0: authored relief in original mode, flat in generated/custom modes. Higher values strengthen relief without adding geometry.", "UV offset X", "UV offset Y", "Shifts the footpath texture from 0 to 300.", "Rotation", "Rotates the footpath texture and normal map from 0 to 360 degrees.", "Open texture folder", "Opens Textures/Footpath for Footpath_BaseColor.png.", "Reload custom footpath texture", "Reloads Footpath_BaseColor.png. Select mode 2; square PNG up to 4096 pixels.", "Reset", "Resets footpath settings and all three mode profiles.", "Place Footpath_BaseColor.png in Textures/Footpath, then reload it. Square PNG up to 4096 pixels." }; break;
+            }
+            entries[m_Setting.GetOptionTabLocaleID(Setting.FootpathSection)] = t[0];
+            entries[m_Setting.GetOptionGroupLocaleID(Setting.FootpathGroup)] = t[0];
+            entries["AdvancedGraphics.UI.FootpathTitle"] = t[0];
+            string[] properties = { nameof(Setting.FootpathEnabled), nameof(Setting.FootpathDetail),
+                nameof(Setting.FootpathUvSizePercent), nameof(Setting.FootpathDepthStrengthPercent),
+                nameof(Setting.FootpathUvOffsetX), nameof(Setting.FootpathUvOffsetY), nameof(Setting.FootpathUvRotation),
+                nameof(Setting.OpenFootpathTextureFolder), nameof(Setting.ReloadFootpathTexture), nameof(Setting.ResetFootpath) };
+            string[] ui = { "Enabled", "Detail", "Uv", "Depth", "OffsetX", "OffsetY", "Rotation", "Open", "Reload", "Reset" };
+            int[] labels = { 1, 3, 5, 7, 9, 10, 12, 14, 16, 18 };
+            int[] tips = { 2, 4, 6, 8, 11, 11, 13, 15, 17, 19 };
+            for (int i = 0; i < properties.Length; i++)
+            {
+                entries[m_Setting.GetOptionLabelLocaleID(properties[i])] = t[labels[i]];
+                entries[m_Setting.GetOptionDescLocaleID(properties[i])] = t[tips[i]];
+                entries["AdvancedGraphics.UI.Footpath" + ui[i]] = t[labels[i]];
+                entries["AdvancedGraphics.UI.FootpathTip" + ui[i]] = t[tips[i]];
+            }
+            entries["AdvancedGraphics.UI.FootpathCustomHint"] = t[20];
         }
 
         private void AddCustomCrackEntries(Dictionary<string, string> entries)
@@ -874,7 +906,9 @@ namespace Advanced_Graphics
             entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.UseRailNormalMap))] = label;
             entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.UseRailNormalMap))] = hint;
             entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.UseGrassNormalMap))] = label;
+            entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.UseFootpathNormalMap))] = label;
             entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.UseGrassNormalMap))] = hint;
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.UseFootpathNormalMap))] = hint;
         }
 
         private void AddTextureFileControls(Dictionary<string, string> entries)
@@ -917,8 +951,8 @@ namespace Advanced_Graphics
             entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.UseCustomRoadCracks))] = cracks;
             entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.ReloadRoadCracks))] = cracks;
             entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.OpenRoadCrackFolder))] = cracks;
-            string[] surfaces = { "road", "sidewalk", "alley", "gravel", "shoulder", "rail", "grass" };
-            string[] names = { "Road", "Sidewalk", "AlleySidewalk", "RoadGravel", "GravelShoulder", "RailGravel", "Grass" };
+            string[] surfaces = { "road", "sidewalk", "alley", "gravel", "shoulder", "rail", "grass", "footpath" };
+            string[] names = { "Road", "Sidewalk", "AlleySidewalk", "RoadGravel", "GravelShoulder", "RailGravel", "Grass", "Footpath" };
             for (int i = 0; i < surfaces.Length; i++)
                 entries["AdvancedGraphics.UI.CustomFiles_" + surfaces[i]] = string.Format(files, names[i]);
         }

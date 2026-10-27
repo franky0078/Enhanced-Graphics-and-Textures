@@ -25,6 +25,9 @@ namespace Advanced_Graphics
         [SettingsUISection(GrassSection, GrassGroup)]
         public bool UseGrassNormalMap { get; set; } = false;
 
+        [SettingsUISection(FootpathSection, FootpathGroup)]
+        public bool UseFootpathNormalMap { get; set; } = false;
+
         internal bool GetCustomNormalEnabled(string surface)
         {
             switch (surface)
@@ -36,6 +39,7 @@ namespace Advanced_Graphics
                 case "shoulder": case "GravelShoulder_BaseColor.png": return UseGravelShoulderNormalMap;
                 case "rail": case "RailGravel_BaseColor.png": return UseRailNormalMap;
                 case "grass": case "Grass_BaseColor.png": return UseGrassNormalMap;
+                case "footpath": case "Footpath_BaseColor.png": return UseFootpathNormalMap;
                 default: return false;
             }
         }
@@ -50,6 +54,7 @@ namespace Advanced_Graphics
                 case "shoulder": UseGravelShoulderNormalMap = enabled; break;
                 case "rail": UseRailNormalMap = enabled; break;
                 case "grass": UseGrassNormalMap = enabled; break;
+                case "footpath": UseFootpathNormalMap = enabled; break;
                 default: return false;
             }
             return true;
