@@ -6,7 +6,7 @@ Enhanced Graphics and Textures adds extended graphics controls and an in-game su
 <p align="center">
   <img src="Enhanced%20Graphics%20and%20Textures/Properties/Thumbnail.jpg"
        alt="Enhanced Graphics and Textures"
-       width="600">
+       width="300">
 </p>
 
 
