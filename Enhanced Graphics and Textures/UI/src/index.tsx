@@ -1,6 +1,7 @@
 import type { ModRegistrar } from "cs2/modding";
 import { RoadPanel } from "./road-panel";
 import { GraphicsPanel } from "./graphics-panel";
+import { DebugPanel } from "./debug-panel";
 // import { registerSelectedInfoFontFix } from "./selected-info-font-fix";
 
 const register: ModRegistrar = registry => {
@@ -13,10 +14,11 @@ const register: ModRegistrar = registry => {
     } catch (error) {
         console.warn("[Enhanced Graphics and Textures] Game panel theme unavailable", error);
     }
-    registry.append("GameTopLeft", () => <><RoadPanel panelClass={panelClass} /><GraphicsPanel panelClass={panelClass} /></>);
+    registry.append("GameTopLeft", () => <><RoadPanel panelClass={panelClass} /><GraphicsPanel panelClass={panelClass} /><DebugPanel panelClass={panelClass} /></>);
 };
 
 export default register;
+
 
 
 

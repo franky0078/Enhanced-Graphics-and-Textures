@@ -31,6 +31,7 @@ namespace Advanced_Graphics
 
         internal void ReloadAllCustomTexturesNow()
         {
+            // ReloadCustomTexture also clears the optional normal and crack caches.
             Mod.RoadAsphalt?.ReloadCustomTexture();
             Mod.Sidewalk?.ReloadCustomTexture();
             Mod.AlleySidewalk?.ReloadCustomTexture();
@@ -51,6 +52,9 @@ namespace Advanced_Graphics
                 Math.Max(-1f, Math.Min(1f, (float)Math.Round(value, 1)));
         }
 
+
+        [SettingsUISection(SidewalkSection, SidewalkGroup)]
+        public bool SidewalkJunctionOverlay { get; set; } = false;
 
         public const string AboutGroup = "About";
         public const string LauncherGroup = "Interface";
@@ -100,6 +104,40 @@ namespace Advanced_Graphics
         [SettingsUISection(MainSection, LauncherGroup)]
         public bool ShowGraphicsAppButton { get; set; } = true;
 
+        // Debug tools live in their own in-game window; this is the only switch in the options.
+        // Off: every diagnostic (atlas colours, junction marking, rail probe, dumps) is inactive.
+        private bool m_ShowDebugWindow;
+        [SettingsUISection(MainSection, LauncherGroup)]
+        [SettingsUIHideByCondition(typeof(Setting), nameof(HideDebugWindowOption))]
+        public bool ShowDebugWindow
+        {
+            get => Mod.DebugMode && m_ShowDebugWindow;
+            set
+            {
+                value = value && Mod.DebugMode;
+                if (m_ShowDebugWindow == value) return;
+                m_ShowDebugWindow = value;
+                if (!value) ResetDebugModes();
+            }
+        }
+
+        [SettingsUIHidden]
+        public bool HideDebugWindowOption => !Mod.DebugMode;
+
+        [SettingsUIHidden]
+        public float DebugWindowX { get; set; } = -1f;
+        [SettingsUIHidden]
+        public float DebugWindowY { get; set; } = -1f;
+
+        // Test modes never outlive the debug window or a restart.
+        internal void ResetDebugModes()
+        {
+            DiagnoseRoadEUAtlas = false;
+            JunctionSyncBlendMode = 0;
+            JunctionRecomputeTangents = false;
+            if (Mod.RailInspector?.IsProbeActive == true) Mod.RailInspector.RestoreNow();
+        }
+
         // Legacy Lumina fix is no longer registered in the frontend.
         // Restore SettingsUISection(MainSection, LauncherGroup) when re-enabling it.
         [SettingsUIHidden]
@@ -137,7 +175,7 @@ namespace Advanced_Graphics
         [SettingsUISlider(min = 4, max = 128, step = 1, scalarMultiplier = 1)]
         public int TerrainPatchSizeUnits { get; set; }
 
-        // Higher shadow resolution and a new distance control
+        // Higher shadow resolution and a new distance control are separate from
         [SettingsUISection(MainSection, ShadowsGroup)]
         [SettingsUISlider(min = 0, max = 8192, step = 512, scalarMultiplier = 1)]
         public int ShadowResolution { get; set; }
@@ -239,7 +277,7 @@ namespace Advanced_Graphics
         [SettingsUIHidden]
         public bool HideDebugControls => !Mod.DebugBackendEnabled;
 
-        [SettingsUIHideByCondition(typeof(Setting), nameof(HideDebugControls))]
+        [SettingsUIHidden]
         [SettingsUISection(RoadSection, RoadGroup)]
         [SettingsUIButton]
         public bool InspectRoadMaterials
@@ -247,7 +285,7 @@ namespace Advanced_Graphics
             set { if (value) Mod.RoadInspector?.RequestSurvey(); }
         }
 
-        [SettingsUIHideByCondition(typeof(Setting), nameof(HideDebugControls))]
+        [SettingsUIHidden]
         [SettingsUISection(RoadSection, RoadGroup)]
         [SettingsUIButton]
         public bool ExportGravelRoadMaterials
@@ -255,7 +293,7 @@ namespace Advanced_Graphics
             set { if (value) Mod.RoadInspector?.RequestGravelSurvey(); }
         }
 
-        [SettingsUIHideByCondition(typeof(Setting), nameof(HideDebugControls))]
+        [SettingsUIHidden]
         [SettingsUISection(GrassSection, GrassGroup)]
         [SettingsUIButton]
         public bool ExportGrassMaterials
@@ -263,7 +301,7 @@ namespace Advanced_Graphics
             set { if (value && Mod.DebugBackendEnabled) Mod.RoadInspector?.RequestGrassSurvey(); }
         }
 
-        [SettingsUIHideByCondition(typeof(Setting), nameof(HideDebugControls))]
+        [SettingsUIHidden]
         [SettingsUISection(GrassSection, GrassGroup)]
         [SettingsUIButton]
         public bool OpenGrassDiagnosticFolder
@@ -525,7 +563,7 @@ namespace Advanced_Graphics
         public int RoadCrackRandomnessPercent { get; set; }
 
         [SettingsUISection(RoadSection, RoadCrackGroup)]
-        [SettingsUISlider(min = 0.1f, max = 8, step = 0.1f, scalarMultiplier = 1, unit = Unit.kFloatSingleFraction)]
+        [SettingsUISlider(min = 0.1f, max = 8, step = 0.05f, scalarMultiplier = 1, unit = Unit.kFloatSingleFraction)]
         public float RoadTextureTiling { get; set; }
 
         [SettingsUISection(RoadSection, RoadCrackGroup)]
@@ -568,9 +606,19 @@ namespace Advanced_Graphics
         [SettingsUIHidden]
         public bool ShowRailPanelButton { get; set; } = true;
 
-        [SettingsUIHideByCondition(typeof(Setting), nameof(HideDebugControls))]
+        [SettingsUIHidden]
         [SettingsUISection(SidewalkSection, SidewalkGroup)]
         public bool DiagnoseRoadEUAtlas { get; set; }
+
+        // Debug only: sync blend used for junction sidewalk UVs. 0 linear, 1 smoothstep, 2 t², 3 1-(1-t)², 4 none, 5 full, 6 mark remapped piece.
+        [SettingsUIHidden]
+        [SettingsUISection(SidewalkSection, SidewalkGroup)]
+        [SettingsUISlider(min = 0, max = 6, step = 1, scalarMultiplier = 1)]
+        public int JunctionSyncBlendMode { get; set; }
+
+        // Debug only: keep the game's tangents on remapped sidewalk faces (comparison for joint artefacts).
+        [SettingsUIHidden]
+        public bool JunctionRecomputeTangents { get; set; }
 
         private int m_SidewalkDetail;
         [SettingsUISection(SidewalkSection, SidewalkGroup)]
@@ -605,7 +653,7 @@ namespace Advanced_Graphics
         [SettingsUIButton]
         public bool ReloadSidewalkTexture { set { if (value) Mod.Sidewalk?.ReloadCustomTexture(); } }
 
-        [SettingsUIHideByCondition(typeof(Setting), nameof(HideDebugControls))]
+        [SettingsUIHidden]
         [SettingsUISection(SidewalkSection, SidewalkGroup)]
         [SettingsUIButton]
         public bool ExportSidewalkAtlas
@@ -613,7 +661,7 @@ namespace Advanced_Graphics
             set { if (value) Mod.RoadInspector?.RequestSidewalkAtlasExport(); }
         }
 
-        [SettingsUIHideByCondition(typeof(Setting), nameof(HideDebugControls))]
+        [SettingsUIHidden]
         [SettingsUISection(RailSection, RailGroup)]
         [SettingsUIButton]
         public bool ExportRailMaterials
@@ -621,7 +669,7 @@ namespace Advanced_Graphics
             set { if (value) Mod.RailInspector?.RequestExport(); }
         }
 
-        [SettingsUIHideByCondition(typeof(Setting), nameof(HideDebugControls))]
+        [SettingsUIHidden]
         [SettingsUISection(RailSection, RailGroup)]
         [SettingsUIButton]
         public bool OpenRailDiagnosticFolder
@@ -711,7 +759,7 @@ namespace Advanced_Graphics
         }
 
         [SettingsUISection(SidewalkSection, SidewalkUvGroup)]
-        [SettingsUISlider(min = 50, max = MaxTextureUvSize, step = 25, scalarMultiplier = 1)]
+        [SettingsUISlider(min = 10, max = MaxTextureUvSize, step = 5, scalarMultiplier = 1)]
         public int SidewalkUvSizePercent { get; set; }
 
         [SettingsUISection(SidewalkSection, SidewalkUvGroup)]
@@ -751,7 +799,7 @@ namespace Advanced_Graphics
         public int SidewalkCrackRandomnessPercent { get; set; }
 
         [SettingsUISection(SidewalkSection, SidewalkCrackGroup)]
-        [SettingsUISlider(min = 0.1f, max = 8, step = 0.1f, scalarMultiplier = 1, unit = Unit.kFloatSingleFraction)]
+        [SettingsUISlider(min = 0.1f, max = 8, step = 0.05f, scalarMultiplier = 1, unit = Unit.kFloatSingleFraction)]
         public float SidewalkTextureTiling { get; set; }
 
         [SettingsUISection(SidewalkSection, SidewalkCrackGroup)]
@@ -761,7 +809,8 @@ namespace Advanced_Graphics
             set
             {
                 if (!value) return;
-                SetSidewalkDefaults();
+                SidewalkJunctionOverlay = false;
+            SetSidewalkDefaults();
                 ApplyAndSave();
             }
         }
@@ -846,7 +895,7 @@ namespace Advanced_Graphics
         public int AlleySidewalkCrackRandomnessPercent { get; set; }
 
         [SettingsUISection(AlleySidewalkSection, AlleySidewalkCrackGroup)]
-        [SettingsUISlider(min = 0.1f, max = 8, step = 0.1f, scalarMultiplier = 1, unit = Unit.kFloatSingleFraction)]
+        [SettingsUISlider(min = 0.1f, max = 8, step = 0.05f, scalarMultiplier = 1, unit = Unit.kFloatSingleFraction)]
         public float AlleySidewalkTextureTiling { get; set; }
 
         [SettingsUISection(AlleySidewalkSection, AlleySidewalkCrackGroup)]
@@ -948,6 +997,7 @@ namespace Advanced_Graphics
             ParkingTextureScaleFactor = 1f;
             ParkingDepthStrengthFactor = 1f;
             RoadUvOffsetX = RoadUvOffsetY = RoadUvRotation = 0;
+            SidewalkJunctionOverlay = false;
             SetSidewalkDefaults();
             SetGrassDefaults();
             SetFootpathDefaults();
@@ -978,6 +1028,8 @@ namespace Advanced_Graphics
             SidewalkCrackSizePercent = SidewalkCrackWidthPercent = SidewalkCrackOpacityPercent = 100;
             SidewalkCrackRandomnessPercent = 50;
             SidewalkTextureTiling = 1;
+            ParkingSidewalkScaleU = ParkingSidewalkScaleV = 1f;
+            SidewalkShiftU = SidewalkShiftV = 0;
         }
 
         private void SetAlleySidewalkDefaults()
@@ -1052,9 +1104,40 @@ namespace Advanced_Graphics
             ApplyToSystem();
         }
 
+        private bool m_ApplyPending, m_TextureApplyPending;
+        private float m_ApplyAt;
+        internal bool HasPendingApply => m_ApplyPending;
+
+        internal void QueueGraphicsApply()
+        {
+            m_ApplyPending = true;
+            m_ApplyAt = UnityEngine.Time.unscaledTime + 0.5f;
+        }
+
         internal void ApplyToSystem()
         {
-            RoadTextureTiling = Math.Max(0.1f, Math.Min(8f, (float)Math.Round(RoadTextureTiling, 1)));
+            CaptureTextureModeProfiles();
+            m_TextureApplyPending = true;
+            QueueGraphicsApply();
+        }
+
+        internal void ProcessPendingApply()
+        {
+            if (!m_ApplyPending || UnityEngine.Time.unscaledTime < m_ApplyAt) return;
+            m_ApplyPending = false;
+            bool textures = m_TextureApplyPending;
+            m_TextureApplyPending = false;
+            if (textures) ApplyToSystemNow();
+            else
+            {
+                if (Mod.TreeLod != null) Mod.TreeLod.DistancePercent = TreeLodDistance;
+                Mod.Graphics?.Apply(this);
+            }
+        }
+
+        internal void ApplyToSystemNow()
+        {
+            RoadTextureTiling = Math.Max(0.1f, Math.Min(8f, (float)Math.Round(RoadTextureTiling, 2)));
             CaptureTextureModeProfiles();
             if (Mod.TreeLod != null) Mod.TreeLod.DistancePercent = TreeLodDistance;
             Mod.Graphics?.Apply(this);
@@ -1085,7 +1168,7 @@ namespace Advanced_Graphics
                  AlleySidewalkUvOffsetX != 0 || AlleySidewalkUvOffsetY != 0 || AlleySidewalkUvRotation != 0 || AlleySidewalkCrackCount != 0 || TextureColorFilter.IsActive(AlleySidewalkFilterColor, AlleySidewalkFilterOpacityPercent)), false);
             // Leave the original RoadEU atlas untouched at unchanged defaults.
             Mod.SidewalkAtlas?.Configure(SidewalkEnabled &&
-                ((Mod.DebugBackendEnabled && DiagnoseRoadEUAtlas) || SidewalkDetail != 0 || SidewalkUvSizePercent != 100 ||
+                ((Mod.DebugBackendEnabled && DiagnoseRoadEUAtlas) || HasSidewalkEndcapChanges || SidewalkDetail != 0 || SidewalkUvSizePercent != 100 ||
                  SidewalkDepthStrengthPercent != 0 || SidewalkUvOffsetX != 0 ||
                  SidewalkUvOffsetY != 0 || SidewalkUvRotation != 0 || SidewalkCrackCount != 0 || TextureColorFilter.IsActive(SidewalkFilterColor, SidewalkFilterOpacityPercent)),
                 Mod.DebugBackendEnabled && DiagnoseRoadEUAtlas);
@@ -1111,6 +1194,8 @@ namespace Advanced_Graphics
         }
     }
 }
+
+
 
 
 

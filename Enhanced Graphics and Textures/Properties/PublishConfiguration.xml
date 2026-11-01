@@ -141,7 +141,7 @@
 	<AccessLevel Value="Public" />
 	<Tag Value="Code Mod" />
 	
-	<ModVersion Value="1.6.0" />
+	<ModVersion Value="1.6.1" />
 	
 	<!--Existing value retained. Set this to the game version tested locally before publishing.-->
 	<GameVersion Value="1.6.*" />
@@ -149,7 +149,9 @@
 	<ChangeLog>
 		Latest changes:
 
-		- added footpath texture controls
+		- added new sidewalk texture for generated
+		- fix texture tilling for custom sidewalk texture on ends and junctions
+		- added more texture controls for Roads and sidewalks
 
 	</ChangeLog>
 
@@ -159,3 +161,4 @@
 	<ExternalLink Type="github" Url="https://github.com/franky0078/Enhanced-Graphics-and-Textures" />
 	
 </Publish>
+

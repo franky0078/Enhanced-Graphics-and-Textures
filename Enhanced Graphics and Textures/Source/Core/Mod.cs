@@ -4,13 +4,28 @@ using Game;
 using Game.Modding;
 using Game.Rendering;
 using Game.SceneFlow;
+using Game.Serialization;
+using Game.Simulation;
 
 namespace Advanced_Graphics
 {
     public sealed class Mod : IMod
     {
         public static readonly ILog log = LogManager.GetLogger("Enhanced Graphics and Textures").SetShowsErrorsInUI(false);
-        internal static readonly bool DebugBackendEnabled = false;
+        // Developer builds may opt in here; a saved checkbox cannot enable diagnostics by itself.
+        internal const bool DebugMode = false;
+        internal static bool DebugBackendEnabled => DebugMode && ActiveSetting?.ShowDebugWindow == false;
+        private static readonly System.Collections.Concurrent.ConcurrentQueue<string> s_DeferredLog =
+            new System.Collections.Concurrent.ConcurrentQueue<string>();
+        internal static void LogLater(string message)
+        {
+            if (!string.IsNullOrEmpty(message) && s_DeferredLog.Count < 256) s_DeferredLog.Enqueue(message);
+        }
+        internal static void FlushDeferredLog()
+        {
+            if (!s_DeferredLog.TryDequeue(out var message)) return;
+            try { log.Info(message); } catch (System.Exception) { }
+        }
         private Setting m_Setting;
         internal static TreeLodSystem TreeLod;
         internal static GraphicsOverrides Graphics;
@@ -25,6 +40,7 @@ namespace Advanced_Graphics
         internal static GravelShoulderSurfaceSystem GravelShoulderSurface;
         internal static RoadAsphaltSystem RoadAsphalt;
         internal static SidewalkSurfaceSystem Sidewalk;
+        internal static SidewalkJunctionMeshSystem SidewalkJunctionMeshes;
         internal static SidewalkRoadAtlasSystem SidewalkAtlas;
         internal static AlleySidewalkSurfaceSystem AlleySidewalk;
         internal static AlleySidewalkAtlasSystem AlleySidewalkAtlas;
@@ -41,28 +57,32 @@ namespace Advanced_Graphics
             updateSystem.UpdateAt<GrassSurfaceSystem>(SystemUpdatePhase.Rendering);
             updateSystem.UpdateAt<FootpathSurfaceSystem>(SystemUpdatePhase.Rendering);
             updateSystem.UpdateAt<RoadMaterialInspector>(SystemUpdatePhase.Rendering);
-            if (DebugBackendEnabled)
-            {
-                updateSystem.UpdateAt<RailMaterialInspector>(SystemUpdatePhase.Rendering);
-            }
+            updateSystem.UpdateAt<RailMaterialInspector>(SystemUpdatePhase.Rendering);
             updateSystem.UpdateAt<RailGravelSystem>(SystemUpdatePhase.Rendering);
             updateSystem.UpdateAt<RoadGravelSystem>(SystemUpdatePhase.Rendering);
             updateSystem.UpdateAt<GravelShoulderSurfaceSystem>(SystemUpdatePhase.Rendering);
             updateSystem.UpdateAfter<GravelShoulderSystem, GravelShoulderSurfaceSystem>(SystemUpdatePhase.Rendering);
             updateSystem.UpdateAt<RoadAsphaltSystem>(SystemUpdatePhase.Rendering);
             updateSystem.UpdateAt<SidewalkSurfaceSystem>(SystemUpdatePhase.Rendering);
+            updateSystem.UpdateBefore<SidewalkJunctionMeshSystem, PreCullingSystem>(SystemUpdatePhase.PreCulling);
+            updateSystem.UpdateBefore<SidewalkJunctionRestoreSystem, EndFrameBarrier>(SystemUpdatePhase.MainLoop);
+            updateSystem.UpdateBefore<SidewalkJunctionRestoreSystem>(SystemUpdatePhase.PreTool);
+            updateSystem.UpdateBefore<SidewalkJunctionRestoreSystem>(SystemUpdatePhase.ApplyTool);
+            updateSystem.UpdateAfter<SidewalkJunctionRestoreSystem>(SystemUpdatePhase.Rendering);
+            updateSystem.UpdateBefore<SidewalkJunctionRestoreSystem, SimulationSystem>(SystemUpdatePhase.LateUpdate);
+            updateSystem.UpdateAfter<SidewalkJunctionRestoreSystem>(SystemUpdatePhase.CompleteRendering);
+            updateSystem.UpdateBefore<PreSerialize<SidewalkJunctionMeshSystem>, BeginPrefabSerializationSystem>(SystemUpdatePhase.Serialize);
+            updateSystem.UpdateBefore<PreDeserialize<SidewalkJunctionMeshSystem>, ClearSystem>(SystemUpdatePhase.Deserialize);
             updateSystem.UpdateAfter<SidewalkRoadAtlasSystem, SidewalkSurfaceSystem>(SystemUpdatePhase.Rendering);
             updateSystem.UpdateAt<AlleySidewalkSurfaceSystem>(SystemUpdatePhase.Rendering);
             updateSystem.UpdateAfter<AlleySidewalkAtlasSystem, AlleySidewalkSurfaceSystem>(SystemUpdatePhase.Rendering);
             updateSystem.UpdateAfter<ParkingRoadAtlasSystem, SidewalkRoadAtlasSystem>(SystemUpdatePhase.Rendering);
             updateSystem.UpdateAt<RoadPanelUISystem>(SystemUpdatePhase.UIUpdate);
             updateSystem.UpdateAt<GraphicsPanelUISystem>(SystemUpdatePhase.UIUpdate);
+            updateSystem.UpdateAt<DebugPanelUISystem>(SystemUpdatePhase.UIUpdate);
             TreeLod = updateSystem.World.GetOrCreateSystemManaged<TreeLodSystem>();
             RoadInspector = updateSystem.World.GetOrCreateSystemManaged<RoadMaterialInspector>();
-            if (DebugBackendEnabled)
-            {
-                RailInspector = updateSystem.World.GetOrCreateSystemManaged<RailMaterialInspector>();
-            }
+            RailInspector = updateSystem.World.GetOrCreateSystemManaged<RailMaterialInspector>();
             RailGravel = updateSystem.World.GetOrCreateSystemManaged<RailGravelSystem>();
             RoadGravel = updateSystem.World.GetOrCreateSystemManaged<RoadGravelSystem>();
             Grass = updateSystem.World.GetOrCreateSystemManaged<GrassSurfaceSystem>();
@@ -71,6 +91,7 @@ namespace Advanced_Graphics
             GravelShoulderSurface = updateSystem.World.GetOrCreateSystemManaged<GravelShoulderSurfaceSystem>();
             RoadAsphalt = updateSystem.World.GetOrCreateSystemManaged<RoadAsphaltSystem>();
             Sidewalk = updateSystem.World.GetOrCreateSystemManaged<SidewalkSurfaceSystem>();
+            SidewalkJunctionMeshes = updateSystem.World.GetOrCreateSystemManaged<SidewalkJunctionMeshSystem>();
             SidewalkAtlas = updateSystem.World.GetOrCreateSystemManaged<SidewalkRoadAtlasSystem>();
             AlleySidewalk = updateSystem.World.GetOrCreateSystemManaged<AlleySidewalkSurfaceSystem>();
             AlleySidewalkAtlas = updateSystem.World.GetOrCreateSystemManaged<AlleySidewalkAtlasSystem>();
@@ -113,8 +134,9 @@ namespace Advanced_Graphics
                 _ = AssetDatabase.global.SaveSettings();
             }
             m_Setting.AsphaltSource = Setting.RoadTextureSource.Generated;
+            m_Setting.ResetDebugModes();
             m_Setting.InitializeTextureModeProfiles();
-            m_Setting.ApplyToSystem();
+            m_Setting.ApplyToSystemNow();
         }
 
         public void OnDispose()
@@ -145,6 +167,8 @@ namespace Advanced_Graphics
             AlleySidewalk = null;
             SidewalkAtlas?.RestoreNow();
             SidewalkAtlas = null;
+            SidewalkJunctionMeshes?.DropAll();
+            SidewalkJunctionMeshes = null;
             Sidewalk?.RestoreNow();
             Sidewalk = null;
             RoadInspector = null;
@@ -166,5 +190,7 @@ namespace Advanced_Graphics
         }
     }
 }
+
+
 
 

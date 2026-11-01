@@ -104,8 +104,7 @@ namespace Advanced_Graphics
                 }
             }
             // Graphics edits do not reconfigure or regenerate any road textures.
-            if (Mod.TreeLod != null) Mod.TreeLod.DistancePercent = s.TreeLodDistance;
-            Mod.Graphics?.Apply(s);
+            s.QueueGraphicsApply();
             m_State = BuildState(s);
             QueueSave();
         }
@@ -180,3 +179,5 @@ namespace Advanced_Graphics
         }
     }
 }
+
+

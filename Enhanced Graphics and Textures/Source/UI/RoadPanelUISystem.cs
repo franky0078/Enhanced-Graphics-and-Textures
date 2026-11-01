@@ -30,7 +30,7 @@ namespace Advanced_Graphics
             var s = Mod.ActiveSetting;
             if (s == null || string.IsNullOrEmpty(request)) return;
             var parts = request.Split(':');
-            if (parts.Length != 3 || (parts[0] != "sidewalk" && parts[0] != "alley" && parts[0] != "parking")) return;
+            if (parts.Length != 3 || (parts[0] != "sidewalk" && parts[0] != "alley" && parts[0] != "parking" && parts[0] != "roadend" && parts[0] != "large")) return;
             if (!float.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out float u) ||
                 !float.TryParse(parts[2], NumberStyles.Float, CultureInfo.InvariantCulture, out float v) ||
                 float.IsNaN(u) || float.IsInfinity(u) || float.IsNaN(v) || float.IsInfinity(v)) return;
@@ -69,11 +69,7 @@ namespace Advanced_Graphics
             AddUpdateBinding(new GetterValueBinding<string>(Group, "alleySidewalkSettings", () => m_AlleySidewalkState));
             AddBinding(new TriggerBinding<string>(Group, "setAlleySidewalkSetting", ChangeAlleySidewalkSetting));
             AddUpdateBinding(new GetterValueBinding<string>(Group, "railSettings", () => m_RailState));
-            if (Mod.DebugBackendEnabled)
-            {
-                AddBinding(new TriggerBinding<string>(Group, "inspectRailMaterials", _ => Mod.RailInspector?.RequestExport()));
-                AddBinding(new TriggerBinding<string>(Group, "probeRailMaterials", _ => Mod.RailInspector?.ToggleColorProbe()));
-            }
+
             AddBinding(new TriggerBinding<string>(Group, "setRailSetting", ChangeRailSetting));
             AddUpdateBinding(new GetterValueBinding<string>(Group, "gravelSettings", () => m_GravelState));
             AddUpdateBinding(new GetterValueBinding<string>(Group, "shoulderSettings", () => m_ShoulderState));
@@ -90,6 +86,9 @@ namespace Advanced_Graphics
 
         protected override void OnUpdate()
         {
+            // Service queued native/options edits even when the camera render system is inactive.
+            // This system runs whenever the in-game settings bindings are updated; no open window required.
+            Mod.ActiveSetting?.ProcessPendingApply();
             m_State = BuildState(Mod.ActiveSetting);
             m_SidewalkState = BuildSidewalkState(Mod.ActiveSetting);
             m_AlleySidewalkState = BuildAlleySidewalkState(Mod.ActiveSetting);
@@ -133,10 +132,11 @@ namespace Advanced_Graphics
             var s = Mod.ActiveSetting;
             if (s == null || string.IsNullOrEmpty(request)) return;
             var parts = request.Split(':');
-            int opacity = 100;
-            if ((parts.Length != 2 && parts.Length != 3) || !int.TryParse(parts[1], out int color) ||
-                (parts.Length == 3 && !int.TryParse(parts[2], out opacity)) || opacity < 0 || opacity > 100 ||
-                color < 0 || color > 0xffffff || !s.SetFilterColor(parts[0], color, opacity)) return;
+            int opacity = 100, mode = -1;
+            if ((parts.Length < 2 || parts.Length > 4) || !int.TryParse(parts[1], out int color) ||
+                (parts.Length >= 3 && !int.TryParse(parts[2], out opacity)) || opacity < 0 || opacity > 100 ||
+                (parts.Length == 4 && (!int.TryParse(parts[3], out mode) || mode < 0 || mode > 2)) ||
+                color < 0 || color > 0xffffff || !s.SetFilterColor(parts[0], color, opacity, mode)) return;
             s.ApplyToSystem();
             m_SavePending = true;
             m_SaveAt = UnityEngine.Time.unscaledTime + 0.6f;
@@ -183,17 +183,21 @@ namespace Advanced_Graphics
                 ",\"uv\":" + s.RoadUvSizePercent +
                 ",\"customCracks\":" + (s.UseCustomRoadCracks ? "true" : "false") +
                 ",\"crackStatus\":" + (Mod.RoadAsphalt?.CustomCrackStatus ?? 0) +
-                ",\"mipBias\":" + s.SurfaceTextureMipBias.ToString("0.0", CultureInfo.InvariantCulture) +
-                ",\"endcapU\":" + s.SidewalkEndcapU.ToString("0.0", CultureInfo.InvariantCulture) +
-                ",\"endcapV\":" + s.SidewalkEndcapV.ToString("0.0", CultureInfo.InvariantCulture) +
-                ",\"alleyEndcapU\":" + s.AlleyEndcapU.ToString("0.0", CultureInfo.InvariantCulture) +
-                ",\"alleyEndcapV\":" + s.AlleyEndcapV.ToString("0.0", CultureInfo.InvariantCulture) +
-                ",\"parkingEndcapU\":" + s.ParkingEndcapU.ToString("0.0", CultureInfo.InvariantCulture) +
-                ",\"parkingEndcapV\":" + s.ParkingEndcapV.ToString("0.0", CultureInfo.InvariantCulture) +
-                ",\"parkingDepth\":" + s.ParkingDepthStrengthFactor.ToString("0.0", CultureInfo.InvariantCulture) +
-                ",\"parkingScale\":" + s.ParkingTextureScaleFactor.ToString("0.0", CultureInfo.InvariantCulture) +
+                ",\"mipBias\":" + s.SurfaceTextureMipBias.ToString("0.##", CultureInfo.InvariantCulture) +
+                ",\"endcapU\":" + s.SidewalkEndcapU.ToString("0.##", CultureInfo.InvariantCulture) +
+                ",\"endcapV\":" + s.SidewalkEndcapV.ToString("0.##", CultureInfo.InvariantCulture) +
+                ",\"alleyEndcapU\":" + s.AlleyEndcapU.ToString("0.##", CultureInfo.InvariantCulture) +
+                ",\"alleyEndcapV\":" + s.AlleyEndcapV.ToString("0.##", CultureInfo.InvariantCulture) +
+                ",\"parkingEndcapU\":" + s.ParkingEndcapU.ToString("0.##", CultureInfo.InvariantCulture) +
+                ",\"parkingEndcapV\":" + s.ParkingEndcapV.ToString("0.##", CultureInfo.InvariantCulture) +
+                ",\"largeEndcapU\":" + s.LargeRoadEndcapU.ToString("0.00", CultureInfo.InvariantCulture) +
+                ",\"largeEndcapV\":" + s.LargeRoadEndcapV.ToString("0.00", CultureInfo.InvariantCulture) +
+                ",\"roadEndU\":" + s.RoadEndTilingU.ToString("0.##", CultureInfo.InvariantCulture) +
+                ",\"roadEndV\":" + s.RoadEndTilingV.ToString("0.##", CultureInfo.InvariantCulture) +
+                ",\"parkingDepth\":" + s.ParkingDepthStrengthFactor.ToString("0.##", CultureInfo.InvariantCulture) +
+                ",\"parkingScale\":" + s.ParkingTextureScaleFactor.ToString("0.##", CultureInfo.InvariantCulture) +
                 ",\"depth\":" + s.RoadDepthStrengthPercent +
-                ",\"tiling\":" + s.RoadTextureTiling.ToString("0.0", CultureInfo.InvariantCulture) +
+                ",\"tiling\":" + s.RoadTextureTiling.ToString("0.##", CultureInfo.InvariantCulture) +
                 ",\"offsetX\":" + s.RoadUvOffsetX +
                 ",\"offsetY\":" + s.RoadUvOffsetY +
                 ",\"rotation\":" + s.RoadUvRotation +
@@ -212,7 +216,11 @@ namespace Advanced_Graphics
                 ",\"detail\":" + s.SidewalkDetail +
                 ",\"uv\":" + s.SidewalkUvSizePercent +
                 ",\"depth\":" + s.SidewalkDepthStrengthPercent +
-                ",\"tiling\":" + s.SidewalkTextureTiling.ToString("0.0", CultureInfo.InvariantCulture) +
+                ",\"tiling\":" + s.SidewalkTextureTiling.ToString("0.##", CultureInfo.InvariantCulture) +
+                ",\"parkingSidewalkU\":" + s.ParkingSidewalkScaleU.ToString("0.##", CultureInfo.InvariantCulture) +
+                ",\"parkingSidewalkV\":" + s.ParkingSidewalkScaleV.ToString("0.##", CultureInfo.InvariantCulture) +
+                ",\"shiftU\":" + s.SidewalkShiftU +
+                ",\"shiftV\":" + s.SidewalkShiftV +
                 ",\"offsetX\":" + s.SidewalkUvOffsetX +
                 ",\"offsetY\":" + s.SidewalkUvOffsetY +
                 ",\"rotation\":" + s.SidewalkUvRotation +
@@ -231,7 +239,7 @@ namespace Advanced_Graphics
                 ",\"detail\":" + s.AlleySidewalkDetail +
                 ",\"uv\":" + s.AlleySidewalkUvSizePercent +
                 ",\"depth\":" + s.AlleySidewalkDepthStrengthPercent +
-                ",\"tiling\":" + s.AlleySidewalkTextureTiling.ToString("0.0", CultureInfo.InvariantCulture) +
+                ",\"tiling\":" + s.AlleySidewalkTextureTiling.ToString("0.##", CultureInfo.InvariantCulture) +
                 ",\"offsetX\":" + s.AlleySidewalkUvOffsetX +
                 ",\"offsetY\":" + s.AlleySidewalkUvOffsetY +
                 ",\"rotation\":" + s.AlleySidewalkUvRotation +
@@ -425,10 +433,13 @@ namespace Advanced_Graphics
                 if (separator <= 0) return;
                 string key = request.Substring(0, separator);
                 string input = request.Substring(separator + 1);
-                if (key == "tiling")
+                if (key == "tiling" || key == "parkingSidewalkU" || key == "parkingSidewalkV")
                 {
                     if (!float.TryParse(input, NumberStyles.Float, CultureInfo.InvariantCulture, out float tiling)) return;
-                    s.SidewalkTextureTiling = Math.Max(0.1f, Math.Min(8f, (float)Math.Round(tiling, 1)));
+                    if (float.IsNaN(tiling) || float.IsInfinity(tiling)) return;
+                    if (key == "parkingSidewalkU") s.ParkingSidewalkScaleU = tiling;
+                    else if (key == "parkingSidewalkV") s.ParkingSidewalkScaleV = tiling;
+                    else s.SidewalkTextureTiling = Math.Max(0.1f, Math.Min(8f, (float)Math.Round(tiling, 2)));
                 }
                 else
                 {
@@ -437,11 +448,13 @@ namespace Advanced_Graphics
                     {
                         case "enabled": s.SidewalkEnabled = value != 0; break;
                         case "detail": s.SidewalkDetail = Clamp(value, 0, 2); break;
-                        case "uv": s.SidewalkUvSizePercent = Clamp(value, 50, Setting.MaxTextureUvSize); break;
+                        case "uv": s.SidewalkUvSizePercent = Clamp(value, 10, Setting.MaxTextureUvSize); break;
                         case "depth": s.SidewalkDepthStrengthPercent = Clamp(value, 0, Setting.MaxTextureDepthStrength); break;
                         case "offsetX": s.SidewalkUvOffsetX = Clamp(value, 0, Setting.MaxTextureUvOffset); break;
                         case "offsetY": s.SidewalkUvOffsetY = Clamp(value, 0, Setting.MaxTextureUvOffset); break;
                         case "rotation": s.SidewalkUvRotation = Clamp(value, 0, 360); break;
+                        case "shiftU": s.SidewalkShiftU = Clamp(value, 0, 100); break;
+                        case "shiftV": s.SidewalkShiftV = Clamp(value, 0, 100); break;
                         case "cracks": s.SidewalkCrackCount = Clamp(value, 0, 400); break;
                         case "crackSize": s.SidewalkCrackSizePercent = Clamp(value, 25, 600); break;
                         case "crackWidth": s.SidewalkCrackWidthPercent = Clamp(value, 25, 400); break;
@@ -471,7 +484,7 @@ namespace Advanced_Graphics
                 if (key == "tiling")
                 {
                     if (!float.TryParse(input, NumberStyles.Float, CultureInfo.InvariantCulture, out float tiling)) return;
-                    s.AlleySidewalkTextureTiling = Math.Max(0.1f, Math.Min(8f, (float)Math.Round(tiling, 1)));
+                    s.AlleySidewalkTextureTiling = Math.Max(0.1f, Math.Min(8f, (float)Math.Round(tiling, 2)));
                 }
                 else
                 {
@@ -518,7 +531,7 @@ namespace Advanced_Graphics
                 if (request.Substring(0, separator) == "parkingScale") s.ParkingTextureScaleFactor = tiling;
                 else if (request.Substring(0, separator) == "mipBias") s.SurfaceTextureMipBias = tiling;
                 else if (request.Substring(0, separator) == "parkingDepth") s.ParkingDepthStrengthFactor = tiling;
-                else s.RoadTextureTiling = Math.Max(0.1f, Math.Min(8f, (float)Math.Round(tiling, 1)));
+                else s.RoadTextureTiling = Math.Max(0.1f, Math.Min(8f, (float)Math.Round(tiling, 2)));
                 s.ApplyToSystem();
                 m_State = BuildState(s);
                 m_SavePending = true;
@@ -552,6 +565,8 @@ namespace Advanced_Graphics
         private static int Clamp(int value, int min, int max) => Math.Max(min, Math.Min(max, value));
     }
 }
+
+
 
 
 

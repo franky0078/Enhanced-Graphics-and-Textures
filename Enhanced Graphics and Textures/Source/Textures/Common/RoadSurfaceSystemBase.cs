@@ -72,6 +72,7 @@ namespace Advanced_Graphics
         protected int CurrentRotation => m_Rotation;
         protected virtual bool BakeUvSizeIntoTexture => true;
         protected virtual int MinimumUvSize => 50;
+        protected virtual float UvSizeMultiplier => 1f;
         protected virtual int SeamBlendDivisor => 8;
         protected virtual bool BlendTextureSeams => true;
         protected virtual float TextureSampleOffset => 0.5f;
@@ -114,7 +115,7 @@ namespace Advanced_Graphics
             uvSize = Math.Max(MinimumUvSize, Math.Min(Setting.MaxTextureUvSize, uvSize));
             depth = Math.Max(0, Math.Min(Setting.MaxTextureDepthStrength, depth));
             bool road = GetType() == typeof(RoadAsphaltSystem);
-            tiling = Mathf.Clamp(Mathf.Round(tiling * 10f) / 10f, 0.1f, 8f);
+            tiling = Mathf.Clamp(Mathf.Round(tiling * 20f) / 20f, 0.1f, 8f);
             offsetX = Math.Max(0, Math.Min(Setting.MaxTextureUvOffset, offsetX));
             offsetY = Math.Max(0, Math.Min(Setting.MaxTextureUvOffset, offsetY));
             rotation = Math.Max(0, Math.Min(360, rotation));
@@ -174,6 +175,7 @@ namespace Advanced_Graphics
 
         protected override void OnUpdate()
         {
+            if (Mod.ActiveSetting?.HasPendingApply == true) return;
             if (!m_Dirty && (!m_Enabled || ++m_Frames < m_PollInterval)) return;
             m_Frames = 0;
             if (!m_Enabled)
@@ -290,6 +292,7 @@ namespace Advanced_Graphics
                 byte[] crackMask = m_CrackCount > 0 && m_CrackOpacity > 0 ? AddCrackOverlay(color) : null;
                 if (ShouldBuildSurfaceNormal)
                     normal = BuildSelectedNormal(color, m_Depth, m_UvSize, crackMask);
+                ApplyIntrinsicColor(color);
                 TextureColorFilter.Apply(color, m_FilterColor, m_FilterOpacityPercent);
                 color.Apply(true, !KeepTileReadable);
             }
@@ -412,6 +415,8 @@ namespace Advanced_Graphics
         protected virtual void EncodeNormalPixels(Color32[] pixels) { }
 
         protected virtual void PostprocessSurfaceColor(Texture2D color, Texture2D source) { }
+
+        protected virtual void ApplyIntrinsicColor(Texture2D color) { }
 
         protected virtual void OnSurfaceMaterialApplied(Material material) { }
         protected virtual void OnSurfaceMaterialRestored(Material material) { }
@@ -566,7 +571,7 @@ namespace Advanced_Graphics
             float shiftX = m_OffsetX * size / 100f;
             float shiftY = m_OffsetY * size / 100f;
             float tiling = 1f;
-            float period = size * tiling * 100f / (BakeUvSizeIntoTexture ? m_UvSize : 100);
+            float period = size * tiling * 100f / (BakeUvSizeIntoTexture ? m_UvSize * UvSizeMultiplier : 100f);
             float seamWidth = BlendTextureSeams ? outputSize / (float)Mathf.Max(1, SeamBlendDivisor) : 0f;
             int rotation = TextureRotation;
             float angle = rotation * Mathf.Deg2Rad;
@@ -703,6 +708,8 @@ namespace Advanced_Graphics
         }
     }
 }
+
+
 
 
 

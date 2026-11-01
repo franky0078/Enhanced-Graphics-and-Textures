@@ -700,6 +700,7 @@ namespace Advanced_Graphics
             entries.Add(m_Setting.GetOptionDescLocaleID(nameof(Setting.ShowAppButton)), appButtonDescription);
             entries["AdvancedGraphics.UI.OpenTextureEditor"] = launcherTooltip;
             AddParkingScaleEntries(entries);
+            AddParkingSidewalkEntries(entries);
             AddParkingDepthEntries(entries);
             AddSurfaceSamplingEntries(entries);
             AddColorFilterEntries(entries);
@@ -708,13 +709,85 @@ namespace Advanced_Graphics
             AddGraphicsPanelEntries(entries);
             AddLuminaNumberFixEntries(entries);
             AddCustomCrackEntries(entries);
+            AddJunctionOverlayEntries(entries);
             AddGrassEntries(entries);
             AddFootpathEntries(entries);
             AddCustomNormalEntries(entries);
             AddTextureFileControls(entries);
             AddNormalToggleEntries(entries);
             AddEndcapEntries(entries);
+            AddDebugWindowEntries(entries);
             return entries;
+        }
+
+        private void AddDebugWindowEntries(Dictionary<string, string> entries)
+        {
+            bool de = m_Language == "de";
+            entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.ShowDebugWindow))] = de ? "Debug-Fenster anzeigen" : "Show debug window";
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.ShowDebugWindow))] = de
+                ? "Zeigt im Spiel ein eigenes Fenster mit allen Debug- und Diagnosefunktionen. Nur zum Testen. Beim Ausschalten werden alle Testmodi (Atlas-Farben, Einmündungs-Modus, Gleis-Markierung) zurückgesetzt."
+                : "Shows an in-game window with all debug and diagnostic tools. For testing only. Turning it off resets every test mode (atlas colors, junction mode, rail probe).";
+            const string prefix = "AdvancedGraphics.UI.Debug.";
+            var texts = de ? new[] {
+                "Title", "Debug", "Open", "Enhanced Graphics and Textures – Debug-Werkzeuge", "Close", "Schließen",
+                "Sidewalk", "Gehweg", "AtlasDiagnostic", "RoadEU-Atlasbereiche farbig markieren",
+                "TipAtlasDiagnostic", "Rot/Gelb/Blau/Türkis/Magenta/Grün je Atlasbereich. Nach dem Screenshot wieder ausschalten.",
+                "RecomputeTangents", "Ecken/Enden: Tangenten neu berechnen (Test)", "TipRecomputeTangents", "Test: berechnet an umgebauten Ecken und Straßenenden die Tangenten passend zu den neuen Platten. Standard aus. Wird in 2 s neu aufgebaut.",
+                "JunctionMode", "Einmündungs-Modus",
+                "TipJunctionMode", "0 linear (normal), 1 Smoothstep, 2 t², 3 1-(1-t)², 4 ohne Sync, 5 voll, 6 umgemappte Eckteile einfärben.",
+                "ExportSidewalkAtlas", "Gehweg-Atlas exportieren", "TipExport", "Schreibt Dateien in den Diagnose-Ordner.",
+                "SidewalkScaleReport", "Gehweg-Skalierungsbericht schreiben", "TipSidewalkScaleReport", "SidewalkScale.txt: Breite und Texturbereich jedes Gehweg-Teils je Straßentyp.",
+                "OpenDiagnostics", "Diagnose-Ordner öffnen", "TipOpenDiagnostics", "JunctionRamps.txt, JunctionWorld.txt und Atlas-Exporte.",
+                "Roads", "Straßen und Gras", "InspectRoad", "Straßenmaterialien untersuchen",
+                "ExportGravel", "Schotterstraßen-Materialien exportieren", "ExportGrass", "Grasmaterialien exportieren",
+                "OpenGrassFolder", "Gras-Diagnoseordner öffnen", "TipOpenFolder", "Öffnet den Ordner im Explorer.",
+                "Rail", "Gleise", "RailProbe", "Gleismaterialien markieren",
+                "TipRailProbe", "Magenta = TrainSubwayTrack, Gelb = GravelShoulder, Grün = Schotter, Rot = Gleisdekor, Cyan = TrainRails.",
+                "ExportRail", "Gleismaterialien exportieren", "OpenRailFolder", "Gleis-Diagnoseordner öffnen",
+                "ResetModes", "Alle Testmodi ausschalten", "TipResetModes", "Atlas-Farben, Einmündungs-Modus und Gleis-Markierung zurück auf normal." }
+                : new[] {
+                "Title", "Debug", "Open", "Enhanced Graphics and Textures – debug tools", "Close", "Close",
+                "Sidewalk", "Sidewalk", "AtlasDiagnostic", "Color-code RoadEU atlas regions",
+                "TipAtlasDiagnostic", "Red/yellow/blue/cyan/magenta/green per atlas region. Turn off after the screenshot.",
+                "RecomputeTangents", "Corners/ends: recompute tangents (test)", "TipRecomputeTangents", "Test: recomputes tangents to match the new slabs at rebuilt corners and road ends. Off by default. Rebuilds within 2 s.",
+                "JunctionMode", "Junction mode",
+                "TipJunctionMode", "0 linear (normal), 1 smoothstep, 2 t², 3 1-(1-t)², 4 no sync, 5 full, 6 paint remapped corner pieces.",
+                "ExportSidewalkAtlas", "Export sidewalk atlas", "TipExport", "Writes files to the diagnostics folder.",
+                "SidewalkScaleReport", "Write sidewalk scale report", "TipSidewalkScaleReport", "SidewalkScale.txt: width and texture range of every sidewalk piece per road type.",
+                "OpenDiagnostics", "Open diagnostics folder", "TipOpenDiagnostics", "JunctionRamps.txt, JunctionWorld.txt and atlas exports.",
+                "Roads", "Roads and grass", "InspectRoad", "Inspect road materials",
+                "ExportGravel", "Export gravel road materials", "ExportGrass", "Export grass materials",
+                "OpenGrassFolder", "Open grass diagnostics folder", "TipOpenFolder", "Opens the folder in Explorer.",
+                "Rail", "Rail", "RailProbe", "Identify track materials",
+                "TipRailProbe", "Magenta = TrainSubwayTrack, yellow = GravelShoulder, green = Gravel, red = rail decals, cyan = TrainRails.",
+                "ExportRail", "Export rail materials", "OpenRailFolder", "Open rail diagnostics folder",
+                "ResetModes", "Turn all test modes off", "TipResetModes", "Atlas colors, junction mode and rail probe back to normal." };
+            for (int i = 0; i + 1 < texts.Length; i += 2) entries[prefix + texts[i]] = texts[i + 1];
+        }
+
+        private void AddJunctionOverlayEntries(Dictionary<string, string> entries)
+        {
+            string label, hint;
+            switch (m_Language)
+            {
+                case "de": label = "Gerade Gehwegplatten an Gasseneinmündungen (Test)";
+                    hint = "Standard aus. Ersetzt an Einmündungen von Gassen ohne Gehweg die gestreckte Gehwegtextur der Bordsteinrundung durch ein gerades Plattenraster. Das Spiel zeichnet dafür eine angepasste Kopie des Kreuzungsmeshes; Geometrie, Licht und Wetter bleiben original. Spielstände werden nicht verändert."; break;
+                case "es": label = "Losas rectas en cruces con callejones (prueba)";
+                    hint = "Desactivado por defecto. En cruces con callejones sin acera, sustituye la textura estirada de la esquina por una cuadrícula recta. El juego dibuja una copia ajustada de la malla del cruce; geometría, luz y clima no cambian. No modifica las partidas."; break;
+                case "fr": label = "Dalles droites aux entrées de ruelles (test)";
+                    hint = "Désactivé par défaut. Aux entrées de ruelles sans trottoir, remplace la texture étirée de l'arrondi par une grille droite. Le jeu dessine une copie ajustée du maillage du carrefour ; géométrie, lumière et météo restent d'origine. Les sauvegardes ne sont pas modifiées."; break;
+                case "it": label = "Lastre dritte agli incroci con vicoli (test)";
+                    hint = "Disattivato per default. Agli incroci con vicoli senza marciapiede sostituisce la texture stirata della curva con una griglia dritta. Il gioco disegna una copia adattata della mesh dell'incrocio; geometria, luce e meteo restano originali. I salvataggi non vengono modificati."; break;
+                default: label = "Straight sidewalk slabs at alley junctions (test)";
+                    hint = "Off by default. At junctions with sidewalk-free alleys, replaces the stretched sidewalk texture of the curb rounding with a straight slab grid. The game draws an adjusted copy of the junction mesh; geometry, lighting and weather stay vanilla. Saves are not modified."; break;
+            }
+            entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.SidewalkJunctionOverlay))] = label;
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.SidewalkJunctionOverlay))] = hint;
+            entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.JunctionSyncBlendMode))] = m_Language == "de"
+                ? "Einmündung: Sync-Überblendung (Debug)" : "Junction sync blend (debug)";
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.JunctionSyncBlendMode))] = m_Language == "de"
+                ? "0 linear, 1 Smoothstep, 2 t², 3 1-(1-t)², 4 ohne Sync, 5 voll, 6 umgemappte Fläche einfärben (mit Atlas-Diagnose grün)."
+                : "0 linear, 1 smoothstep, 2 t², 3 1-(1-t)², 4 no sync, 5 full, 6 paint the remapped area (green with the atlas diagnostic).";
         }
 
         private void AddGrassEntries(Dictionary<string, string> entries)
@@ -846,8 +919,19 @@ namespace Advanced_Graphics
             entries["AdvancedGraphics.UI.EndcapHint"] = text[2];
             entries["AdvancedGraphics.UI.ResetEndcaps"] = text[3];
             entries["AdvancedGraphics.UI.EndcapNormal"] = text[4];
+            string large = m_Language == "de" ? "Große Straßen (ab 32 m)" : m_Language == "fr" ? "Grandes routes (32 m et plus)"
+                : m_Language == "es" ? "Carreteras grandes (32 m o más)" : m_Language == "it" ? "Strade grandi (da 32 m)" : "Large roads (32 m+)";
+            entries["AdvancedGraphics.UI.EndcapLarge"] = large;
+            entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.LargeRoadEndcapUDraft))] = large + " – " + text[0];
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.LargeRoadEndcapUDraft))] = text[2];
+            entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.LargeRoadEndcapVDraft))] = large + " – " + text[1];
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.LargeRoadEndcapVDraft))] = text[2];
+            entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.ApplyLargeRoadEndcap))] = large + " – " + text[7];
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.ApplyLargeRoadEndcap))] = text[2];
             entries["AdvancedGraphics.UI.EndcapAlley"] = text[5];
             entries["AdvancedGraphics.UI.EndcapParking"] = text[6];
+            entries["AdvancedGraphics.UI.EndcapRoadEnd"] = m_Language == "de" ? "Normale Straßen: runde Enden (< 32 m)" : m_Language == "fr" ? "Routes normales : extrémités arrondies (< 32 m)"
+                : m_Language == "es" ? "Carreteras normales: extremos redondos (< 32 m)" : m_Language == "it" ? "Strade normali: estremità arrotondate (< 32 m)" : "Normal roads: round ends (< 32 m)";
             entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.SidewalkEndcapU))] = text[4] + " – " + text[0];
             entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.SidewalkEndcapU))] = text[2];
             entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.SidewalkEndcapUDraft))] = text[4] + " – " + text[0];
@@ -1025,6 +1109,66 @@ namespace Advanced_Graphics
             entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.ParkingTextureScaleFactor))] = description;
             entries["AdvancedGraphics.UI.ParkingScale"] = label;
             entries["AdvancedGraphics.UI.TipParkingScale"] = description;
+        }
+
+        private void AddParkingSidewalkEntries(Dictionary<string, string> entries)
+        {
+            string u, v, tip;
+            switch (m_Language)
+            {
+                case "de":
+                    u = "Parkstraße Gehweg U"; v = "Parkstraße Gehweg V";
+                    tip = "Feinabgleich des Gehwegs auf der Parkseite von Parkstraßen, damit er wie der normale Gehweg auf der anderen Seite aussieht. 1,0 = Standard der Mod; wird für Original, Generiert und eigene PNG getrennt gespeichert; höher = mehr Wiederholungen (kleinere Platten), niedriger = größere Platten. U = quer zur Straße, V = entlang der Straße.";
+                    break;
+                case "es":
+                    u = "Acera de aparcamiento U"; v = "Acera de aparcamiento V";
+                    tip = "Ajuste fino de la acera del lado de aparcamiento para que coincida con la acera normal del otro lado. 1,0 = escala por defecto del mod; se guarda por separado para Original, Generada y PNG propio; mayor = más repeticiones (losas más pequeñas), menor = losas más grandes. U = a lo ancho de la calle, V = a lo largo.";
+                    break;
+                case "fr":
+                    u = "Trottoir stationnement U"; v = "Trottoir stationnement V";
+                    tip = "Réglage fin du trottoir côté stationnement pour qu'il ressemble au trottoir normal de l'autre côté. 1,0 = échelle par défaut du mod ; enregistré séparément pour Original, Générée et PNG personnalisé ; plus haut = plus de répétitions (dalles plus petites), plus bas = dalles plus grandes. U = en travers de la rue, V = le long de la rue.";
+                    break;
+                case "it":
+                    u = "Marciapiede parcheggio U"; v = "Marciapiede parcheggio V";
+                    tip = "Regolazione fine del marciapiede sul lato parcheggio affinché corrisponda al marciapiede normale dall'altro lato. 1,0 = scala predefinita della mod; salvato separatamente per Originale, Generata e PNG personalizzato; più alto = più ripetizioni (lastre più piccole), più basso = lastre più grandi. U = trasversale alla strada, V = lungo la strada.";
+                    break;
+                default:
+                    u = "Parking road sidewalk U"; v = "Parking road sidewalk V";
+                    tip = "Fine tuning of the sidewalk on the parking side of parking roads so it matches the normal sidewalk on the other side. 1.0 = mod default; saved separately for Original, Generated and Custom texture; higher = more repeats (smaller slabs), lower = larger slabs. U = across the road, V = along the road.";
+                    break;
+            }
+            string shiftU, shiftV, shiftTip;
+            switch (m_Language)
+            {
+                case "de":
+                    shiftU = "Normaler Gehweg Versatz quer"; shiftV = "Normaler Gehweg Versatz längs";
+                    shiftTip = "Verschiebt nur das Plattenmuster des normalen Gehwegs (nicht die Parkseite), in Prozent einer Kachel: quer = Längsfugen nach links/rechts, längs = Querfugen nach vorne/hinten. Die Plattengröße bleibt gleich. Wird für Original, Generiert und eigene PNG getrennt gespeichert.";
+                    break;
+                case "es":
+                    shiftU = "Desplazamiento acera normal (ancho)"; shiftV = "Desplazamiento acera normal (largo)";
+                    shiftTip = "Desplaza solo el patrón de losas de la acera normal (no el lado de aparcamiento), en porcentaje de un mosaico. El tamaño de las losas no cambia. Se guarda por separado para Original, Generada y PNG propio.";
+                    break;
+                case "fr":
+                    shiftU = "Décalage trottoir normal (travers)"; shiftV = "Décalage trottoir normal (long)";
+                    shiftTip = "Décale uniquement le motif des dalles du trottoir normal (pas le côté stationnement), en pourcentage d'une tuile. La taille des dalles ne change pas. Enregistré séparément pour Original, Générée et PNG personnalisé.";
+                    break;
+                case "it":
+                    shiftU = "Spostamento marciapiede normale (trasversale)"; shiftV = "Spostamento marciapiede normale (longitudinale)";
+                    shiftTip = "Sposta solo il motivo delle lastre del marciapiede normale (non il lato parcheggio), in percentuale di una piastrella. La dimensione delle lastre non cambia. Salvato separatamente per Originale, Generata e PNG personalizzato.";
+                    break;
+                default:
+                    shiftU = "Normal sidewalk shift across"; shiftV = "Normal sidewalk shift along";
+                    shiftTip = "Shifts only the slab pattern of the normal sidewalk (not the parking side), in percent of one tile: across = joints along the road move left/right, along = cross joints move forward/back. Slab size stays the same. Saved separately for Original, Generated and Custom texture.";
+                    break;
+            }
+            entries["AdvancedGraphics.UI.SidewalkShiftU"] = shiftU;
+            entries["AdvancedGraphics.UI.SidewalkShiftV"] = shiftV;
+            entries["AdvancedGraphics.UI.SidewalkTipShiftU"] = shiftTip;
+            entries["AdvancedGraphics.UI.SidewalkTipShiftV"] = shiftTip;
+            entries["AdvancedGraphics.UI.SidewalkParkingSidewalkU"] = u;
+            entries["AdvancedGraphics.UI.SidewalkParkingSidewalkV"] = v;
+            entries["AdvancedGraphics.UI.SidewalkTipParkingSidewalkU"] = tip;
+            entries["AdvancedGraphics.UI.SidewalkTipParkingSidewalkV"] = tip;
         }
 
         private void AddSurfaceLayoutEntries(Dictionary<string, string> entries)
@@ -1491,6 +1635,8 @@ namespace Advanced_Graphics
         }
     }
 }
+
+
 
 
 

@@ -36,6 +36,11 @@ namespace Advanced_Graphics
         private Texture2D m_SourceColor, m_SourceNormal;
         private bool m_Enabled, m_Diagnostic, m_BuiltDiagnostic, m_BuiltCustom, m_Dirty;
         private bool m_LoggedMissing;
+        // Normal sidewalk pattern shift (percent of one tile across / along), not for Alley/parking atlases.
+        private int m_BuiltShiftU, m_BuiltShiftV;
+        private bool UsesSidewalkShift => !IsAlleyAtlas && !(this is ParkingRoadAtlasSystem);
+        private int CurrentShiftU => UsesSidewalkShift ? Mod.ActiveSetting?.SidewalkShiftU ?? 0 : 0;
+        private int CurrentShiftV => UsesSidewalkShift ? Mod.ActiveSetting?.SidewalkShiftV ?? 0 : 0;
         private int m_Frames;
 
         internal bool OwnsAppliedAtlas(Texture texture, bool normal)
@@ -87,9 +92,12 @@ namespace Advanced_Graphics
 
         protected override void OnUpdate()
         {
+            // Shift/end-scale read the live settings; keep the previous atlas until edits settle.
+            if (Mod.ActiveSetting?.HasPendingApply == true) return;
             bool scaleChanged = RefreshEndcapScale();
             bool tileChanged = m_SourceColor != Surface?.ActiveColorTexture ||
-                m_SourceNormal != Surface?.ActiveNormalTexture;
+                m_SourceNormal != Surface?.ActiveNormalTexture ||
+                m_BuiltShiftU != CurrentShiftU || m_BuiltShiftV != CurrentShiftV;
             if (!m_Dirty && !tileChanged && !scaleChanged && ++m_Frames < 120) return;
             m_Frames = 0;
             m_Dirty = false;
@@ -111,10 +119,14 @@ namespace Advanced_Graphics
             try
             {
                 if (scaleChanged) RestoreIsolatedAlleyBatches();
+                int shiftU = CurrentShiftU, shiftV = CurrentShiftV;
                 if (m_SourceColor != color || m_SourceNormal != normal ||
-                    m_BuiltDiagnostic != m_Diagnostic || m_BuiltCustom != customTexture)
+                    m_BuiltDiagnostic != m_Diagnostic || m_BuiltCustom != customTexture ||
+                    m_BuiltShiftU != shiftU || m_BuiltShiftV != shiftV)
                 {
                     RestoreNow(false);
+                    m_BuiltShiftU = shiftU;
+                    m_BuiltShiftV = shiftV;
                     m_SourceColor = color;
                     m_SourceNormal = normal;
                     m_BuiltDiagnostic = m_Diagnostic;
@@ -160,7 +172,7 @@ namespace Advanced_Graphics
                         m_Materials.Add(material, original);
                         added++;
                         if (alleyShoulder)
-                            Mod.log.Info("Alley sidewalk matched: " + material.name + " | " + baseColor.name);
+                            Mod.LogLater("Alley sidewalk matched: " + material.name + " | " + baseColor.name);
                     }
 
                     if (!m_ColorCopies.TryGetValue(original.Color, out var colorCopy))
@@ -198,11 +210,11 @@ namespace Advanced_Graphics
                 else if (EndcapScaleActive) ApplyIsolatedAlleyBatches(nodesOnly: true);
                 string region = m_Diagnostic ? "color regions red/yellow/blue/cyan/magenta/green"
                     : (IsAlleyAtlas ? "ParkingLane7 atlas on isolated Alley batches" : "sidewalk region x=318..758");
-                if (added > 0) Mod.log.Info($"{SurfaceLabel} atlas: {m_Materials.Count} matched materials ({added} new), {applied} applied, {virtualMaterials} switched from ENABLE_VT; {region}; source tile {color.width}x{color.height}.");
+                if (added > 0) Mod.LogLater($"{SurfaceLabel} atlas: {m_Materials.Count} matched materials ({added} new), {applied} applied, {virtualMaterials} switched from ENABLE_VT; {region}; source tile {color.width}x{color.height}.");
                 if (m_Materials.Count == 0 && !m_LoggedMissing)
                 {
                     m_LoggedMissing = true;
-                    Mod.log.Info("RoadEU atlas diagnostic: 0 matching materials. Load a city and retry.");
+                    Mod.LogLater("RoadEU atlas diagnostic: 0 matching materials. Load a city and retry.");
                 }
             }
             catch (Exception ex)
@@ -266,8 +278,9 @@ namespace Advanced_Graphics
                     else
                     {
                         float originU = alleyShoulder ? 0f : X0 / 1024f;
-                        int u = Mathf.FloorToInt(((x / (float)width - originU) / stripFraction) * detail.width);
-                        int v = Mathf.FloorToInt(y / (float)height * verticalRepeats * detail.height);
+                        float shiftU = alleyShoulder ? 0f : m_BuiltShiftU / 100f, shiftV = alleyShoulder ? 0f : m_BuiltShiftV / 100f;
+                        int u = Mathf.FloorToInt(((x / (float)width - originU) / stripFraction + shiftU) * detail.width);
+                        int v = Mathf.FloorToInt((y / (float)height * verticalRepeats + shiftV) * detail.height);
                         u = (u % detail.width + detail.width) % detail.width;
                         v = (v % detail.height + detail.height) % detail.height;
                         replacement = tile[v * detail.width + u];
@@ -392,5 +405,7 @@ namespace Advanced_Graphics
         }
     }
 }
+
+
 
 

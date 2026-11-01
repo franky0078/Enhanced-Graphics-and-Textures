@@ -16,6 +16,7 @@
 	
     <ItemGroup>
         <Compile Include="Source\**\*.cs" />
+        <EmbeddedResource Include="Assets\Textures\Sidewalk\SidewalkConcrete_BaseColor.png" LogicalName="Advanced_Graphics.SidewalkConcrete_BaseColor.png" />
         <EmbeddedResource Include="Assets\Textures\Rail\RailGravel_BaseColor.png" LogicalName="Advanced_Graphics.RailGravel_BaseColor.png" />
         <EmbeddedResource Include="Assets\Textures\Rail\RailGravel_Normal.png" LogicalName="Advanced_Graphics.RailGravel_Normal.png" />
     </ItemGroup>
@@ -109,5 +110,7 @@
 	</Target>
 
 </Project>
+
+
 
 

@@ -6,10 +6,18 @@ namespace Advanced_Graphics
     public partial class SidewalkRoadAtlasSystem
     {
         private float m_EndcapU = 1f, m_EndcapV = 1f;
-        private readonly Dictionary<Material, Material> m_EndcapMaterials = new Dictionary<Material, Material>();
-        private readonly Dictionary<(Texture, bool, bool), Texture2D> m_EndcapTextures = new Dictionary<(Texture, bool, bool), Texture2D>();
+        private float m_RoadEndU = 1f, m_RoadEndV = 1f;
+        private float m_LargeEndcapU = 1f, m_LargeEndcapV = 1f;
+        private readonly Dictionary<(Material, bool, bool), Material> m_EndcapMaterials = new Dictionary<(Material, bool, bool), Material>();
+        private readonly Dictionary<(Texture, bool, bool, float, float), Texture2D> m_EndcapTextures = new Dictionary<(Texture, bool, bool, float, float), Texture2D>();
 
-        protected bool EndcapScaleActive => !Mathf.Approximately(m_EndcapU, 1f) || !Mathf.Approximately(m_EndcapV, 1f);
+        private bool UsesRoadEndTiling => !IsAlleyAtlas && !(this is ParkingRoadAtlasSystem);
+        private bool UsesLargeRoadTiling => !IsAlleyAtlas;
+        private bool LargeEndcapActive => !Mathf.Approximately(m_LargeEndcapU, 1f) || !Mathf.Approximately(m_LargeEndcapV, 1f);
+        private bool NormalEndcapActive => !Mathf.Approximately(m_EndcapU, 1f) || !Mathf.Approximately(m_EndcapV, 1f);
+        protected bool EndcapScaleActive => !Mathf.Approximately(m_EndcapU, 1f) || !Mathf.Approximately(m_EndcapV, 1f) ||
+            (UsesLargeRoadTiling && LargeEndcapActive) ||
+            (UsesRoadEndTiling && (!Mathf.Approximately(m_RoadEndU, 1f) || !Mathf.Approximately(m_RoadEndV, 1f)));
 
         protected bool RefreshEndcapScale()
         {
@@ -17,33 +25,47 @@ namespace Advanced_Graphics
             bool parking = this is ParkingRoadAtlasSystem;
             float u = (parking ? settings?.ParkingEndcapU : IsAlleyAtlas ? settings?.AlleyEndcapU : settings?.SidewalkEndcapU) ?? 1f;
             float v = (parking ? settings?.ParkingEndcapV : IsAlleyAtlas ? settings?.AlleyEndcapV : settings?.SidewalkEndcapV) ?? 1f;
-            bool changed = !Mathf.Approximately(u, m_EndcapU) || !Mathf.Approximately(v, m_EndcapV);
+            float ru = UsesRoadEndTiling ? settings?.RoadEndTilingU ?? 1f : 1f;
+            float rv = UsesRoadEndTiling ? settings?.RoadEndTilingV ?? 1f : 1f;
+            float lu = UsesLargeRoadTiling ? settings?.LargeRoadEndcapU ?? 1f : 1f;
+            float lv = UsesLargeRoadTiling ? settings?.LargeRoadEndcapV ?? 1f : 1f;
+            bool changed = !Mathf.Approximately(lu, m_LargeEndcapU) || !Mathf.Approximately(lv, m_LargeEndcapV) || !Mathf.Approximately(u, m_EndcapU) || !Mathf.Approximately(v, m_EndcapV) ||
+                !Mathf.Approximately(ru, m_RoadEndU) || !Mathf.Approximately(rv, m_RoadEndV);
+            m_LargeEndcapU = lu;
+            m_LargeEndcapV = lv;
             m_EndcapU = u;
             m_EndcapV = v;
+            m_RoadEndU = ru;
+            m_RoadEndV = rv;
             return changed;
         }
 
-        private Material GetEndcapMaterial(Material source)
+        private Material GetEndcapMaterial(Material source, bool roadEnd = false, bool largeRoad = false)
         {
-            if (Mathf.Approximately(m_EndcapU, 1f) && Mathf.Approximately(m_EndcapV, 1f)) return source;
-            if (m_EndcapMaterials.TryGetValue(source, out var result)) return result;
+            roadEnd &= UsesRoadEndTiling;
+            largeRoad &= UsesLargeRoadTiling;
+            // Large roads own their node/end values; the other categories retain their existing values.
+            float scaleU = largeRoad ? m_LargeEndcapU : roadEnd ? m_RoadEndU : m_EndcapU;
+            float scaleV = largeRoad ? m_LargeEndcapV : roadEnd ? m_RoadEndV : m_EndcapV;
+            if (Mathf.Approximately(scaleU, 1f) && Mathf.Approximately(scaleV, 1f)) return source;
+            if (m_EndcapMaterials.TryGetValue((source, roadEnd, largeRoad), out var result)) return result;
             var mask = source.HasProperty("_MaskMap") ? source.GetTexture("_MaskMap") : null;
             bool parking = mask != null && mask.name.StartsWith("ParkingLane7_", System.StringComparison.Ordinal);
             bool road = mask != null && mask.name.StartsWith("RoadEU_", System.StringComparison.Ordinal);
             if (!parking && !road) return source;
             result = new Material(source) { name = "Enhanced Graphics and Textures endcap " + source.name,
                 hideFlags = HideFlags.HideAndDontSave };
-            m_EndcapMaterials.Add(source, result);
+            m_EndcapMaterials.Add((source, roadEnd, largeRoad), result);
             if (source.HasProperty(ColorSlot) && source.GetTexture(ColorSlot) != null)
-                result.SetTexture(ColorSlot, ScaleEndcapAtlas(source.GetTexture(ColorSlot), false, parking));
+                result.SetTexture(ColorSlot, ScaleEndcapAtlas(source.GetTexture(ColorSlot), false, parking, scaleU, scaleV));
             if (source.HasProperty(NormalSlot) && source.GetTexture(NormalSlot) != null)
-                result.SetTexture(NormalSlot, ScaleEndcapAtlas(source.GetTexture(NormalSlot), true, parking));
+                result.SetTexture(NormalSlot, ScaleEndcapAtlas(source.GetTexture(NormalSlot), true, parking, scaleU, scaleV));
             return result;
         }
 
-        private Texture2D ScaleEndcapAtlas(Texture source, bool linear, bool parking)
+        private Texture2D ScaleEndcapAtlas(Texture source, bool linear, bool parking, float scaleU, float scaleV)
         {
-            var key = (source, linear, parking);
+            var key = (source, linear, parking, scaleU, scaleV);
             if (m_EndcapTextures.TryGetValue(key, out var result)) return result;
             var readable = Readback(source, linear);
             try
@@ -51,18 +73,16 @@ namespace Advanced_Graphics
                 int width = readable.width, height = readable.height;
                 var original = readable.GetPixels32();
                 var pixels = (Color32[])original.Clone();
-                // The isolated Alley ParkingLane atlas is wholly covered in sidewalk.
-                // Parking roads retain their asphalt and markings outside the sidewalk strip.
                 bool whole = parking && IsAlleyAtlas;
                 int left = whole ? 0 : Mathf.RoundToInt(width * (parking ? 516f / 2048f : X0 / 1024f));
                 int right = whole ? width : Mathf.RoundToInt(width * (parking ? 942f / 2048f : X1 / 1024f));
                 int span = Mathf.Max(1, right - left);
                 for (int y = 0; y < height; y++)
                 {
-                    int sy = Mathf.Min(height - 1, Mathf.FloorToInt(Mathf.Repeat((y + 0.5f) / height * m_EndcapV, 1f) * height));
+                    int sy = Mathf.Min(height - 1, Mathf.FloorToInt(Mathf.Repeat((y + 0.5f) / height * scaleV, 1f) * height));
                     for (int x = left; x < right; x++)
                     {
-                        int sx = left + Mathf.Min(span - 1, Mathf.FloorToInt(Mathf.Repeat((x - left + 0.5f) / span * m_EndcapU, 1f) * span));
+                        int sx = left + Mathf.Min(span - 1, Mathf.FloorToInt(Mathf.Repeat((x - left + 0.5f) / span * scaleU, 1f) * span));
                         int i = y * width + x;
                         var pixel = original[sy * width + sx];
                         // Keep non-normal channels and the color material mask at their original UVs.
@@ -91,3 +111,5 @@ namespace Advanced_Graphics
         }
     }
 }
+
+

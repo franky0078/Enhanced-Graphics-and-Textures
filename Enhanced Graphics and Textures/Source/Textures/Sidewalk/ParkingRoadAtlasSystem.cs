@@ -19,7 +19,18 @@ namespace Advanced_Graphics
         private const int SidewalkStart = 516;
         private const int SidewalkEnd = 942;
         private const int AsphaltRepeatsPerAtlas = 8;
-        private const int SidewalkRepeatsPerAtlas = 8;
+        // Sidewalk tiles in metres, measured from the game meshes (debug "sidewalk scale report"):
+        // RoadEU sidewalk pieces use 64 atlas px (of 1024) per metre and V 1/32 per metre, and our RoadEU
+        // fill puts one detail tile across the 441 px strip -> one tile = 6.89 m square. Parking pieces
+        // (ParkingLane9/Angled9) use 385 px for 9 m and V 0.0326 per metre. With the old fixed 8 repeats a
+        // parking tile was 3.0 x 3.8 m: smaller than on the other side of the road.
+        private const float SidewalkTileMetres = 441f / 64f;
+        private const float ParkingUPerMetre = 385f / 1024f / 9f;
+        private const float ParkingVPerMetre = 0.0326f;
+        private const float SidewalkRepeatsU = 1f / (SidewalkTileMetres * ParkingUPerMetre);
+        private const float SidewalkRepeatsV = 1f / (SidewalkTileMetres * ParkingVPerMetre);
+        private float m_SidewalkScaleU = 1f, m_SidewalkScaleV = 1f;
+        private bool m_SidewalkCustom;
 
         private sealed class ParkingMaterial
         {
@@ -67,7 +78,10 @@ namespace Advanced_Graphics
             var sidewalkColor = sidewalkOverride ? Mod.Sidewalk?.ActiveColorTexture : null;
             var sidewalkNormal = sidewalkColor != null ? Mod.Sidewalk?.ActiveNormalTexture : null;
             bool scaleChanged = RefreshEndcapScale();
-            bool changed = m_AsphaltColor != asphaltColor || m_AsphaltNormal != asphaltNormal ||
+            float sidewalkScaleU = settings?.ParkingSidewalkScaleU ?? 1f, sidewalkScaleV = settings?.ParkingSidewalkScaleV ?? 1f;
+            bool sidewalkCustom = Mod.Sidewalk?.UsesCustomTexture == true;
+            bool changed = !Mathf.Approximately(sidewalkScaleU, m_SidewalkScaleU) || !Mathf.Approximately(sidewalkScaleV, m_SidewalkScaleV) ||
+                sidewalkCustom != m_SidewalkCustom || m_AsphaltColor != asphaltColor || m_AsphaltNormal != asphaltNormal ||
                 m_SidewalkColor != sidewalkColor || m_SidewalkNormal != sidewalkNormal ||
                 (asphaltColor != null && (!Mathf.Approximately(m_ParkingScaleFactor, parkingScaleFactor) ||
                     !Mathf.Approximately(m_ParkingDepthFactor, parkingDepthFactor)));
@@ -83,6 +97,9 @@ namespace Advanced_Graphics
                 m_SidewalkNormal = sidewalkNormal;
                 m_ParkingScaleFactor = parkingScaleFactor;
                 m_ParkingDepthFactor = parkingDepthFactor;
+                m_SidewalkScaleU = sidewalkScaleU;
+                m_SidewalkScaleV = sidewalkScaleV;
+                m_SidewalkCustom = sidewalkCustom;
             }
             if (asphaltColor == null && sidewalkColor == null)
             {
@@ -132,7 +149,7 @@ namespace Advanced_Graphics
                 }
                 int applied = ApplyIsolatedAlleyBatches();
                 if (added > 0)
-                    Mod.log.Info("Parking road atlas: " + added + " new materials, " + applied +
+                    Mod.LogLater("Parking road atlas: " + added + " new materials, " + applied +
                         " isolated batches; parking uses Asphalt, outer sidewalk uses Sidewalk; " +
                         "asphalt active " + (asphaltColor != null) + ", sidewalk active " + (sidewalkColor != null) + ".");
             }
@@ -160,8 +177,11 @@ namespace Advanced_Graphics
                     FillParkingStrip(pixels, cached.width, cached.height, 0, ParkingEnd,
                         linear ? m_AsphaltNormal : m_AsphaltColor, linear, AsphaltRepeatsPerAtlas * m_ParkingScaleFactor, referenceAspect, m_ParkingDepthFactor);
                 if (m_SidewalkColor != null)
+                {
+                    float repeatsV = m_SidewalkCustom ? 1f / ((32f / 5f) * ParkingVPerMetre) : SidewalkRepeatsV;
                     FillParkingStrip(pixels, cached.width, cached.height, SidewalkStart, SidewalkEnd,
-                        linear ? m_SidewalkNormal : m_SidewalkColor, linear, SidewalkRepeatsPerAtlas, referenceAspect);
+                        linear ? m_SidewalkNormal : m_SidewalkColor, linear, SidewalkRepeatsU * m_SidewalkScaleU, 1f, 1f, repeatsV * m_SidewalkScaleV);
+                }
                 result.SetPixels32(pixels);
                 result.Apply(true, true);
                 result.name = "Enhanced Graphics and Textures Parking road " + (linear ? "Normal" : "Color");
@@ -173,7 +193,8 @@ namespace Advanced_Graphics
         }
 
         private static void FillParkingStrip(Color32[] pixels, int width, int height,
-            int referenceLeft, int referenceRight, Texture2D tile, bool linear, float repeatsPerAtlas, float referenceAspect, float normalStrength = 1f)
+            int referenceLeft, int referenceRight, Texture2D tile, bool linear, float repeatsPerAtlas, float referenceAspect, float normalStrength = 1f,
+            float repeatsPerV = float.NaN)
         {
             Texture2D readable = tile;
             bool releaseTile = tile != null && !tile.isReadable;
@@ -192,7 +213,8 @@ namespace Advanced_Graphics
                     if (detail != null)
                     {
                         int u = Mathf.FloorToInt((x / (float)width - referenceLeft / (float)ReferenceWidth) * repeatsPerAtlas * readable.width);
-                        int v = Mathf.FloorToInt(y / (float)height * referenceAspect * repeatsPerAtlas * readable.height);
+                        float vRepeats = float.IsNaN(repeatsPerV) ? referenceAspect * repeatsPerAtlas : repeatsPerV;
+                        int v = Mathf.FloorToInt(y / (float)height * vRepeats * readable.height);
                         u = (u % readable.width + readable.width) % readable.width;
                         v = (v % readable.height + readable.height) % readable.height;
                         replacement = detail[v * readable.width + u];
@@ -309,6 +331,7 @@ namespace Advanced_Graphics
         }
     }
 }
+
 
 
 

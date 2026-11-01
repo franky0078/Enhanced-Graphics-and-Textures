@@ -15,8 +15,22 @@ namespace Advanced_Graphics
         protected override int MaximumTileResolution => 4096;
         protected override bool KeepTileReadable => true;
         protected override bool CacheSourceColor => true;
+        protected override int MinimumUvSize => GetType() == typeof(SidewalkSurfaceSystem) ? 10 : base.MinimumUvSize;
+        // Generated 100% matches the supplied custom texture at 50% UV size.
+        protected override float UvSizeMultiplier => GetType() == typeof(SidewalkSurfaceSystem) && CurrentLevel == 1 ? 0.5f : 1f;
+
+        protected override Texture2D BuildSurfaceNormal(Texture2D color, int depth, int uvSize, byte[] crackMask) =>
+            base.BuildSurfaceNormal(color, depth, Mathf.RoundToInt(uvSize * UvSizeMultiplier), crackMask);
+
+        protected override void ApplyIntrinsicColor(Texture2D color)
+        {
+            if (GetType() == typeof(SidewalkSurfaceSystem) && CurrentLevel == 1)
+                TextureColorFilter.Apply(color, 0x8c8a8d, 100);
+        }
+
         protected override bool ReuseColorForDepthChanges => false;
-        internal bool UsesCustomTexture => CurrentLevel == 2;
+        // Bundled generated concrete uses the same atlas sampling as a custom PNG.
+        internal bool UsesCustomTexture => CurrentLevel != 0;
         protected override int SeamBlendDivisor => UsesCustomTexture ? 64 : 8;
 
         protected override Texture2D LoadOriginalColor()
@@ -53,24 +67,30 @@ namespace Advanced_Graphics
 
         protected override Texture2D GenerateNeutralAsphalt()
         {
-            const int size = 1024;
-            const int slab = 64;
-            var pixels = new Color32[size * size];
-            for (int y = 0; y < size; y++)
-            for (int x = 0; x < size; x++)
+            const string resource = "Advanced_Graphics.SidewalkConcrete_BaseColor.png";
+            Texture2D texture = null;
+            try
             {
-                int column = x / slab, row = y / slab;
-                uint hash = (uint)(column * 73856093 ^ row * 19349663);
-                float variation = (int)(hash % 13) - 6;
-                float grain = ((x * 17 + y * 31 + x * y * 3) % 9) - 4;
-                bool joint = x % slab < 2 || y % slab < 2;
-                byte shade = (byte)Mathf.Clamp((joint ? 73f : 110f) + variation + grain, 0f, 255f);
-                pixels[y * size + x] = new Color32(shade, shade, shade, 255);
+                using (var stream = typeof(SidewalkSurfaceSystem).Assembly.GetManifestResourceStream(resource))
+                {
+                    if (stream == null) throw new InvalidDataException("Missing embedded texture: " + resource);
+                    using (var buffer = new MemoryStream())
+                    {
+                        stream.CopyTo(buffer);
+                        texture = new Texture2D(2, 2, TextureFormat.RGBA32, false, false);
+                        if (!texture.LoadImage(buffer.ToArray(), false) || texture.width != 1254 || texture.height != 1254)
+                            throw new InvalidDataException("Invalid embedded sidewalk concrete texture: " + resource);
+                    }
+                }
+                texture.name = "Advanced Graphics Generated Sidewalk Concrete Color";
+                texture.wrapMode = TextureWrapMode.Repeat;
+                return texture;
             }
-            var texture = new Texture2D(size, size, TextureFormat.RGBA32, false, false);
-            texture.SetPixels32(pixels);
-            texture.Apply(false, false);
-            return texture;
+            catch
+            {
+                if (texture != null) UnityEngine.Object.Destroy(texture);
+                throw;
+            }
         }
 
         protected override bool MatchesColor(Texture texture) => Matches(texture, "BaseColor");
@@ -127,4 +147,6 @@ namespace Advanced_Graphics
         }
     }
 }
+
+
 

@@ -28,7 +28,8 @@ namespace Advanced_Graphics
 
         protected virtual bool IsTargetRoad(string name) => name != null && (IsAlleyAtlas
             ? name.StartsWith("Alley", StringComparison.Ordinal) && name.IndexOf("Parking", StringComparison.OrdinalIgnoreCase) < 0
-            : !name.StartsWith("Alley", StringComparison.Ordinal) && name.IndexOf("Parking", StringComparison.OrdinalIgnoreCase) < 0);
+            : !name.StartsWith("Alley", StringComparison.Ordinal) && (name.IndexOf("Parking", StringComparison.OrdinalIgnoreCase) < 0 ||
+                name.StartsWith("Large Road", StringComparison.Ordinal)));
 
         protected virtual bool IsTargetRoad(PrefabBase prefab) => prefab != null &&
             (RoadBuilderSurfaceCompatibility.IsRoadBuilderRoad(prefab)
@@ -65,6 +66,8 @@ namespace Advanced_Graphics
             var edgeMeshes = new HashSet<Entity>();
             var otherMeshes = new HashSet<Entity>();
             var targetPrefabs = new Dictionary<Entity, bool>();
+            var roadEndOnlyPrefabs = new HashSet<Entity>();
+            var roadEndOnlyMeshes = new HashSet<Entity>();
             var compatibleNodePrefabs = new Dictionary<Entity, bool>();
             var query = GetEntityQuery(ComponentType.ReadOnly<Edge>(), ComponentType.ReadOnly<PrefabRef>(),
                 ComponentType.ReadOnly<Composition>());
@@ -76,8 +79,13 @@ namespace Advanced_Graphics
                     var prefabEntity = EntityManager.GetComponentData<PrefabRef>(road).m_Prefab;
                     if (!targetPrefabs.TryGetValue(prefabEntity, out bool isAlley))
                     {
-                        isAlley = prefabs.TryGetPrefab<PrefabBase>(prefabEntity, out var prefab) &&
-                            prefab != null && IsTargetRoad(prefab);
+                        bool found = prefabs.TryGetPrefab<PrefabBase>(prefabEntity, out var prefab) && prefab != null;
+                        isAlley = found && IsTargetRoad(prefab);
+                        if (!isAlley && found && nodesOnly && UsesRoadEndTiling && RoadBuilderSurfaceCompatibility.IsRoadBuilderRoad(prefab))
+                        {
+                            isAlley = true;
+                            roadEndOnlyPrefabs.Add(prefabEntity);
+                        }
                         targetPrefabs.Add(prefabEntity, isAlley);
                         compatibleNodePrefabs.Add(prefabEntity, IsAlleyAtlas && prefab != null &&
                             prefab.name != null && prefab.name.StartsWith("Alley", StringComparison.Ordinal) &&
@@ -92,6 +100,11 @@ namespace Advanced_Graphics
                         AddAlleyCompositionMesh(composition.m_StartNode, meshes);
                         AddAlleyCompositionMesh(composition.m_EndNode, meshes);
                     }
+                    if (roadEndOnlyPrefabs.Contains(prefabEntity))
+                    {
+                        AddAlleyCompositionMesh(composition.m_StartNode, roadEndOnlyMeshes);
+                        AddAlleyCompositionMesh(composition.m_EndNode, roadEndOnlyMeshes);
+                    }
                 }
             }
             finally { roads.Dispose(); }
@@ -100,6 +113,7 @@ namespace Advanced_Graphics
             int shared = 0;
             foreach (var mesh in targetMeshes) if (otherMeshes.Contains(mesh)) shared++;
             targetMeshes.ExceptWith(otherMeshes);
+            if (IsAlleyAtlas) targetMeshes.RemoveWhere(SidewalkJunctionMeshSystem.IsRuntimeMesh);
 
             var groups = batchManager.GetNativeBatchGroups(readOnly: false, out var dependencies);
             dependencies.Complete();
@@ -113,6 +127,10 @@ namespace Advanced_Graphics
                 if (group.m_MeshType != MeshType.Net || !targetMeshes.Contains(group.m_Mesh)) continue;
                 bool node = !edgeMeshes.Contains(group.m_Mesh);
                 if (nodesOnly && !node) continue;
+                bool deadEnd = node && IsDeadEndMesh(group.m_Mesh);
+                bool largeRoad = node && UsesLargeRoadTiling && IsLargeRoadMesh(group.m_Mesh);
+                // Only "Round road ends" set: leave every other node mesh exactly as before (no swap).
+                if (nodesOnly && !deadEnd && (!(largeRoad ? LargeEndcapActive : NormalEndcapActive) || roadEndOnlyMeshes.Contains(group.m_Mesh))) continue;
                 for (int batchIndex = 0; batchIndex < groups.GetBatchCount(groupIndex); batchIndex++)
                 {
                     int index = groups.GetManagedBatchIndex(groupIndex, batchIndex);
@@ -121,7 +139,7 @@ namespace Advanced_Graphics
                     if (batch == null || batch.loadedMaterial == null ||
                         !m_AlleyCurrentMaterialSources.Contains(batch.loadedMaterial) ||
                         !m_AlleyMaterialCopies.TryGetValue(batch.loadedMaterial, out var copy)) continue;
-                    if (node) copy = GetEndcapMaterial(copy);
+                    if (node) copy = GetEndcapMaterial(copy, deadEnd, largeRoad);
                     // Respect loading placeholders and replacements owned by another mod.
                     if (batch.material != batch.loadedMaterial && batch.material != copy) continue;
                     if (!m_AlleyBatchBindings.TryGetValue(batch, out var binding))
@@ -159,12 +177,18 @@ namespace Advanced_Graphics
                 m_LastSharedAlleyMeshes = shared;
                 if (Mod.DebugBackendEnabled)
                 {
-                    Mod.log.Info(IsolatedSurfaceLabel + " batch isolation: " + applied + " batches adjusted; " + shared +
+                    Mod.LogLater(IsolatedSurfaceLabel + " batch isolation: " + applied + " batches adjusted; " + shared +
                         " shared composition meshes kept original. Other road types excluded.");
                 }
             }
             return applied;
         }
+
+        private bool IsLargeRoadMesh(Entity mesh) => mesh != Entity.Null && EntityManager.HasComponent<NetCompositionMeshData>(mesh) &&
+            EntityManager.GetComponentData<NetCompositionMeshData>(mesh).m_Width >= 32f;
+
+        private bool IsDeadEndMesh(Entity mesh) => mesh != Entity.Null && EntityManager.HasComponent<NetCompositionMeshData>(mesh) &&
+            (EntityManager.GetComponentData<NetCompositionMeshData>(mesh).m_Flags.m_General & CompositionFlags.General.DeadEnd) != 0;
 
         private void AddAlleyCompositionMesh(Entity composition, HashSet<Entity> meshes)
         {
@@ -204,6 +228,8 @@ namespace Advanced_Graphics
         }
     }
 }
+
+
 
 
 

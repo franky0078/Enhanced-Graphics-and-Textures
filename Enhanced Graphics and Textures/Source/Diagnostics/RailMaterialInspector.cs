@@ -28,7 +28,12 @@ namespace Advanced_Graphics
 
         protected override void OnUpdate()
         {
-            if (!Mod.DebugBackendEnabled) return;
+            if (!Mod.DebugBackendEnabled)
+            {
+                m_ProbeRequested = m_Requested = false;
+                if (m_ProbeActive) RestoreNow();
+                return;
+            }
             if (m_ProbeRequested)
             {
                 m_ProbeRequested = false;
@@ -223,4 +228,5 @@ namespace Advanced_Graphics
         }
     }
 }
+
 
