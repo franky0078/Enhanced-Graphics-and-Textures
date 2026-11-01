@@ -105,7 +105,6 @@ namespace Advanced_Graphics
         public bool ShowGraphicsAppButton { get; set; } = true;
 
         // Debug tools live in their own in-game window; this is the only switch in the options.
-        // Off: every diagnostic (atlas colours, junction marking, rail probe, dumps) is inactive.
         private bool m_ShowDebugWindow;
         [SettingsUISection(MainSection, LauncherGroup)]
         [SettingsUIHideByCondition(typeof(Setting), nameof(HideDebugWindowOption))]
@@ -139,7 +138,6 @@ namespace Advanced_Graphics
         }
 
         // Legacy Lumina fix is no longer registered in the frontend.
-        // Restore SettingsUISection(MainSection, LauncherGroup) when re-enabling it.
         [SettingsUIHidden]
         public bool LuminaNumberFix { get; set; } = false;
 
@@ -555,6 +553,22 @@ namespace Advanced_Graphics
         public int RoadCrackWidthPercent { get; set; }
 
         [SettingsUISection(RoadSection, RoadCrackGroup)]
+        [SettingsUISlider(min = 0, max = MaxTextureDepthStrength, step = 25, scalarMultiplier = 1)]
+        public int RoadCrackDepthStrengthPercent { get; set; } = 100;
+
+        [SettingsUISection(RoadSection, RoadCrackGroup)]
+        [SettingsUISlider(min = 0, max = 360, step = 1, scalarMultiplier = 1)]
+        public int RoadCrackRotation { get; set; }
+
+        [SettingsUISection(RoadSection, RoadCrackGroup)]
+        [SettingsUISlider(min = 0, max = MaxTextureUvOffset, step = 1, scalarMultiplier = 1)]
+        public int RoadCrackOffsetX { get; set; }
+
+        [SettingsUISection(RoadSection, RoadCrackGroup)]
+        [SettingsUISlider(min = 0, max = MaxTextureUvOffset, step = 1, scalarMultiplier = 1)]
+        public int RoadCrackOffsetY { get; set; }
+
+        [SettingsUISection(RoadSection, RoadCrackGroup)]
         [SettingsUISlider(min = 0, max = MaxRoadCrackOpacity, step = 10, scalarMultiplier = 1)]
         public int RoadCrackOpacityPercent { get; set; }
 
@@ -584,6 +598,8 @@ namespace Advanced_Graphics
                 RoadCrackSizePercent = 100;
                 RoadCrackWidthPercent = 100;
                 RoadCrackOpacityPercent = 100;
+                RoadCrackDepthStrengthPercent = 100;
+                RoadCrackRotation = RoadCrackOffsetX = RoadCrackOffsetY = 0;
                 RoadCrackRandomnessPercent = 50;
                 RoadTextureTiling = 1;
                 ParkingTextureScaleFactor = 1f;
@@ -791,6 +807,22 @@ namespace Advanced_Graphics
         public int SidewalkCrackWidthPercent { get; set; }
 
         [SettingsUISection(SidewalkSection, SidewalkCrackGroup)]
+        [SettingsUISlider(min = 0, max = MaxTextureDepthStrength, step = 25, scalarMultiplier = 1)]
+        public int SidewalkCrackDepthStrengthPercent { get; set; } = 100;
+
+        [SettingsUISection(SidewalkSection, SidewalkCrackGroup)]
+        [SettingsUISlider(min = 0, max = 360, step = 1, scalarMultiplier = 1)]
+        public int SidewalkCrackRotation { get; set; } = 0;
+
+        [SettingsUISection(SidewalkSection, SidewalkCrackGroup)]
+        [SettingsUISlider(min = 0, max = MaxTextureUvOffset, step = 1, scalarMultiplier = 1)]
+        public int SidewalkCrackOffsetX { get; set; } = 0;
+
+        [SettingsUISection(SidewalkSection, SidewalkCrackGroup)]
+        [SettingsUISlider(min = 0, max = MaxTextureUvOffset, step = 1, scalarMultiplier = 1)]
+        public int SidewalkCrackOffsetY { get; set; } = 0;
+
+        [SettingsUISection(SidewalkSection, SidewalkCrackGroup)]
         [SettingsUISlider(min = 0, max = 200, step = 10, scalarMultiplier = 1)]
         public int SidewalkCrackOpacityPercent { get; set; }
 
@@ -885,6 +917,22 @@ namespace Advanced_Graphics
         [SettingsUISection(AlleySidewalkSection, AlleySidewalkCrackGroup)]
         [SettingsUISlider(min = 25, max = 400, step = 25, scalarMultiplier = 1)]
         public int AlleySidewalkCrackWidthPercent { get; set; }
+
+        [SettingsUISection(AlleySidewalkSection, AlleySidewalkCrackGroup)]
+        [SettingsUISlider(min = 0, max = MaxTextureDepthStrength, step = 25, scalarMultiplier = 1)]
+        public int AlleySidewalkCrackDepthStrengthPercent { get; set; } = 100;
+
+        [SettingsUISection(AlleySidewalkSection, AlleySidewalkCrackGroup)]
+        [SettingsUISlider(min = 0, max = 360, step = 1, scalarMultiplier = 1)]
+        public int AlleySidewalkCrackRotation { get; set; } = 0;
+
+        [SettingsUISection(AlleySidewalkSection, AlleySidewalkCrackGroup)]
+        [SettingsUISlider(min = 0, max = MaxTextureUvOffset, step = 1, scalarMultiplier = 1)]
+        public int AlleySidewalkCrackOffsetX { get; set; } = 0;
+
+        [SettingsUISection(AlleySidewalkSection, AlleySidewalkCrackGroup)]
+        [SettingsUISlider(min = 0, max = MaxTextureUvOffset, step = 1, scalarMultiplier = 1)]
+        public int AlleySidewalkCrackOffsetY { get; set; } = 0;
 
         [SettingsUISection(AlleySidewalkSection, AlleySidewalkCrackGroup)]
         [SettingsUISlider(min = 0, max = 200, step = 10, scalarMultiplier = 1)]
@@ -985,6 +1033,8 @@ namespace Advanced_Graphics
             RoadCrackSizePercent = 100;
             RoadCrackWidthPercent = 100;
             RoadCrackOpacityPercent = 100;
+            RoadCrackDepthStrengthPercent = 100;
+            RoadCrackRotation = RoadCrackOffsetX = RoadCrackOffsetY = 0;
             RoadCrackRandomnessPercent = 50;
             ShowAppButton = true;
             ShowGraphicsAppButton = true;
@@ -1024,6 +1074,8 @@ namespace Advanced_Graphics
             SidewalkUvSizePercent = 100;
             SidewalkDepthStrengthPercent = 0;
             SidewalkUvOffsetX = SidewalkUvOffsetY = SidewalkUvRotation = 0;
+            SidewalkCrackDepthStrengthPercent = 100;
+            SidewalkCrackRotation = SidewalkCrackOffsetX = SidewalkCrackOffsetY = 0;
             SidewalkCrackCount = 0;
             SidewalkCrackSizePercent = SidewalkCrackWidthPercent = SidewalkCrackOpacityPercent = 100;
             SidewalkCrackRandomnessPercent = 50;
@@ -1042,6 +1094,8 @@ namespace Advanced_Graphics
             AlleySidewalkUvSizePercent = 100;
             AlleySidewalkDepthStrengthPercent = 0;
             AlleySidewalkUvOffsetX = AlleySidewalkUvOffsetY = AlleySidewalkUvRotation = 0;
+            AlleySidewalkCrackDepthStrengthPercent = 100;
+            AlleySidewalkCrackRotation = AlleySidewalkCrackOffsetX = AlleySidewalkCrackOffsetY = 0;
             AlleySidewalkCrackCount = 0;
             AlleySidewalkCrackSizePercent = AlleySidewalkCrackWidthPercent = AlleySidewalkCrackOpacityPercent = 100;
             AlleySidewalkCrackRandomnessPercent = 50;
@@ -1154,15 +1208,19 @@ namespace Advanced_Graphics
             Mod.RoadAsphalt?.Configure(RoadAsphaltEnabled, RoadAsphaltDetail, RoadAsphaltDetail == 2 ? RoadTextureSource.Custom : RoadTextureSource.Generated,
                 RoadUvSizePercent, RoadDepthStrengthPercent, RoadTextureTiling,
                 RoadUvOffsetX, RoadUvOffsetY, RoadUvRotation, RoadCrackCount, RoadCrackSizePercent,
-                RoadCrackWidthPercent, RoadCrackOpacityPercent, RoadCrackRandomnessPercent, RoadFilterColor, RoadFilterOpacityPercent, UseCustomRoadCracks);
+                RoadCrackWidthPercent, RoadCrackOpacityPercent, RoadCrackRandomnessPercent, RoadFilterColor, RoadFilterOpacityPercent, UseCustomRoadCracks, RoadCrackDepthStrengthPercent, RoadCrackRotation, RoadCrackOffsetX, RoadCrackOffsetY);
             Mod.Sidewalk?.Configure(SidewalkEnabled, SidewalkDetail, SidewalkDetail == 2 ? RoadTextureSource.Custom : RoadTextureSource.Generated,
                 SidewalkUvSizePercent, SidewalkDepthStrengthPercent, SidewalkTextureTiling,
                 SidewalkUvOffsetX, SidewalkUvOffsetY, SidewalkUvRotation, SidewalkCrackCount, SidewalkCrackSizePercent,
-                SidewalkCrackWidthPercent, SidewalkCrackOpacityPercent, SidewalkCrackRandomnessPercent, SidewalkFilterColor, SidewalkFilterOpacityPercent);
+                SidewalkCrackWidthPercent, SidewalkCrackOpacityPercent, SidewalkCrackRandomnessPercent, SidewalkFilterColor, SidewalkFilterOpacityPercent,
+                crackDepth: SidewalkCrackDepthStrengthPercent, crackRotation: SidewalkCrackRotation,
+                crackOffsetX: SidewalkCrackOffsetX, crackOffsetY: SidewalkCrackOffsetY);
             Mod.AlleySidewalk?.Configure(AlleySidewalkEnabled, AlleySidewalkDetail, AlleySidewalkDetail == 2 ? RoadTextureSource.Custom : RoadTextureSource.Generated,
                 AlleySidewalkUvSizePercent, AlleySidewalkDepthStrengthPercent, AlleySidewalkTextureTiling,
                 AlleySidewalkUvOffsetX, AlleySidewalkUvOffsetY, AlleySidewalkUvRotation, AlleySidewalkCrackCount, AlleySidewalkCrackSizePercent,
-                AlleySidewalkCrackWidthPercent, AlleySidewalkCrackOpacityPercent, AlleySidewalkCrackRandomnessPercent, AlleySidewalkFilterColor, AlleySidewalkFilterOpacityPercent);
+                AlleySidewalkCrackWidthPercent, AlleySidewalkCrackOpacityPercent, AlleySidewalkCrackRandomnessPercent, AlleySidewalkFilterColor, AlleySidewalkFilterOpacityPercent,
+                crackDepth: AlleySidewalkCrackDepthStrengthPercent, crackRotation: AlleySidewalkCrackRotation,
+                crackOffsetX: AlleySidewalkCrackOffsetX, crackOffsetY: AlleySidewalkCrackOffsetY);
             Mod.AlleySidewalkAtlas?.Configure(AlleySidewalkEnabled &&
                 (AlleySidewalkDetail != 0 || AlleySidewalkUvSizePercent != 100 || AlleySidewalkDepthStrengthPercent != 0 ||
                  AlleySidewalkUvOffsetX != 0 || AlleySidewalkUvOffsetY != 0 || AlleySidewalkUvRotation != 0 || AlleySidewalkCrackCount != 0 || TextureColorFilter.IsActive(AlleySidewalkFilterColor, AlleySidewalkFilterOpacityPercent)), false);

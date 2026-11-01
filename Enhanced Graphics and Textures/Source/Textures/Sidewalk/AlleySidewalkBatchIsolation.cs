@@ -36,6 +36,30 @@ namespace Advanced_Graphics
                 ? IsAlleyAtlas && !RoadBuilderSurfaceCompatibility.HasParkingLanes(prefab)
                 : IsTargetRoad(prefab.name));
 
+        internal void RefreshWorldspaceBindings()
+        {
+            foreach (var pair in m_AlleyMaterialCopies)
+                CopyWorldspaceBindings(pair.Key, pair.Value);
+            // Endcaps inherit from the isolated copies, so update them second.
+            foreach (var pair in m_EndcapMaterials)
+                CopyWorldspaceBindings(pair.Key.Item1, pair.Value);
+        }
+
+        private static void CopyWorldspaceBindings(Material source, Material target)
+        {
+            if (source == null || target == null) return;
+            CopyWorldspaceSlot(source, target, "_WorldspaceAlbedo");
+            CopyWorldspaceSlot(source, target, "_WorldspaceNormalMap");
+        }
+
+        private static void CopyWorldspaceSlot(Material source, Material target, string slot)
+        {
+            if (!source.HasProperty(slot) || !target.HasProperty(slot)) return;
+            target.SetTexture(slot, source.GetTexture(slot));
+            target.SetTextureScale(slot, source.GetTextureScale(slot));
+            target.SetTextureOffset(slot, source.GetTextureOffset(slot));
+        }
+
         protected void BeginIsolatedMaterials() => m_AlleyCurrentMaterialSources.Clear();
 
         protected void PrepareIsolatedAlleyMaterial(Material original, Texture2D color, Texture2D normal, bool virtualTexturing)

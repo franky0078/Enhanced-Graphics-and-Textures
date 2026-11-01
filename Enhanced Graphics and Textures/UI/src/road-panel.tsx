@@ -1,7 +1,7 @@
 import React from "react";
 import { bindValue, trigger, useValue } from "cs2/api";
 import { useLocalization } from "cs2/l10n";
-import { Tooltip } from "cs2/ui";
+import { Scrollable, Tooltip } from "cs2/ui";
 import styles from "./road-panel.module.scss";
 
 const group = "Advanced_Graphics";
@@ -20,10 +20,10 @@ type Surface = "road" | "sidewalk" | "alley" | "rail" | "gravel" | "shoulder" | 
 const triggers: Record<Surface, string> = { footpath: "setFootpathSetting", grass: "setGrassSetting", road: "setRoadSetting", sidewalk: "setSidewalkSetting", alley: "setAlleySidewalkSetting", rail: "setRailSetting", gravel: "setGravelSetting", shoulder: "setShoulderSetting" };
 const prefixes: Record<Surface, string> = { footpath: "Footpath", grass: "Grass", road: "", sidewalk: "Sidewalk", alley: "AlleySidewalk", rail: "RailGravel", gravel: "RoadGravel", shoulder: "GravelShoulder" };
 type Key = "largeEndcapU" | "largeEndcapV" | "roadEndU" | "roadEndV" | "alleyEndcapU" | "alleyEndcapV" | "parkingEndcapU" | "parkingEndcapV" | "endcapU" | "endcapV" | "detail" | "uv" | "depth" | "tiling" | "parkingScale" | "parkingDepth" | "parkingSidewalkU" | "parkingSidewalkV" | "shiftU" | "shiftV" | "mipBias" | "offsetX" | "offsetY" |
-    "rotation" | "cracks" | "crackSize" | "crackWidth" | "crackOpacity" | "randomness";
+    "rotation" | "cracks" | "crackSize" | "crackWidth" | "crackOpacity" | "crackDepth" | "crackRotation" | "crackOffsetX" | "crackOffsetY" | "randomness";
 type State = Record<Key, number> & { show: boolean; enabled: boolean; filterColor: number; filterOpacity: number; probe?: boolean; customCracks?: boolean; crackStatus?: number };
 const initial: State = { show: true, enabled: false, filterColor: 0xffffff, filterOpacity: 100, detail: 0, uv: 100, depth: 0,
-    largeEndcapU: 1, largeEndcapV: 1, roadEndU: 1, roadEndV: 1, alleyEndcapU: 1, alleyEndcapV: 1, parkingEndcapU: 1, parkingEndcapV: 1, endcapU: 1, endcapV: 1, tiling: 1, parkingScale: 1, parkingDepth: 1, parkingSidewalkU: 1, parkingSidewalkV: 1, shiftU: 0, shiftV: 0, mipBias: 0, offsetX: 0, offsetY: 0, rotation: 0, cracks: 0, crackSize: 100, crackWidth: 100, crackOpacity: 100, randomness: 50 };
+    largeEndcapU: 1, largeEndcapV: 1, roadEndU: 1, roadEndV: 1, alleyEndcapU: 1, alleyEndcapV: 1, parkingEndcapU: 1, parkingEndcapV: 1, endcapU: 1, endcapV: 1, tiling: 1, parkingScale: 1, parkingDepth: 1, parkingSidewalkU: 1, parkingSidewalkV: 1, shiftU: 0, shiftV: 0, mipBias: 0, offsetX: 0, offsetY: 0, rotation: 0, cracks: 0, crackSize: 100, crackWidth: 100, crackOpacity: 100, crackDepth: 100, crackRotation: 0, crackOffsetX: 0, crackOffsetY: 0, randomness: 50 };
 
 const controls: { key: Key; label: string; min: number; max: number; step: number }[] = [
     { key: "detail", label: "Detail", min: 0, max: 2, step: 1 },
@@ -37,6 +37,10 @@ const controls: { key: Key; label: string; min: number; max: number; step: numbe
     { key: "cracks", label: "Cracks", min: 0, max: 400, step: 10 },
     { key: "crackSize", label: "CrackSize", min: 25, max: 600, step: 25 },
     { key: "crackWidth", label: "CrackWidth", min: 25, max: 400, step: 25 },
+    { key: "crackOffsetX", label: "CrackOffsetX", min: 0, max: 300, step: 1 },
+    { key: "crackOffsetY", label: "CrackOffsetY", min: 0, max: 300, step: 1 },
+    { key: "crackRotation", label: "CrackRotation", min: 0, max: 360, step: 1 },
+    { key: "crackDepth", label: "CrackDepth", min: 0, max: 3000, step: 25 },
     { key: "crackOpacity", label: "CrackOpacity", min: 0, max: 200, step: 10 },
     { key: "randomness", label: "Randomness", min: 0, max: 100, step: 10 },
     { key: "tiling", label: "Tiling", min: 0.1, max: 8, step: 0.05 },
@@ -231,8 +235,8 @@ export function RoadPanel({ panelClass }: { panelClass: string }) {
         const move = (event: MouseEvent) => {
             if (!drag.current) return;
             setPosition({
-                x: Math.max(8, Math.min(window.innerWidth - 410, drag.current.left + event.clientX - drag.current.x)),
-                y: Math.max(8, Math.min(window.innerHeight - 120, drag.current.top + event.clientY - drag.current.y)),
+                x: Math.max(8, Math.min(window.innerWidth - (mainPanelRef.current?.getBoundingClientRect().width || 410) - 8, drag.current.left + event.clientX - drag.current.x)),
+                y: Math.max(8, Math.min(window.innerHeight - (mainPanelRef.current?.getBoundingClientRect().height || 120) - 8, drag.current.top + event.clientY - drag.current.y)),
             });
         };
         const up = () => { drag.current = null; };
@@ -276,7 +280,7 @@ export function RoadPanel({ panelClass }: { panelClass: string }) {
             </svg>
         </button>
         </Tooltip>
-        {open && <div ref={mainPanelRef} className={`${panelClass} ${styles.panel}`}
+        {open && <div ref={mainPanelRef} className={`${panelClass} ${styles.panel} ${styles.texturePanel}`}
             style={{ left: `${position.x}px`, top: `${position.y}px` }}>
             <div className={styles.header} onMouseDown={event => {
                 if ((event.target as HTMLElement).closest("button")) return;
@@ -299,7 +303,7 @@ export function RoadPanel({ panelClass }: { panelClass: string }) {
                     <button className={styles.close} onClick={() => setOpen(false)} title={text("Close", "Close")}>×</button>
                 </div>
             </div>
-            <div className={styles.body}>
+            <div className={styles.textureTabs}>
                 <div className={styles.surfaceTabs}>
                     {surfaces.filter(key => values[key].show).map(key => <div key={key} className={styles.tabGroup}>
                         <button className={surface === key ? styles.selectedTab : ""} onClick={() => { flushPending(); setDraft(values[key]); setSurface(key); }}>{titles[key]}</button>
@@ -316,6 +320,9 @@ export function RoadPanel({ panelClass }: { panelClass: string }) {
                         </Tooltip>
                     </div>)}
                 </div>
+            </div>
+            <Scrollable key={surface} className={styles.textureScroll} vertical horizontal={false} trackVisibility="scrollable">
+                <div className={styles.textureContent}>
                 <button type="button" className={styles.moduleToggle} role="checkbox" aria-checked={draft.enabled}
                     title={text(`${prefix}TipEnabled`, "Enable surface adjustments")}
                     onClick={() => {
@@ -329,7 +336,7 @@ export function RoadPanel({ panelClass }: { panelClass: string }) {
                     </span>
                     <span>{text(`${prefix}Enabled`, "Enable surface adjustments")}</span>
                 </button>
-                {controls.filter(control => (control.key === "parkingScale" || control.key === "parkingDepth") ? surface === "road" :
+                {controls.filter(control => (control.key === "crackDepth" || control.key === "crackRotation" || control.key === "crackOffsetX" || control.key === "crackOffsetY") ? (surface === "road" || surface === "sidewalk" || surface === "alley") : (control.key === "parkingScale" || control.key === "parkingDepth") ? surface === "road" :
                     (control.key === "parkingSidewalkU" || control.key === "parkingSidewalkV" || control.key === "shiftU" || control.key === "shiftV") ? surface === "sidewalk" :
                     (surface === "footpath" || surface === "grass" || surface === "shoulder" || surface === "rail" || surface === "gravel") ? ["detail", "uv", "depth", "offsetX", "offsetY", "rotation"].includes(control.key) : true).map(control => (surface === "footpath" || surface === "sidewalk") && control.key === "uv" ? { ...control, min: 10, step: 5 } : surface === "road" ? { ...control, max: ({ cracks: 1200, crackSize: 1800, crackWidth: 1200, crackOpacity: 600 } as Partial<Record<Key, number>>)[control.key] ?? control.max } : control).map((control, index) => <React.Fragment key={`${surface}:${control.key}`}>
                     {(index === 1 || control.key === "cracks" || control.key === "parkingSidewalkU") && <div className={styles.separator} />}
@@ -352,18 +359,23 @@ export function RoadPanel({ panelClass }: { panelClass: string }) {
                     onChange={(next, dragging) => set(control.key, next, dragging)} onCommit={flushPending} />
                 </React.Fragment>)}
                 {draft.detail === 2 && <p className={styles.textureHint}>{text(`CustomFiles_${surface}`, "")}</p>}
-                {surface === "gravel" && draft.detail === 2 && <button className={styles.reset} onClick={() => { flushPending(); trigger(group, "reloadGravelTexture", "reload"); }}>{text("RoadGravelReload", "Reload custom texture")}</button>}
-                {surface === "grass" && draft.detail === 2 && <>
-                    <button className={styles.reset} onClick={() => { flushPending(); trigger(group, "reloadGrassTexture", "reload"); }}>{text("GrassReload", "Reload custom grass texture")}</button>
-                </>}
-                {surface === "footpath" && draft.detail === 2 && <>
-                    <button className={styles.reset} onClick={() => { flushPending(); trigger(group, "reloadFootpathTexture", "reload"); }}>{text("FootpathReload", "Reload custom footpath texture")}</button>
-                </>}
-                {surface === "shoulder" && draft.detail === 2 && <button className={styles.reset} onClick={() => { flushPending(); trigger(group, "reloadGravelShoulderTexture", "reload"); }}>{text("RoadGravelReload", "Reload custom texture")}</button>}
+                <div className={styles.textureActions}>
+                    <button type="button" className={styles.reset}
+                        title={text("ReloadSurfaceTextureHint", "Reload this tab's texture and optional normal map without changing its settings.")}
+                        onClick={() => { flushPending(); trigger(group, "reloadSurfaceTexture", surface); }}>
+                        {text("ReloadSurfaceTexture", "Reload texture")}
+                    </button>
+                    <button type="button" className={styles.reset}
+                        title={text("OpenSurfaceTextureFolderHint", "Open this tab's texture folder.")}
+                        onClick={() => { flushPending(); trigger(group, "openSurfaceTextureFolder", surface); }}>
+                        {text("OpenSurfaceTextureFolder", "Open folder")}
+                    </button>
+                </div>
                 {surface === "shoulder" && <p className={styles.textureHint}>{text("GravelShoulderHint", "Adjusts the original gravel road edge atlas.")}</p>}
                 <Tooltip tooltip={text(`${prefix}TipReset`, "Restore surface defaults.")}><button className={styles.reset}
                     onClick={() => { edits.current[surface] = {}; pendingChange.current = null; if (pendingTimer.current !== null) clearTimeout(pendingTimer.current); pendingTimer.current = null; trigger(group, triggers[surface], "reset"); }}>{text("Reset", "Reset")}</button></Tooltip>
-            </div>
+                </div>
+            </Scrollable>
         </div>}
         {open && generalOpen && <TextureGeneralWindow endcapValues={roadValue} endcapKind={surface === "alley" ? "alley" : surface === "road" ? "parking" : "sidewalk"} normalEnabled={normalFlags[["road", "sidewalk", "alley", "gravel", "shoulder", "rail", "grass", "footpath"].indexOf(surface)] === "1"} surfaceTitle={titles[surface]}
             onNormalChange={enabled => { flushPending(); trigger(group, "setNormalMapEnabled", `${surface}:${enabled ? 1 : 0}`); }} mipBias={roadValue.mipBias} text={text} panelClass={panelClass}

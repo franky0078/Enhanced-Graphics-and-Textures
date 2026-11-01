@@ -179,3 +179,16 @@
 
 
 
+
+// The texture editor keeps its header and surface tabs visible while settings scroll.
+.panel.texturePanel {
+    height: 66vh;
+    max-height: 66vh !important;
+}
+.textureTabs { flex: 0 0 auto; padding: 9rem 13rem 0; }
+.textureScroll { flex: 1 1 0; min-height: 0; }
+.textureContent { padding: 0 13rem 18rem; }
+
+.textureActions { display: flex; flex-direction: row; margin-top: 8rem; }
+.textureActions .reset { flex: 1 1 0; width: 0; min-width: 0; margin-top: 0; padding: 7rem 5rem; }
+.textureActions .reset + .reset { margin-left: 8rem; }

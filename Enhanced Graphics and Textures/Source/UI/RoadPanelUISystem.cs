@@ -42,9 +42,53 @@ namespace Advanced_Graphics
             m_SaveAt = UnityEngine.Time.unscaledTime + 0.6f;
         }
 
+        private static void TextureFileAction(string surface, bool openFolder)
+        {
+            var s = Mod.ActiveSetting;
+            if (s == null) return;
+            // Map tab IDs to existing actions; never accept a path from the UI.
+            switch (surface)
+            {
+                case "road":
+                    if (openFolder) s.OpenRoadTextureFolder = true;
+                    else s.ReloadRoadTexture = true;
+                    break;
+                case "sidewalk":
+                    if (openFolder) s.OpenSidewalkTextureFolder = true;
+                    else s.ReloadSidewalkTexture = true;
+                    break;
+                case "alley":
+                    if (openFolder) s.OpenAlleySidewalkTextureFolder = true;
+                    else s.ReloadAlleySidewalkTexture = true;
+                    break;
+                case "footpath":
+                    if (openFolder) s.OpenFootpathTextureFolder = true;
+                    else s.ReloadFootpathTexture = true;
+                    break;
+                case "grass":
+                    if (openFolder) s.OpenGrassTextureFolder = true;
+                    else s.ReloadGrassTexture = true;
+                    break;
+                case "gravel":
+                    if (openFolder) s.OpenGravelTextureFolder = true;
+                    else s.ReloadGravelTexture = true;
+                    break;
+                case "shoulder":
+                    if (openFolder) s.OpenGravelShoulderTextureFolder = true;
+                    else s.ReloadGravelShoulderTexture = true;
+                    break;
+                case "rail":
+                    if (openFolder) s.OpenRailTextureFolder = true;
+                    else s.ReloadRailTexture = true;
+                    break;
+            }
+        }
+
         protected override void OnCreate()
         {
             base.OnCreate();
+            AddBinding(new TriggerBinding<string>(Group, "reloadSurfaceTexture", surface => TextureFileAction(surface, false)));
+            AddBinding(new TriggerBinding<string>(Group, "openSurfaceTextureFolder", surface => TextureFileAction(surface, true)));
             AddUpdateBinding(new GetterValueBinding<string>(Group, "normalMapFlags", () =>
                 string.Join(",", new[] { "road", "sidewalk", "alley", "gravel", "shoulder", "rail", "grass", "footpath" }
                     .Select(key => Mod.ActiveSetting?.GetCustomNormalEnabled(key) == true ? "1" : "0"))));
@@ -86,8 +130,6 @@ namespace Advanced_Graphics
 
         protected override void OnUpdate()
         {
-            // Service queued native/options edits even when the camera render system is inactive.
-            // This system runs whenever the in-game settings bindings are updated; no open window required.
             Mod.ActiveSetting?.ProcessPendingApply();
             m_State = BuildState(Mod.ActiveSetting);
             m_SidewalkState = BuildSidewalkState(Mod.ActiveSetting);
@@ -204,6 +246,10 @@ namespace Advanced_Graphics
                 ",\"cracks\":" + s.RoadCrackCount +
                 ",\"crackSize\":" + s.RoadCrackSizePercent +
                 ",\"crackWidth\":" + s.RoadCrackWidthPercent +
+                ",\"crackOffsetX\":" + s.RoadCrackOffsetX +
+                ",\"crackOffsetY\":" + s.RoadCrackOffsetY +
+                ",\"crackRotation\":" + s.RoadCrackRotation +
+                ",\"crackDepth\":" + s.RoadCrackDepthStrengthPercent +
                 ",\"crackOpacity\":" + s.RoadCrackOpacityPercent +
                 ",\"randomness\":" + s.RoadCrackRandomnessPercent + "}";
         }
@@ -227,6 +273,10 @@ namespace Advanced_Graphics
                 ",\"cracks\":" + s.SidewalkCrackCount +
                 ",\"crackSize\":" + s.SidewalkCrackSizePercent +
                 ",\"crackWidth\":" + s.SidewalkCrackWidthPercent +
+                ",\"crackDepth\":" + s.SidewalkCrackDepthStrengthPercent +
+                ",\"crackRotation\":" + s.SidewalkCrackRotation +
+                ",\"crackOffsetX\":" + s.SidewalkCrackOffsetX +
+                ",\"crackOffsetY\":" + s.SidewalkCrackOffsetY +
                 ",\"crackOpacity\":" + s.SidewalkCrackOpacityPercent +
                 ",\"randomness\":" + s.SidewalkCrackRandomnessPercent + "}";
         }
@@ -246,6 +296,10 @@ namespace Advanced_Graphics
                 ",\"cracks\":" + s.AlleySidewalkCrackCount +
                 ",\"crackSize\":" + s.AlleySidewalkCrackSizePercent +
                 ",\"crackWidth\":" + s.AlleySidewalkCrackWidthPercent +
+                ",\"crackDepth\":" + s.AlleySidewalkCrackDepthStrengthPercent +
+                ",\"crackRotation\":" + s.AlleySidewalkCrackRotation +
+                ",\"crackOffsetX\":" + s.AlleySidewalkCrackOffsetX +
+                ",\"crackOffsetY\":" + s.AlleySidewalkCrackOffsetY +
                 ",\"crackOpacity\":" + s.AlleySidewalkCrackOpacityPercent +
                 ",\"randomness\":" + s.AlleySidewalkCrackRandomnessPercent + "}";
         }
@@ -458,6 +512,10 @@ namespace Advanced_Graphics
                         case "cracks": s.SidewalkCrackCount = Clamp(value, 0, 400); break;
                         case "crackSize": s.SidewalkCrackSizePercent = Clamp(value, 25, 600); break;
                         case "crackWidth": s.SidewalkCrackWidthPercent = Clamp(value, 25, 400); break;
+                        case "crackDepth": s.SidewalkCrackDepthStrengthPercent = Clamp(value, 0, Setting.MaxTextureDepthStrength); break;
+                        case "crackRotation": s.SidewalkCrackRotation = Clamp(value, 0, 360); break;
+                        case "crackOffsetX": s.SidewalkCrackOffsetX = Clamp(value, 0, Setting.MaxTextureUvOffset); break;
+                        case "crackOffsetY": s.SidewalkCrackOffsetY = Clamp(value, 0, Setting.MaxTextureUvOffset); break;
                         case "crackOpacity": s.SidewalkCrackOpacityPercent = Clamp(value, 0, 200); break;
                         case "randomness": s.SidewalkCrackRandomnessPercent = Clamp(value, 0, 100); break;
                         default: return;
@@ -501,6 +559,10 @@ namespace Advanced_Graphics
                         case "cracks": s.AlleySidewalkCrackCount = Clamp(value, 0, 400); break;
                         case "crackSize": s.AlleySidewalkCrackSizePercent = Clamp(value, 25, 600); break;
                         case "crackWidth": s.AlleySidewalkCrackWidthPercent = Clamp(value, 25, 400); break;
+                        case "crackDepth": s.AlleySidewalkCrackDepthStrengthPercent = Clamp(value, 0, Setting.MaxTextureDepthStrength); break;
+                        case "crackRotation": s.AlleySidewalkCrackRotation = Clamp(value, 0, 360); break;
+                        case "crackOffsetX": s.AlleySidewalkCrackOffsetX = Clamp(value, 0, Setting.MaxTextureUvOffset); break;
+                        case "crackOffsetY": s.AlleySidewalkCrackOffsetY = Clamp(value, 0, Setting.MaxTextureUvOffset); break;
                         case "crackOpacity": s.AlleySidewalkCrackOpacityPercent = Clamp(value, 0, 200); break;
                         case "randomness": s.AlleySidewalkCrackRandomnessPercent = Clamp(value, 0, 100); break;
                         default: return;
@@ -552,6 +614,10 @@ namespace Advanced_Graphics
                 case "cracks": s.RoadCrackCount = Clamp(value, 0, Setting.MaxRoadCrackCount); break;
                 case "crackSize": s.RoadCrackSizePercent = Clamp(value, 25, Setting.MaxRoadCrackSize); break;
                 case "crackWidth": s.RoadCrackWidthPercent = Clamp(value, 25, Setting.MaxRoadCrackWidth); break;
+                case "crackOffsetX": s.RoadCrackOffsetX = Clamp(value, 0, Setting.MaxTextureUvOffset); break;
+                case "crackOffsetY": s.RoadCrackOffsetY = Clamp(value, 0, Setting.MaxTextureUvOffset); break;
+                case "crackRotation": s.RoadCrackRotation = Clamp(value, 0, 360); break;
+                case "crackDepth": s.RoadCrackDepthStrengthPercent = Clamp(value, 0, Setting.MaxTextureDepthStrength); break;
                 case "crackOpacity": s.RoadCrackOpacityPercent = Clamp(value, 0, Setting.MaxRoadCrackOpacity); break;
                 case "randomness": s.RoadCrackRandomnessPercent = Clamp(value, 0, 100); break;
                 default: return;

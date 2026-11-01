@@ -13,17 +13,11 @@ namespace Advanced_Graphics
         private const string ParkingNormalPrefix = "ParkingLane7_Normal_";
         private const string ParkingColorSlot = "_BaseColorMap";
         private const string ParkingNormalSlot = "_NormalMap";
-
         private const int ReferenceWidth = 2048;
         private const int ParkingEnd = 482;
         private const int SidewalkStart = 516;
         private const int SidewalkEnd = 942;
         private const int AsphaltRepeatsPerAtlas = 8;
-        // Sidewalk tiles in metres, measured from the game meshes (debug "sidewalk scale report"):
-        // RoadEU sidewalk pieces use 64 atlas px (of 1024) per metre and V 1/32 per metre, and our RoadEU
-        // fill puts one detail tile across the 441 px strip -> one tile = 6.89 m square. Parking pieces
-        // (ParkingLane9/Angled9) use 385 px for 9 m and V 0.0326 per metre. With the old fixed 8 repeats a
-        // parking tile was 3.0 x 3.8 m: smaller than on the other side of the road.
         private const float SidewalkTileMetres = 441f / 64f;
         private const float ParkingUPerMetre = 385f / 1024f / 9f;
         private const float ParkingVPerMetre = 0.0326f;
@@ -235,6 +229,8 @@ namespace Advanced_Graphics
                             replacement.r = (byte)Mathf.Clamp((normal.x * 0.5f + 0.5f) * 255f, 0f, 255f);
                             replacement.g = (byte)Mathf.Clamp((normal.y * 0.5f + 0.5f) * 255f, 0f, 255f);
                         }
+                        // Stabilize after the parking depth multiplier, before converting RGB to AG.
+                        replacement = RoadNormalEncoding.Stabilize(replacement);
                         // Match the existing RoadEU atlas's packed normal channels.
                         replacement.a = replacement.r;
                         replacement.r = original.r;

@@ -15,7 +15,7 @@ namespace Advanced_Graphics
 
         private double[] ReadRoadCrackSliders() => new double[] {
             RoadCrackCount, RoadCrackSizePercent, RoadCrackWidthPercent,
-            RoadCrackOpacityPercent, RoadCrackRandomnessPercent, RoadTextureTiling };
+            RoadCrackOpacityPercent, RoadCrackRandomnessPercent, RoadTextureTiling, RoadCrackDepthStrengthPercent, RoadCrackRotation, RoadCrackOffsetX, RoadCrackOffsetY };
 
         private void WriteRoadCrackSliders(double[] values)
         {
@@ -25,6 +25,10 @@ namespace Advanced_Graphics
             RoadCrackOpacityPercent = (int)values[3];
             RoadCrackRandomnessPercent = (int)values[4];
             RoadTextureTiling = (float)values[5];
+            RoadCrackDepthStrengthPercent = (int)values[6];
+            RoadCrackRotation = (int)values[7];
+            RoadCrackOffsetX = (int)values[8];
+            RoadCrackOffsetY = (int)values[9];
         }
 
         private void EnsureRoadCrackProfiles()
@@ -36,19 +40,23 @@ namespace Advanced_Graphics
             for (int source = 0; source < 2; source++)
             {
                 int slot = mode * 2 + source;
-                var values = new double[] { 0, 100, 100, 100, 50, 1 };
+                var values = new double[] { 0, 100, 100, 100, 50, 1, 100, 0, 0, 0 };
                 // Seed generated cracks from existing surface-mode profiles on upgrade.
                 if (source == 0 && m_TextureModeProfiles[0] != null)
-                    Array.Copy(m_TextureModeProfiles[0][mode], 5, values, 0, values.Length);
+                    Array.Copy(m_TextureModeProfiles[0][mode], 5, values, 0, 6);
                 if (encoded.Length == profiles.Length)
                 {
                     var parts = encoded[slot].Split(',');
-                    var parsed = new double[values.Length];
-                    bool valid = parts.Length == parsed.Length;
-                    for (int i = 0; valid && i < parsed.Length; i++)
+                    var parsed = (double[])values.Clone();
+                    // Preserve older profiles; missing depth, rotation and offsets retain defaults.
+                    bool valid = (parts.Length >= 6 && parts.Length <= 8) || parts.Length == parsed.Length;
+                    for (int i = 0; valid && i < parts.Length; i++)
                         valid = double.TryParse(parts[i], NumberStyles.Float, CultureInfo.InvariantCulture, out parsed[i]) &&
                             !double.IsNaN(parsed[i]) && !double.IsInfinity(parsed[i]) &&
-                            IsValidTextureSlider(0, i + 5, parsed[i]);
+                            (i >= 8 ? parsed[i] >= 0 && parsed[i] <= MaxTextureUvOffset :
+                             i == 7 ? parsed[i] >= 0 && parsed[i] <= 360 :
+                             i == 6 ? parsed[i] >= 0 && parsed[i] <= MaxTextureDepthStrength :
+                                IsValidTextureSlider(0, i + 5, parsed[i]));
                     if (valid) values = parsed;
                 }
                 profiles[slot] = values;
@@ -178,7 +186,8 @@ namespace Advanced_Graphics
                 if (encoded.Length != 3) continue;
                 var values = encoded[mode].Split(',');
                 if (values.Length != profiles[mode].Length && !(surface == 0 && (values.Length == 11 || values.Length == 12)) &&
-                    !(surface == 1 && (values.Length == 11 || values.Length == 13))) continue;
+                    !(surface == 1 && (values.Length == 11 || values.Length == 13 || values.Length == 15)) &&
+                    !(surface == 2 && values.Length == 11)) continue;
                 var parsed = DefaultTextureSliders(surface, mode);
                 bool valid = true;
                 for (int i = 0; i < values.Length; i++)
@@ -191,7 +200,7 @@ namespace Advanced_Graphics
                 if (valid)
                 {
                     profiles[mode] = parsed;
-                    if (surface == 1 && mode == GetTextureMode(surface) && values.Length == 15)
+                    if (surface == 1 && mode == GetTextureMode(surface) && values.Length >= 15)
                         savedCurrentShift = true;
                 }
             }
@@ -210,6 +219,13 @@ namespace Advanced_Graphics
 
         private static bool IsValidTextureSlider(int surface, int index, double value)
         {
+            int crackStart = surface == 1 ? 15 : surface == 2 ? 11 : -1;
+            if (crackStart >= 0 && index >= crackStart)
+            {
+                int field = index - crackStart;
+                return value >= 0 && (field == 0 ? value <= MaxTextureDepthStrength :
+                    field == 1 ? value <= 360 : field <= 3 && value <= MaxTextureUvOffset);
+            }
             switch (index)
             {
                 case 0: return value >= (surface == 7 || surface == 1 ? 10 : 50) && value <= MaxTextureUvSize;
@@ -231,13 +247,13 @@ namespace Advanced_Graphics
         private static double[] DefaultTextureSliders(int surface, int mode) => surface == 5 && mode == 1
             ? new double[] { 150, 200, 0, 10, 53 }
             : surface == 1 && mode == 1
-            ? new double[] { 100, 200, 0, 0, 40, 0, 100, 100, 100, 50, 1, 1, 1, 0, 0 }
+            ? new double[] { 100, 200, 0, 0, 40, 0, 100, 100, 100, 50, 1, 1, 1, 0, 0, 100, 0, 0, 0 }
             : surface == 0
             ? new double[] { 100, 0, 0, 0, 0, 0, 100, 100, 100, 50, 1, 1, 1 }
             : surface == 1
-            ? new double[] { 100, 0, 0, 0, 0, 0, 100, 100, 100, 50, 1, 1, 1, 0, 0 }
+            ? new double[] { 100, 0, 0, 0, 0, 0, 100, 100, 100, 50, 1, 1, 1, 0, 0, 100, 0, 0, 0 }
             : surface < 3
-            ? new double[] { 100, 0, 0, 0, 0, 0, 100, 100, 100, 50, 1 }
+            ? new double[] { 100, 0, 0, 0, 0, 0, 100, 100, 100, 50, 1, 100, 0, 0, 0 }
             : new double[] { 100, 0, 0, 0, 0 };
 
         private static string SerializeTextureProfiles(double[][] profiles)
@@ -324,8 +340,8 @@ namespace Advanced_Graphics
             switch (surface)
             {
                 case 0: return new double[] { RoadUvSizePercent, RoadDepthStrengthPercent, RoadUvOffsetX, RoadUvOffsetY, RoadUvRotation, RoadCrackCount, RoadCrackSizePercent, RoadCrackWidthPercent, RoadCrackOpacityPercent, RoadCrackRandomnessPercent, RoadTextureTiling, ParkingTextureScaleFactor, ParkingDepthStrengthFactor };
-                case 1: return new double[] { SidewalkUvSizePercent, SidewalkDepthStrengthPercent, SidewalkUvOffsetX, SidewalkUvOffsetY, SidewalkUvRotation, SidewalkCrackCount, SidewalkCrackSizePercent, SidewalkCrackWidthPercent, SidewalkCrackOpacityPercent, SidewalkCrackRandomnessPercent, SidewalkTextureTiling, ParkingSidewalkScaleU, ParkingSidewalkScaleV, SidewalkShiftU, SidewalkShiftV };
-                case 2: return new double[] { AlleySidewalkUvSizePercent, AlleySidewalkDepthStrengthPercent, AlleySidewalkUvOffsetX, AlleySidewalkUvOffsetY, AlleySidewalkUvRotation, AlleySidewalkCrackCount, AlleySidewalkCrackSizePercent, AlleySidewalkCrackWidthPercent, AlleySidewalkCrackOpacityPercent, AlleySidewalkCrackRandomnessPercent, AlleySidewalkTextureTiling };
+                case 1: return new double[] { SidewalkUvSizePercent, SidewalkDepthStrengthPercent, SidewalkUvOffsetX, SidewalkUvOffsetY, SidewalkUvRotation, SidewalkCrackCount, SidewalkCrackSizePercent, SidewalkCrackWidthPercent, SidewalkCrackOpacityPercent, SidewalkCrackRandomnessPercent, SidewalkTextureTiling, ParkingSidewalkScaleU, ParkingSidewalkScaleV, SidewalkShiftU, SidewalkShiftV, SidewalkCrackDepthStrengthPercent, SidewalkCrackRotation, SidewalkCrackOffsetX, SidewalkCrackOffsetY };
+                case 2: return new double[] { AlleySidewalkUvSizePercent, AlleySidewalkDepthStrengthPercent, AlleySidewalkUvOffsetX, AlleySidewalkUvOffsetY, AlleySidewalkUvRotation, AlleySidewalkCrackCount, AlleySidewalkCrackSizePercent, AlleySidewalkCrackWidthPercent, AlleySidewalkCrackOpacityPercent, AlleySidewalkCrackRandomnessPercent, AlleySidewalkTextureTiling, AlleySidewalkCrackDepthStrengthPercent, AlleySidewalkCrackRotation, AlleySidewalkCrackOffsetX, AlleySidewalkCrackOffsetY };
                 case 3: return new double[] { RoadGravelUvSizePercent, RoadGravelDepthStrengthPercent, RoadGravelUvOffsetX, RoadGravelUvOffsetY, RoadGravelUvRotation };
                 case 4: return new double[] { GravelShoulderUvSizePercent, GravelShoulderDepthStrengthPercent, GravelShoulderUvOffsetX, GravelShoulderUvOffsetY, GravelShoulderUvRotation };
                 case 5: return new double[] { RailGravelUvSizePercent, RailGravelDepthStrengthPercent, RailGravelUvOffsetX, RailGravelUvOffsetY, RailGravelUvRotation };
@@ -370,6 +386,10 @@ namespace Advanced_Graphics
                     ParkingSidewalkScaleV = (float)values[12];
                     SidewalkShiftU = (int)values[13];
                     SidewalkShiftV = (int)values[14];
+                    SidewalkCrackDepthStrengthPercent = (int)values[15];
+                    SidewalkCrackRotation = (int)values[16];
+                    SidewalkCrackOffsetX = (int)values[17];
+                    SidewalkCrackOffsetY = (int)values[18];
                     break;
                 case 2:
                     AlleySidewalkUvSizePercent = (int)values[0];
@@ -383,6 +403,10 @@ namespace Advanced_Graphics
                     AlleySidewalkCrackOpacityPercent = (int)values[8];
                     AlleySidewalkCrackRandomnessPercent = (int)values[9];
                     AlleySidewalkTextureTiling = (float)values[10];
+                    AlleySidewalkCrackDepthStrengthPercent = (int)values[11];
+                    AlleySidewalkCrackRotation = (int)values[12];
+                    AlleySidewalkCrackOffsetX = (int)values[13];
+                    AlleySidewalkCrackOffsetY = (int)values[14];
                     break;
                 case 3:
                     RoadGravelUvSizePercent = (int)values[0];

@@ -141,7 +141,7 @@
 	<AccessLevel Value="Public" />
 	<Tag Value="Code Mod" />
 	
-	<ModVersion Value="1.6.1" />
+	<ModVersion Value="1.6.3" />
 	
 	<!--Existing value retained. Set this to the game version tested locally before publishing.-->
 	<GameVersion Value="1.6.*" />
@@ -149,9 +149,9 @@
 	<ChangeLog>
 		Latest changes:
 
-		- added new sidewalk texture for generated
-		- fix texture tilling for custom sidewalk texture on ends and junctions
-		- added more texture controls for Roads and sidewalks
+		- fix black textures on some road ends
+		- added cracks depth control and uv offset for roads and sidewalks
+		- ui improvements and bug fixes
 
 	</ChangeLog>
 

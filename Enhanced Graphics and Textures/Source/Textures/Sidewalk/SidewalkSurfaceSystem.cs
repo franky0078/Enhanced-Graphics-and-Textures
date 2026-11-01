@@ -28,6 +28,13 @@ namespace Advanced_Graphics
                 TextureColorFilter.Apply(color, 0x8c8a8d, 100);
         }
 
+        protected override void EncodeNormalPixels(Color32[] pixels)
+        {
+            // Keep RGB for the atlas builders, with the same extreme-depth guard as asphalt.
+            for (int i = 0; i < pixels.Length; i++)
+                pixels[i] = RoadNormalEncoding.Stabilize(pixels[i]);
+        }
+
         protected override bool ReuseColorForDepthChanges => false;
         // Bundled generated concrete uses the same atlas sampling as a custom PNG.
         internal bool UsesCustomTexture => CurrentLevel != 0;

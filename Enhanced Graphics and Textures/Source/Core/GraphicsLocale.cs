@@ -16,6 +16,20 @@ namespace Advanced_Graphics
 
         private void AddCustomNormalEntries(Dictionary<string, string> entries)
         {
+            string[] actions;
+            switch (m_Language)
+            {
+                case "de": actions = new[] { "Textur neu laden", "Ordner öffnen", "Lädt die Textur und optionale Normalmap dieses Tabs neu. Die Einstellungen bleiben erhalten.", "Öffnet den Texturordner dieses Tabs." }; break;
+                case "es": actions = new[] { "Recargar textura", "Abrir carpeta", "Recarga la textura y el mapa normal opcional de esta pestaña sin cambiar los ajustes.", "Abre la carpeta de texturas de esta pestaña." }; break;
+                case "fr": actions = new[] { "Recharger la texture", "Ouvrir le dossier", "Recharge la texture et la normal map facultative de cet onglet sans modifier les réglages.", "Ouvre le dossier des textures de cet onglet." }; break;
+                case "it": actions = new[] { "Ricarica texture", "Apri cartella", "Ricarica la texture e la normal map facoltativa di questa scheda senza modificare le impostazioni.", "Apre la cartella delle texture di questa scheda." }; break;
+                default: actions = new[] { "Reload texture", "Open folder", "Reloads this tab's texture and optional normal map without changing its settings.", "Opens this tab's texture folder." }; break;
+            }
+            entries["AdvancedGraphics.UI.ReloadSurfaceTexture"] = actions[0];
+            entries["AdvancedGraphics.UI.OpenSurfaceTextureFolder"] = actions[1];
+            entries["AdvancedGraphics.UI.ReloadSurfaceTextureHint"] = actions[2];
+            entries["AdvancedGraphics.UI.OpenSurfaceTextureFolderHint"] = actions[3];
+
             string hint;
             switch (m_Language)
             {
@@ -423,6 +437,90 @@ namespace Advanced_Graphics
             }
             entries.Add(m_Setting.GetOptionLabelLocaleID(nameof(Setting.RoadCrackWidthPercent)), width[0]);
             entries.Add(m_Setting.GetOptionDescLocaleID(nameof(Setting.RoadCrackWidthPercent)), width[1]);
+            string[] crackOffset;
+            switch (m_Language)
+            {
+                case "de": crackOffset = new[] { "Rissversatz X", "Rissversatz Y", "Verschiebt nur zusätzliche Straßenrisse entlang der Texturachse. 100 % entspricht einer ganzen Kachel. Straßentextur und Rissform bleiben unverändert; eigene Riss-Normalmaps werden mitverschoben." }; break;
+                case "es": crackOffset = new[] { "Desplazamiento X de grietas", "Desplazamiento Y de grietas", "Desplaza solo las grietas añadidas a lo largo del eje de textura. 100 % equivale a una repetición completa. Conserva la textura vial y la forma de las grietas; desplaza también sus mapas normales." }; break;
+                case "fr": crackOffset = new[] { "Décalage X des fissures", "Décalage Y des fissures", "Décale uniquement les fissures ajoutées le long de l’axe de texture. 100 % correspond à une tuile complète. Préserve la texture routière et la forme des fissures ; décale aussi leurs normal maps." }; break;
+                case "it": crackOffset = new[] { "Spostamento X delle crepe", "Spostamento Y delle crepe", "Sposta solo le crepe aggiunte lungo l’asse della texture. 100% equivale a una ripetizione completa. Mantiene la texture stradale e la forma delle crepe; sposta anche le loro normal map." }; break;
+                default: crackOffset = new[] { "Crack offset X", "Crack offset Y", "Shifts only added road cracks along the texture axis. 100% equals one full tile. Preserves road texture and crack shapes; custom crack normal maps move with the cracks." }; break;
+            }
+            entries.Add(m_Setting.GetOptionLabelLocaleID(nameof(Setting.RoadCrackOffsetX)), crackOffset[0]);
+            entries.Add(m_Setting.GetOptionDescLocaleID(nameof(Setting.RoadCrackOffsetX)), crackOffset[2]);
+            entries.Add("AdvancedGraphics.UI.CrackOffsetX", crackOffset[0]);
+            entries.Add("AdvancedGraphics.UI.TipCrackOffsetX", crackOffset[2]);
+            entries.Add(m_Setting.GetOptionLabelLocaleID(nameof(Setting.RoadCrackOffsetY)), crackOffset[1]);
+            entries.Add(m_Setting.GetOptionDescLocaleID(nameof(Setting.RoadCrackOffsetY)), crackOffset[2]);
+            entries.Add("AdvancedGraphics.UI.CrackOffsetY", crackOffset[1]);
+            entries.Add("AdvancedGraphics.UI.TipCrackOffsetY", crackOffset[2]);
+            string[] crackRotation;
+            switch (m_Language)
+            {
+                case "de": crackRotation = new[] { "Rissdrehung", "Dreht zusätzliche Straßenrisse um ihren jeweiligen Startpunkt, unabhängig von der Straßentextur. 0° = bisherige Ausrichtung; 360° = 0°. Eigene Riss-Normalmaps werden mitgedreht." }; break;
+                case "es": crackRotation = new[] { "Rotación de grietas", "Gira las grietas añadidas alrededor de su punto de origen, independientemente de la textura de carretera. 0° = orientación anterior; 360° = 0°. Los mapas normales de grietas también giran." }; break;
+                case "fr": crackRotation = new[] { "Rotation des fissures", "Tourne les fissures ajoutées autour de leur point de départ, indépendamment de la texture routière. 0° = orientation précédente ; 360° = 0°. Les normal maps des fissures tournent également." }; break;
+                case "it": crackRotation = new[] { "Rotazione delle crepe", "Ruota le crepe aggiunte attorno al loro punto iniziale, indipendentemente dalla texture stradale. 0° = orientamento precedente; 360° = 0°. Ruota anche le normal map delle crepe." }; break;
+                default: crackRotation = new[] { "Crack rotation", "Rotates added road cracks around their individual origins, independently of the road texture. 0° = previous orientation; 360° = 0°. Custom crack normal maps rotate with the cracks." }; break;
+            }
+            entries.Add(m_Setting.GetOptionLabelLocaleID(nameof(Setting.RoadCrackRotation)), crackRotation[0]);
+            entries.Add(m_Setting.GetOptionDescLocaleID(nameof(Setting.RoadCrackRotation)), crackRotation[1]);
+            entries.Add("AdvancedGraphics.UI.CrackRotation", crackRotation[0]);
+            entries.Add("AdvancedGraphics.UI.TipCrackRotation", crackRotation[1]);
+            string[] crackDepth;
+            switch (m_Language)
+            {
+                case "de": crackDepth = new[] { "Riss-Tiefenwirkung", "Tiefenwirkung zusätzlicher Straßenrisse, unabhängig vom Asphalt. 0 % = flach, 100 % = normal. Gilt auch für eigene Riss-Normalmaps; keine Änderung der Geometrie." }; break;
+                case "es": crackDepth = new[] { "Relieve de grietas", "Relieve de las grietas añadidas, independiente del asfalto. 0 % = plano, 100 % = normal. También afecta a los mapas normales de grietas personalizados; no modifica la geometría." }; break;
+                case "fr": crackDepth = new[] { "Relief des fissures", "Relief des fissures ajoutées, indépendant de l’asphalte. 0 % = plat, 100 % = normal. Agit aussi sur les normal maps personnalisées des fissures ; ne modifie pas la géométrie." }; break;
+                case "it": crackDepth = new[] { "Rilievo delle crepe", "Rilievo delle crepe aggiunte, indipendente dall’asfalto. 0% = piatto, 100% = normale. Agisce anche sulle normal map personalizzate delle crepe; non modifica la geometria." }; break;
+                default: crackDepth = new[] { "Crack depth", "Relief of added road cracks, independent of asphalt depth. 0% = flat, 100% = normal. Also affects custom crack normal maps; does not change geometry." }; break;
+            }
+            entries.Add(m_Setting.GetOptionLabelLocaleID(nameof(Setting.RoadCrackDepthStrengthPercent)), crackDepth[0]);
+            entries.Add(m_Setting.GetOptionDescLocaleID(nameof(Setting.RoadCrackDepthStrengthPercent)), crackDepth[1]);
+            entries.Add("AdvancedGraphics.UI.CrackDepth", crackDepth[0]);
+            entries.Add("AdvancedGraphics.UI.TipCrackDepth", crackDepth[1]);
+            string[] sidewalkCrackTips;
+            switch (m_Language)
+            {
+                case "de": sidewalkCrackTips = new[] { "Steuert die Tiefenwirkung zusätzlicher Gehwegrisse unabhängig vom Belag. 0 % = flach, 100 % = normal.", "Dreht zusätzliche Gehwegrisse unabhängig vom Belag. 360° entspricht 0°.", "Verschiebt zusätzliche Gehwegrisse entlang der jeweiligen Texturachse. 100 % entspricht einer ganzen Kachel." }; break;
+                case "es": sidewalkCrackTips = new[] { "Controla el relieve de las grietas añadidas a la acera, independientemente del pavimento. 0 % = plano, 100 % = normal.", "Gira las grietas añadidas a la acera sin girar el pavimento. 360° equivale a 0°.", "Desplaza las grietas añadidas a la acera a lo largo del eje de textura. 100 % equivale a una repetición completa." }; break;
+                case "fr": sidewalkCrackTips = new[] { "Contrôle le relief des fissures ajoutées au trottoir indépendamment du revêtement. 0 % = plat, 100 % = normal.", "Tourne les fissures ajoutées au trottoir indépendamment du revêtement. 360° correspond à 0°.", "Décale les fissures ajoutées au trottoir le long de l’axe de texture. 100 % correspond à une tuile complète." }; break;
+                case "it": sidewalkCrackTips = new[] { "Controlla il rilievo delle crepe aggiunte al marciapiede indipendentemente dal rivestimento. 0% = piatto, 100% = normale.", "Ruota le crepe aggiunte al marciapiede senza ruotare il rivestimento. 360° equivale a 0°.", "Sposta le crepe aggiunte al marciapiede lungo l’asse della texture. 100% equivale a una ripetizione completa." }; break;
+                default: sidewalkCrackTips = new[] { "Controls added sidewalk crack depth independently of the surface. 0% = flat, 100% = normal.", "Rotates added sidewalk cracks independently of the surface. 360° equals 0°.", "Shifts added sidewalk cracks along the texture axis. 100% equals one full tile." }; break;
+            }
+            entries.Add(m_Setting.GetOptionLabelLocaleID(nameof(Setting.SidewalkCrackDepthStrengthPercent)), crackDepth[0]);
+            entries.Add(m_Setting.GetOptionDescLocaleID(nameof(Setting.SidewalkCrackDepthStrengthPercent)), sidewalkCrackTips[0]);
+            entries.Add("AdvancedGraphics.UI.SidewalkCrackDepth", crackDepth[0]);
+            entries.Add("AdvancedGraphics.UI.SidewalkTipCrackDepth", sidewalkCrackTips[0]);
+            entries.Add(m_Setting.GetOptionLabelLocaleID(nameof(Setting.SidewalkCrackRotation)), crackRotation[0]);
+            entries.Add(m_Setting.GetOptionDescLocaleID(nameof(Setting.SidewalkCrackRotation)), sidewalkCrackTips[1]);
+            entries.Add("AdvancedGraphics.UI.SidewalkCrackRotation", crackRotation[0]);
+            entries.Add("AdvancedGraphics.UI.SidewalkTipCrackRotation", sidewalkCrackTips[1]);
+            entries.Add(m_Setting.GetOptionLabelLocaleID(nameof(Setting.SidewalkCrackOffsetX)), crackOffset[0]);
+            entries.Add(m_Setting.GetOptionDescLocaleID(nameof(Setting.SidewalkCrackOffsetX)), sidewalkCrackTips[2]);
+            entries.Add("AdvancedGraphics.UI.SidewalkCrackOffsetX", crackOffset[0]);
+            entries.Add("AdvancedGraphics.UI.SidewalkTipCrackOffsetX", sidewalkCrackTips[2]);
+            entries.Add(m_Setting.GetOptionLabelLocaleID(nameof(Setting.SidewalkCrackOffsetY)), crackOffset[1]);
+            entries.Add(m_Setting.GetOptionDescLocaleID(nameof(Setting.SidewalkCrackOffsetY)), sidewalkCrackTips[2]);
+            entries.Add("AdvancedGraphics.UI.SidewalkCrackOffsetY", crackOffset[1]);
+            entries.Add("AdvancedGraphics.UI.SidewalkTipCrackOffsetY", sidewalkCrackTips[2]);
+            entries.Add(m_Setting.GetOptionLabelLocaleID(nameof(Setting.AlleySidewalkCrackDepthStrengthPercent)), crackDepth[0]);
+            entries.Add(m_Setting.GetOptionDescLocaleID(nameof(Setting.AlleySidewalkCrackDepthStrengthPercent)), sidewalkCrackTips[0]);
+            entries.Add("AdvancedGraphics.UI.AlleySidewalkCrackDepth", crackDepth[0]);
+            entries.Add("AdvancedGraphics.UI.AlleySidewalkTipCrackDepth", sidewalkCrackTips[0]);
+            entries.Add(m_Setting.GetOptionLabelLocaleID(nameof(Setting.AlleySidewalkCrackRotation)), crackRotation[0]);
+            entries.Add(m_Setting.GetOptionDescLocaleID(nameof(Setting.AlleySidewalkCrackRotation)), sidewalkCrackTips[1]);
+            entries.Add("AdvancedGraphics.UI.AlleySidewalkCrackRotation", crackRotation[0]);
+            entries.Add("AdvancedGraphics.UI.AlleySidewalkTipCrackRotation", sidewalkCrackTips[1]);
+            entries.Add(m_Setting.GetOptionLabelLocaleID(nameof(Setting.AlleySidewalkCrackOffsetX)), crackOffset[0]);
+            entries.Add(m_Setting.GetOptionDescLocaleID(nameof(Setting.AlleySidewalkCrackOffsetX)), sidewalkCrackTips[2]);
+            entries.Add("AdvancedGraphics.UI.AlleySidewalkCrackOffsetX", crackOffset[0]);
+            entries.Add("AdvancedGraphics.UI.AlleySidewalkTipCrackOffsetX", sidewalkCrackTips[2]);
+            entries.Add(m_Setting.GetOptionLabelLocaleID(nameof(Setting.AlleySidewalkCrackOffsetY)), crackOffset[1]);
+            entries.Add(m_Setting.GetOptionDescLocaleID(nameof(Setting.AlleySidewalkCrackOffsetY)), sidewalkCrackTips[2]);
+            entries.Add("AdvancedGraphics.UI.AlleySidewalkCrackOffsetY", crackOffset[1]);
+            entries.Add("AdvancedGraphics.UI.AlleySidewalkTipCrackOffsetY", sidewalkCrackTips[2]);
             string[] opacity;
             switch (m_Language)
             {

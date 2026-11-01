@@ -10,7 +10,8 @@ namespace Advanced_Graphics
         private bool m_CustomNormalLoaded;
         internal bool HasCustomNormal => m_UseCustomNormal && CurrentLevel == 2 && m_CustomNormal != null;
         protected virtual float CustomNormalStrength => CurrentDepth / 100f;
-        private bool ShouldBuildSurfaceNormal => CurrentDepth > 0 || AlwaysBuildSurfaceNormal ||
+        private bool ShouldBuildSurfaceNormal => CurrentDepth > 0 ||
+            (m_CrackCount > 0 && m_CrackOpacity > 0 && CrackDepth > 0) || AlwaysBuildSurfaceNormal ||
             (CurrentLevel == 1 && NeedsNormalAtZeroDepth) ||
             (CurrentLevel == 2 && LoadCustomNormal() != null);
 
@@ -74,10 +75,10 @@ namespace Advanced_Graphics
                 normal = Transform(source, true, true, CustomNormalStrength, color.width);
                 var pixels = normal.GetPixels32();
                 // Preserve the additional relief of the existing crack overlay.
-                if (crackMask != null && depth > 0 && m_StampedCrackNormals == null)
+                if (crackMask != null && CrackDepth > 0 && m_StampedCrackNormals == null)
                 {
                     int width = normal.width, height = normal.height;
-                    float strength = 0.008f * depth / 100f;
+                    float strength = 0.008f * CrackDepth / 100f;
                     for (int y = 0; y < height; y++)
                     for (int x = 0; x < width; x++)
                     {
@@ -95,7 +96,7 @@ namespace Advanced_Graphics
                             (byte)Mathf.Clamp((n.z + 1f) * 127.5f, 0f, 255f), 255);
                     }
                 }
-                ApplyAuthoredCrackNormals(pixels, crackMask, depth);
+                ApplyAuthoredCrackNormals(pixels, crackMask, CrackDepth);
                 EncodeNormalPixels(pixels);
                 normal.SetPixels32(pixels);
                 normal.Apply(true, !KeepTileReadable);

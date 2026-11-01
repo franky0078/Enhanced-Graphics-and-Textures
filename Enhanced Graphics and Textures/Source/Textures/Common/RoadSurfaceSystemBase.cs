@@ -55,6 +55,9 @@ namespace Advanced_Graphics
         private int m_Level, m_UvSize = 100, m_Depth = 100, m_OffsetX, m_OffsetY, m_Rotation;
         private float m_Tiling = 1f;
         private int m_FilterColor = 0xffffff, m_FilterOpacityPercent = 100;
+        private int m_CrackDepth = 100, m_CrackRotation, m_CrackOffsetX, m_CrackOffsetY;
+        private bool HasIndependentCrackControls => GetType() == typeof(RoadAsphaltSystem) || this is SidewalkSurfaceSystem;
+        private int CrackDepth => HasIndependentCrackControls ? m_CrackDepth : m_Depth;
         private int m_CrackCount, m_CrackSize = 100, m_CrackWidth = 100, m_CrackOpacity = 100, m_CrackRandomness = 50;
         private Setting.RoadTextureSource m_Source;
         private int m_Frames, m_PollInterval = 120;
@@ -94,7 +97,7 @@ namespace Advanced_Graphics
 
         public void Configure(bool enabled, int level, Setting.RoadTextureSource source, int uvSize, int depth, float tiling,
             int offsetX, int offsetY, int rotation, int crackCount, int crackSize, int crackWidth,
-            int crackOpacity, int crackRandomness, int filterColor = 0xffffff, int filterOpacityPercent = 100, bool customCracks = false)
+            int crackOpacity, int crackRandomness, int filterColor = 0xffffff, int filterOpacityPercent = 100, bool customCracks = false, int crackDepth = 100, int crackRotation = 0, int crackOffsetX = 0, int crackOffsetY = 0)
         {
             bool useNormal = Mod.ActiveSetting?.GetCustomNormalEnabled(TextureFileName) == true;
             if (m_UseCustomNormal != useNormal)
@@ -115,6 +118,10 @@ namespace Advanced_Graphics
             uvSize = Math.Max(MinimumUvSize, Math.Min(Setting.MaxTextureUvSize, uvSize));
             depth = Math.Max(0, Math.Min(Setting.MaxTextureDepthStrength, depth));
             bool road = GetType() == typeof(RoadAsphaltSystem);
+            crackDepth = Math.Max(0, Math.Min(Setting.MaxTextureDepthStrength, crackDepth));
+            crackOffsetX = HasIndependentCrackControls ? Math.Max(0, Math.Min(Setting.MaxTextureUvOffset, crackOffsetX)) % 100 : 0;
+            crackOffsetY = HasIndependentCrackControls ? Math.Max(0, Math.Min(Setting.MaxTextureUvOffset, crackOffsetY)) % 100 : 0;
+            crackRotation = HasIndependentCrackControls ? Math.Max(0, Math.Min(360, crackRotation)) % 360 : 0;
             tiling = Mathf.Clamp(Mathf.Round(tiling * 20f) / 20f, 0.1f, 8f);
             offsetX = Math.Max(0, Math.Min(Setting.MaxTextureUvOffset, offsetX));
             offsetY = Math.Max(0, Math.Min(Setting.MaxTextureUvOffset, offsetY));
@@ -130,7 +137,7 @@ namespace Advanced_Graphics
                 Mod.log.Info($"Road asphalt configuration: enabled {enabled}, level {level}, custom PNG present {File.Exists(CustomTexturePath)}");
                 m_HasLoggedRoadConfiguration = true;
             }
-            if (m_Enabled == enabled && m_Level == level && m_Source == source && m_UvSize == uvSize && m_Depth == depth && m_Tiling == tiling && m_OffsetX == offsetX &&
+            if (m_Enabled == enabled && m_Level == level && m_Source == source && m_UvSize == uvSize && m_Depth == depth && m_CrackDepth == crackDepth && m_CrackRotation == crackRotation && m_CrackOffsetX == crackOffsetX && m_CrackOffsetY == crackOffsetY && m_Tiling == tiling && m_OffsetX == offsetX &&
                 m_OffsetY == offsetY && m_Rotation == rotation && m_CrackCount == crackCount &&
                 m_CrackSize == crackSize && m_CrackWidth == crackWidth && m_CrackOpacity == crackOpacity &&
                 m_CrackRandomness == crackRandomness && m_FilterColor == filterColor && m_FilterOpacityPercent == filterOpacityPercent) return;
@@ -138,9 +145,9 @@ namespace Advanced_Graphics
                 m_Enabled == enabled && m_Level == level && m_Source == source && m_UvSize == uvSize &&
                 m_Tiling == tiling && m_OffsetX == offsetX && m_OffsetY == offsetY && m_Rotation == rotation &&
                 m_CrackCount == crackCount && m_CrackSize == crackSize && m_CrackWidth == crackWidth &&
-                m_CrackOpacity == crackOpacity && m_CrackRandomness == crackRandomness;
+                m_CrackOpacity == crackOpacity && m_CrackRandomness == crackRandomness && m_CrackRotation == crackRotation && m_CrackOffsetX == crackOffsetX && m_CrackOffsetY == crackOffsetY;
             if (m_FilterOpacityPercent != filterOpacityPercent || m_FilterColor != filterColor || m_Enabled != enabled || m_Level != level || m_Source != source ||
-                (BakeUvSizeIntoTexture && m_UvSize != uvSize) || m_Depth != depth ||
+                (BakeUvSizeIntoTexture && m_UvSize != uvSize) || m_Depth != depth || m_CrackDepth != crackDepth || m_CrackRotation != crackRotation || m_CrackOffsetX != crackOffsetX || m_CrackOffsetY != crackOffsetY ||
                 m_OffsetX != offsetX || m_OffsetY != offsetY || m_Rotation != rotation ||
                 m_Tiling != tiling || m_CrackCount != crackCount || m_CrackSize != crackSize ||
                 m_CrackWidth != crackWidth || m_CrackOpacity != crackOpacity || m_CrackRandomness != crackRandomness)
@@ -155,6 +162,10 @@ namespace Advanced_Graphics
             m_Source = source;
             m_UvSize = uvSize;
             m_Depth = depth;
+            m_CrackDepth = crackDepth;
+            m_CrackRotation = crackRotation;
+            m_CrackOffsetX = crackOffsetX;
+            m_CrackOffsetY = crackOffsetY;
             m_Tiling = tiling;
             m_OffsetX = offsetX;
             m_OffsetY = offsetY;
@@ -240,6 +251,7 @@ namespace Advanced_Graphics
                         material.SetTextureScale(original.NormalSlot, original.NormalScale);
                     OnSurfaceMaterialApplied(material);
                 }
+                RefreshDependentWorldspaceBindings();
                 if (m_Dirty || added > 0)
                     Mod.log.Info($"{SurfaceName}: source {m_Source}, level {m_Level}, UV size {m_UvSize}%, tiling {m_Tiling:0.0}x, " +
                         $"UV {m_OffsetX}/{m_OffsetY}% rotation {m_Rotation}°, depth {m_Depth}%, " +
@@ -443,7 +455,7 @@ namespace Advanced_Graphics
                 float ny = (colors[down].r - colors[up].r) * relief;
                 if (crackMask != null && m_StampedCrackNormals == null)
                 {
-                    float crackRelief = 0.008f * depth / 100f;
+                    float crackRelief = 0.008f * CrackDepth / 100f;
                     nx += (crackMask[right] - crackMask[left]) * crackRelief;
                     ny += (crackMask[up] - crackMask[down]) * crackRelief;
                 }
@@ -453,7 +465,7 @@ namespace Advanced_Graphics
                     (byte)Mathf.Clamp((n.y * 0.5f + 0.5f) * 255f, 0f, 255f),
                     (byte)Mathf.Clamp((n.z * 0.5f + 0.5f) * 255f, 0f, 255f), 255);
             }
-            ApplyAuthoredCrackNormals(normals, crackMask, depth);
+            ApplyAuthoredCrackNormals(normals, crackMask, CrackDepth);
             EncodeNormalPixels(normals);
             var result = new Texture2D(width, height, TextureFormat.RGBA32, true, true);
             result.SetPixels32(normals);
@@ -470,6 +482,8 @@ namespace Advanced_Graphics
             if (size != source.height)
                 throw new InvalidDataException("Road asphalt detail texture must be square.");
             var pixels = source.GetPixels32();
+            // Keep asphalt relief independent of the dark crack overlay.
+            if (HasIndependentCrackControls) m_ColorBeforeCracks = (Color32[])pixels.Clone();
             var mask = new byte[pixels.Length];
             var random = new System.Random(73129 + m_CrackRandomness * 97);
             // A custom image contains a whole crack pattern, so use a lower starting density and add only 0.05 per tiling unit above 1 (0.25 at 1; 0.60 at 8).
@@ -489,20 +503,22 @@ namespace Advanced_Graphics
             float radius = Math.Max(0.25f, scale * m_CrackWidth / 100f);
             if (custom && m_CustomCrackNormals != null)
             {
-                m_ColorBeforeCracks = (Color32[])pixels.Clone();
+                if (m_ColorBeforeCracks == null) m_ColorBeforeCracks = (Color32[])pixels.Clone();
                 m_StampedCrackNormals = new Color32[pixels.Length];
             }
             else if (custom) customMask = GetCrackWidthMask();
+            int crackShiftX = Mathf.RoundToInt(size * m_CrackOffsetX / 100f);
+            int crackShiftY = Mathf.RoundToInt(size * m_CrackOffsetY / 100f);
             float customAngleOffset = custom ? (float)(random.NextDouble() * Math.PI * 2.0) : 0f;
             for (int i = 0; i < count; i++)
             {
-                float x = ((i % columns) + 0.5f + ((float)random.NextDouble() - 0.5f) * jitter) * cellWidth;
-                float y = ((i / columns) + 0.5f + ((float)random.NextDouble() - 0.5f) * jitter) * cellHeight;
-                float angle = (float)(random.NextDouble() * Math.PI * 2.0);
+                float x = ((i % columns) + 0.5f + ((float)random.NextDouble() - 0.5f) * jitter) * cellWidth + crackShiftX;
+                float y = ((i / columns) + 0.5f + ((float)random.NextDouble() - 0.5f) * jitter) * cellHeight + crackShiftY;
+                float angle = (float)(random.NextDouble() * Math.PI * 2.0) + m_CrackRotation * Mathf.Deg2Rad;
                 if (customMask != null)
                 {
                     // Stratify orientations so even a small number of patterns differ visibly.
-                    angle = customAngleOffset + (i * 137.50776f + (float)random.NextDouble() * 45f * jitter) * Mathf.Deg2Rad;
+                    angle = customAngleOffset + m_CrackRotation * Mathf.Deg2Rad + (i * 137.50776f + (float)random.NextDouble() * 45f * jitter) * Mathf.Deg2Rad;
                     float variation = 1f + ((float)random.NextDouble() - 0.5f) * 0.4f * jitter;
                     StampCrack(mask, size, customMask, x, y, angle, scale * variation, random.Next(2) == 0);
                     continue;
@@ -678,6 +694,15 @@ namespace Advanced_Graphics
                 }
                 OnSurfaceMaterialRestored(material);
             }
+            RefreshDependentWorldspaceBindings();
+        }
+
+        private void RefreshDependentWorldspaceBindings()
+        {
+            if (GetType() != typeof(RoadAsphaltSystem)) return;
+            Mod.SidewalkAtlas?.RefreshWorldspaceBindings();
+            Mod.AlleySidewalkAtlas?.RefreshWorldspaceBindings();
+            Mod.ParkingRoadAtlas?.RefreshWorldspaceBindings();
         }
 
         private void DestroyTextures()
