@@ -11,7 +11,7 @@ namespace Advanced_Graphics
 {
     public sealed class Mod : IMod
     {
-        public static readonly ILog log = LogManager.GetLogger("Enhanced Graphics and Textures").SetShowsErrorsInUI(false);
+        public static readonly ModLog log = new ModLog(LogManager.GetLogger("Enhanced Graphics and Textures").SetShowsErrorsInUI(false));
         // Developer builds may opt in here; a saved checkbox cannot enable diagnostics by itself.
         internal const bool DebugMode = false;
         internal static bool DebugBackendEnabled => DebugMode && ActiveSetting?.ShowDebugWindow == false;
@@ -19,7 +19,7 @@ namespace Advanced_Graphics
             new System.Collections.Concurrent.ConcurrentQueue<string>();
         internal static void LogLater(string message)
         {
-            if (!string.IsNullOrEmpty(message) && s_DeferredLog.Count < 256) s_DeferredLog.Enqueue(message);
+            if (ModLog.Enabled && !string.IsNullOrEmpty(message) && s_DeferredLog.Count < 256) s_DeferredLog.Enqueue(message);
         }
         internal static void FlushDeferredLog()
         {

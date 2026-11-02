@@ -40,16 +40,8 @@ namespace Advanced_Graphics
                     loaded.width != loaded.height || loaded.width > 4096)
                     throw new InvalidDataException("Custom normal must be a square PNG, at most 4096 pixels wide.");
                 var pixels = loaded.GetPixels32();
-                for (int i = 0; i < pixels.Length; i++)
-                {
-                    var p = pixels[i];
-                    var n = new Vector3(p.r / 127.5f - 1f, p.g / 127.5f - 1f,
-                        Mathf.Max(0.001f, p.b / 127.5f - 1f)).normalized;
-                    pixels[i] = new Color32(
-                        (byte)Mathf.Clamp((n.x + 1f) * 127.5f, 0f, 255f),
-                        (byte)Mathf.Clamp((n.y + 1f) * 127.5f, 0f, 255f),
-                        (byte)Mathf.Clamp((n.z + 1f) * 127.5f, 0f, 255f), 255);
-                }
+                float tilt = NormalizeCustomNormal(pixels);
+                if (tilt >= 1f) Mod.log.Info(SurfaceName + " custom normal: average tilt of " + tilt.ToString("0.0") + " degrees removed.");
                 loaded.SetPixels32(pixels);
                 loaded.Apply(false, false);
                 m_CustomNormal = loaded;
@@ -63,6 +55,32 @@ namespace Advanced_Graphics
             }
         }
 
+
+        // Normalizes a custom normal map and removes its average tilt; returns that tilt in degrees.
+        internal static float NormalizeCustomNormal(Color32[] pixels)
+        {
+            double sumX = 0, sumY = 0;
+            for (int i = 0; i < pixels.Length; i++)
+            {
+                var p = pixels[i];
+                float z = Mathf.Max(0.001f, p.b / 127.5f - 1f);
+                sumX += Mathf.Clamp((p.r / 127.5f - 1f) / z, -20f, 20f);
+                sumY += Mathf.Clamp((p.g / 127.5f - 1f) / z, -20f, 20f);
+            }
+            float meanX = pixels.Length > 0 ? (float)(sumX / pixels.Length) : 0f;
+            float meanY = pixels.Length > 0 ? (float)(sumY / pixels.Length) : 0f;
+            for (int i = 0; i < pixels.Length; i++)
+            {
+                var p = pixels[i];
+                float z = Mathf.Max(0.001f, p.b / 127.5f - 1f);
+                var n = new Vector3((p.r / 127.5f - 1f) / z - meanX, (p.g / 127.5f - 1f) / z - meanY, 1f).normalized;
+                pixels[i] = new Color32(
+                    (byte)Mathf.Clamp((n.x + 1f) * 127.5f, 0f, 255f),
+                    (byte)Mathf.Clamp((n.y + 1f) * 127.5f, 0f, 255f),
+                    (byte)Mathf.Clamp((n.z + 1f) * 127.5f, 0f, 255f), 255);
+            }
+            return Mathf.Atan(Mathf.Sqrt(meanX * meanX + meanY * meanY)) * Mathf.Rad2Deg;
+        }
 
         // Select the optional map before calling surface-specific fallback calculations.
         private Texture2D BuildSelectedNormal(Texture2D color, int depth, int uvSize, byte[] crackMask)

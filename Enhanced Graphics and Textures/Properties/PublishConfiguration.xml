@@ -141,7 +141,7 @@
 	<AccessLevel Value="Public" />
 	<Tag Value="Code Mod" />
 	
-	<ModVersion Value="1.6.3" />
+	<ModVersion Value="1.6.4" />
 	
 	<!--Existing value retained. Set this to the game version tested locally before publishing.-->
 	<GameVersion Value="1.6.*" />
@@ -149,9 +149,7 @@
 	<ChangeLog>
 		Latest changes:
 
-		- fix black textures on some road ends
-		- added cracks depth control and uv offset for roads and sidewalks
-		- ui improvements and bug fixes
+		- performance improvements and bug fixes
 
 	</ChangeLog>
 

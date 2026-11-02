@@ -42,6 +42,21 @@ namespace Advanced_Graphics
         private int CurrentShiftU => UsesSidewalkShift ? Mod.ActiveSetting?.SidewalkShiftU ?? 0 : 0;
         private int CurrentShiftV => UsesSidewalkShift ? Mod.ActiveSetting?.SidewalkShiftV ?? 0 : 0;
         private int m_Frames;
+        // Set by the RoadEU atlas so the Alley atlas rebuilds without waiting for its poll.
+        private bool m_RoadEuAtlasChanged;
+
+        internal bool IsEnabled => m_Enabled;
+        internal void NotifyRoadEuAtlasChanged() => m_RoadEuAtlasChanged = true;
+
+        // Own atlases stay readable while endcaps or the Alley atlas read them again.
+        protected bool KeepOwnAtlasReadable => TexturePerformance.KeepAtlasReadable &&
+            (EndcapScaleActive || (!IsAlleyAtlas && !(this is ParkingRoadAtlasSystem) &&
+                Mod.AlleySidewalkAtlas != null && Mod.AlleySidewalkAtlas.IsEnabled));
+
+        private void NotifyAlleyAtlas()
+        {
+            if (!IsAlleyAtlas && !(this is ParkingRoadAtlasSystem)) Mod.AlleySidewalkAtlas?.NotifyRoadEuAtlasChanged();
+        }
 
         internal bool OwnsAppliedAtlas(Texture texture, bool normal)
         {
@@ -92,15 +107,17 @@ namespace Advanced_Graphics
 
         protected override void OnUpdate()
         {
-            // Shift/end-scale read the live settings; keep the previous atlas until edits settle.
+            TexturePool.Trim();
             if (Mod.ActiveSetting?.HasPendingApply == true) return;
             bool scaleChanged = RefreshEndcapScale();
             bool tileChanged = m_SourceColor != Surface?.ActiveColorTexture ||
                 m_SourceNormal != Surface?.ActiveNormalTexture ||
                 m_BuiltShiftU != CurrentShiftU || m_BuiltShiftV != CurrentShiftV;
-            if (!m_Dirty && !tileChanged && !scaleChanged && ++m_Frames < 120) return;
+            bool roadEuChanged = IsAlleyAtlas && m_RoadEuAtlasChanged;
+            if (!m_Dirty && !tileChanged && !scaleChanged && !roadEuChanged && ++m_Frames < 120) return;
             m_Frames = 0;
             m_Dirty = false;
+            m_RoadEuAtlasChanged = false;
             if (!m_Enabled)
             {
                 RestoreNow();
@@ -122,7 +139,7 @@ namespace Advanced_Graphics
                 int shiftU = CurrentShiftU, shiftV = CurrentShiftV;
                 if (m_SourceColor != color || m_SourceNormal != normal ||
                     m_BuiltDiagnostic != m_Diagnostic || m_BuiltCustom != customTexture ||
-                    m_BuiltShiftU != shiftU || m_BuiltShiftV != shiftV)
+                    m_BuiltShiftU != shiftU || m_BuiltShiftV != shiftV || roadEuChanged)
                 {
                     RestoreNow(false);
                     m_BuiltShiftU = shiftU;
@@ -210,6 +227,7 @@ namespace Advanced_Graphics
                 else if (EndcapScaleActive) ApplyIsolatedAlleyBatches(nodesOnly: true);
                 string region = m_Diagnostic ? "color regions red/yellow/blue/cyan/magenta/green"
                     : (IsAlleyAtlas ? "ParkingLane7 atlas on isolated Alley batches" : "sidewalk region x=318..758");
+                if (added > 0) NotifyAlleyAtlas();
                 if (added > 0) Mod.LogLater($"{SurfaceLabel} atlas: {m_Materials.Count} matched materials ({added} new), {applied} applied, {virtualMaterials} switched from ENABLE_VT; {region}; source tile {color.width}x{color.height}.");
                 if (m_Materials.Count == 0 && !m_LoggedMissing)
                 {
@@ -229,82 +247,88 @@ namespace Advanced_Graphics
             if (source.width > 4096 || source.height > 4096)
                 throw new InvalidOperationException("RoadEU atlas exceeds 4096 pixels per side.");
 
-            if (!m_Readbacks.TryGetValue(source, out var cached))
+            var timer = TexturePerformance.StartTimer(SurfaceLabel + " atlas " + (linear ? "normal" : "color"));
+            // A readable source belongs to another system: read directly, never cached or destroyed.
+            Texture2D cached;
+            if (IsDirectlyReadable(source)) cached = (Texture2D)source;
+            else if (!m_Readbacks.TryGetValue(source, out cached))
             {
                 cached = Readback(source, linear);
                 m_Readbacks.Add(source, cached);
+                timer.Mark("atlas readback");
             }
-            var original = new Texture2D(cached.width, cached.height, TextureFormat.RGBA32, true, linear);
             var detail = diagnostic ? null : overlay as Texture2D;
             bool destroyDetail = false;
             if (!diagnostic && (detail == null || !detail.isReadable))
             {
                 detail = Readback(overlay, linear);
                 destroyDetail = true;
+                timer.Mark("tile readback");
             }
+            var original = TexturePool.Get(cached.width, cached.height, linear, out bool reused);
+            timer.Mark(reused ? "texture reused" : "texture new");
             try
             {
-                var pixels = cached.GetPixels32();
-                var tile = detail != null ? detail.GetPixels32() : null;
                 int width = original.width, height = original.height;
                 int left = diagnostic || alleyShoulder ? 0 : Mathf.RoundToInt(width * (X0 / 1024f));
                 int right = diagnostic || alleyShoulder ? width : Mathf.RoundToInt(width * (X1 / 1024f));
                 int bottom = diagnostic ? 0 : Mathf.RoundToInt(height * (1f - Y1 / 2048f));
                 int top = diagnostic ? height : Mathf.RoundToInt(height * (1f - Y0 / 2048f));
-                // Both atlases use the same UV domain even if their resolutions/aspects differ.
                 float referenceAspect = referenceColor != null
                     ? referenceColor.height / (float)referenceColor.width : 2f;
                 float stripFraction = alleyShoulder ? 1f / 8f : (X1 - X0) / 1024f;
                 float verticalRepeats = referenceAspect / stripFraction;
                 if (customTexture && !diagnostic)
                     verticalRepeats = Mathf.Max(1, Mathf.RoundToInt(verticalRepeats));
-                for (int y = bottom; y < top; y++)
-                for (int x = left; x < right; x++)
+                var atlas = PixelBuffer.Read(cached);
+                var tile = detail != null ? PixelBuffer.Read(detail) : PixelBuffer.Allocate(1);
+                var copy = default(PixelBuffer);
+                try
                 {
-                    int index = y * width + x;
-                    Color32 replacement;
-                    if (diagnostic)
+                    bool direct = PixelBuffer.TryWrite(original, out var pixels);
+                    if (!direct)
                     {
-                        int atlasX = Mathf.FloorToInt(x * 1024f / width);
-                        int atlasY = Mathf.FloorToInt((height - 1 - y) * 2048f / height);
-                        replacement = atlasX < 273 ? new Color32(255, 20, 20, 255) :
-                            atlasX < 318 ? new Color32(255, 225, 20, 255) :
-                            atlasX < 759 ? new Color32(30, 90, 255, 255) :
-                            atlasX < 808 ? new Color32(20, 230, 230, 255) :
-                            atlasX < 912 && atlasY < 468 ? new Color32(255, 25, 230, 255) :
-                            new Color32(30, 245, 30, 255);
-                        if (alleyShoulder) replacement = new Color32(30, 90, 255, 255);
+                        copy = PixelBuffer.Allocate(atlas.Length);
+                        pixels = copy.Pixels;
                     }
-                    else
+                    pixels.CopyFrom(atlas.Pixels);
+                    TexturePerformance.Run(new SidewalkStripRowsJob
                     {
-                        float originU = alleyShoulder ? 0f : X0 / 1024f;
-                        float shiftU = alleyShoulder ? 0f : m_BuiltShiftU / 100f, shiftV = alleyShoulder ? 0f : m_BuiltShiftV / 100f;
-                        int u = Mathf.FloorToInt(((x / (float)width - originU) / stripFraction + shiftU) * detail.width);
-                        int v = Mathf.FloorToInt((y / (float)height * verticalRepeats + shiftV) * detail.height);
-                        u = (u % detail.width + detail.width) % detail.width;
-                        v = (v % detail.height + detail.height) % detail.height;
-                        replacement = tile[v * detail.width + u];
-                    }
-                    if (linear)
-                    {
-                        replacement.a = replacement.r;
-                        replacement.r = pixels[index].r;
-                        replacement.b = pixels[index].b;
-                    }
-                    else
-                    {
-                        // BaseColor alpha may carry a separate material mask.
-                        replacement.a = pixels[index].a;
-                    }
-                    pixels[index] = replacement;
+                        Pixels = pixels,
+                        Tile = tile.Pixels,
+                        Diagnostic = diagnostic,
+                        AlleyShoulder = alleyShoulder,
+                        Linear = linear,
+                        Width = width,
+                        Height = height,
+                        Bottom = bottom,
+                        Left = left,
+                        Right = right,
+                        TileWidth = detail != null ? detail.width : 1,
+                        TileHeight = detail != null ? detail.height : 1,
+                        OriginU = alleyShoulder ? 0f : X0 / 1024f,
+                        ShiftU = alleyShoulder ? 0f : m_BuiltShiftU / 100f,
+                        ShiftV = alleyShoulder ? 0f : m_BuiltShiftV / 100f,
+                        StripFraction = stripFraction,
+                        VerticalRepeats = verticalRepeats
+                    }, Math.Max(0, top - bottom));
+                    if (!direct) original.SetPixels32(pixels.ToArray());
                 }
-                original.SetPixels32(pixels);
-                original.Apply(true, true);
+                finally
+                {
+                    atlas.Dispose();
+                    tile.Dispose();
+                    copy.Dispose();
+                }
+                timer.Mark("strip");
+                TexturePerformance.ApplyWithMips(original, !KeepOwnAtlasReadable && !TexturePerformance.ReuseTextures, timer);
+                timer.Mark("upload");
                 string surface = alleyShoulder ? "Alley Sidewalk" : "RoadEU Sidewalk";
                 original.name = diagnostic ? "Advanced Graphics " + surface + " Diagnostic" :
                     "Advanced Graphics " + surface + " " + (linear ? "Normal" : "Color");
                 original.wrapMode = source.wrapMode;
                 SurfaceTextureSampling.Apply(original);
+                timer.Log(width + "x" + height);
                 return original;
             }
             catch
@@ -376,6 +400,7 @@ namespace Advanced_Graphics
 
         public void RestoreNow(bool releaseSources = true)
         {
+            bool hadMaterials = m_Materials.Count > 0;
             RestoreIsolatedAlleyBatches();
             foreach (var pair in m_Materials)
             {
@@ -392,8 +417,8 @@ namespace Advanced_Graphics
                     material.SetTexture(NormalSlot, pair.Value.Normal);
             }
             m_Materials.Clear();
-            foreach (var copy in m_ColorCopies.Values) if (copy != null) UnityEngine.Object.Destroy(copy);
-            foreach (var copy in m_NormalCopies.Values) if (copy != null) UnityEngine.Object.Destroy(copy);
+            foreach (var copy in m_ColorCopies.Values) TexturePool.Release(copy, false);
+            foreach (var copy in m_NormalCopies.Values) TexturePool.Release(copy, true);
             m_ColorCopies.Clear();
             m_NormalCopies.Clear();
             m_SourceColor = m_SourceNormal = null;
@@ -401,6 +426,27 @@ namespace Advanced_Graphics
             {
                 foreach (var copy in m_Readbacks.Values) if (copy != null) UnityEngine.Object.Destroy(copy);
                 m_Readbacks.Clear();
+                TexturePool.Clear();
+            }
+            else PurgeStaleReadbacks();
+            if (hadMaterials) NotifyAlleyAtlas();
+        }
+
+        private void PurgeStaleReadbacks()
+        {
+            List<Texture> stale = null;
+            foreach (var pair in m_Readbacks)
+            {
+                if (pair.Key != null) continue;
+                if (stale == null) stale = new List<Texture>();
+                stale.Add(pair.Key);
+            }
+            if (stale == null) return;
+            foreach (var key in stale)
+            {
+                var copy = m_Readbacks[key];
+                if (copy != null) UnityEngine.Object.Destroy(copy);
+                m_Readbacks.Remove(key);
             }
         }
     }

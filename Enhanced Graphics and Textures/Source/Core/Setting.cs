@@ -998,6 +998,10 @@ namespace Advanced_Graphics
         [SettingsUIButton]
         public bool ResetAll { set { if (value) { SetDefaults(); ApplyAndSave(); } } }
 
+        // Off: only errors are written to the log.
+        [SettingsUISection(MainSection, AboutGroup)]
+        public bool EnableLogOutput { get; set; }
+
         [SettingsUISection(MainSection, AboutGroup)]
         public string Version => typeof(Mod).Assembly.GetName().Version?.ToString(3) ?? "Unknown";
 
@@ -1165,7 +1169,7 @@ namespace Advanced_Graphics
         internal void QueueGraphicsApply()
         {
             m_ApplyPending = true;
-            m_ApplyAt = UnityEngine.Time.unscaledTime + 0.5f;
+            m_ApplyAt = UnityEngine.Time.unscaledTime + 0.25f;
         }
 
         internal void ApplyToSystem()

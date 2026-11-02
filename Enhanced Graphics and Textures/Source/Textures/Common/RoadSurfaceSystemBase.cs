@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using Game;
+using Unity.Collections;
 using UnityEngine;
 
 namespace Advanced_Graphics
@@ -64,6 +65,9 @@ namespace Advanced_Graphics
         private bool m_Dirty;
         private bool m_TextureDirty;
         private bool m_NormalOnly;
+        // Color before the filter, so a filter-only change skips the full rebuild.
+        private Color32[] m_ColorBeforeFilter;
+        private bool m_FilterOnly;
         private bool m_UseCustomNormal;
         private bool m_Enabled;
         private bool m_HasLoggedRoadConfiguration;
@@ -91,6 +95,8 @@ namespace Advanced_Graphics
             ClearCrackCache();
             ClearCustomNormal();
             m_NormalOnly = false;
+            m_FilterOnly = false;
+            m_ColorBeforeFilter = null;
             m_TextureDirty = true;
             m_Dirty = true;
         }
@@ -146,6 +152,16 @@ namespace Advanced_Graphics
                 m_Tiling == tiling && m_OffsetX == offsetX && m_OffsetY == offsetY && m_Rotation == rotation &&
                 m_CrackCount == crackCount && m_CrackSize == crackSize && m_CrackWidth == crackWidth &&
                 m_CrackOpacity == crackOpacity && m_CrackRandomness == crackRandomness && m_CrackRotation == crackRotation && m_CrackOffsetX == crackOffsetX && m_CrackOffsetY == crackOffsetY;
+            // Only the color filter changed.
+            bool filterOnly = TexturePerformance.FilterOnlyRebuild && m_ColorBeforeFilter != null && m_Color != null &&
+                (!m_TextureDirty || m_FilterOnly) &&
+                (m_FilterColor != filterColor || m_FilterOpacityPercent != filterOpacityPercent) &&
+                m_Enabled == enabled && m_Level == level && m_Source == source && m_UvSize == uvSize &&
+                m_Depth == depth && m_CrackDepth == crackDepth && m_Tiling == tiling &&
+                m_OffsetX == offsetX && m_OffsetY == offsetY && m_Rotation == rotation &&
+                m_CrackCount == crackCount && m_CrackSize == crackSize && m_CrackWidth == crackWidth &&
+                m_CrackOpacity == crackOpacity && m_CrackRandomness == crackRandomness && m_CrackRotation == crackRotation &&
+                m_CrackOffsetX == crackOffsetX && m_CrackOffsetY == crackOffsetY;
             if (m_FilterOpacityPercent != filterOpacityPercent || m_FilterColor != filterColor || m_Enabled != enabled || m_Level != level || m_Source != source ||
                 (BakeUvSizeIntoTexture && m_UvSize != uvSize) || m_Depth != depth || m_CrackDepth != crackDepth || m_CrackRotation != crackRotation || m_CrackOffsetX != crackOffsetX || m_CrackOffsetY != crackOffsetY ||
                 m_OffsetX != offsetX || m_OffsetY != offsetY || m_Rotation != rotation ||
@@ -153,7 +169,8 @@ namespace Advanced_Graphics
                 m_CrackWidth != crackWidth || m_CrackOpacity != crackOpacity || m_CrackRandomness != crackRandomness)
             {
                 m_TextureDirty = true;
-                m_NormalOnly = depthOnly;
+                m_NormalOnly = depthOnly && !filterOnly;
+                m_FilterOnly = filterOnly;
             }
             m_FilterOpacityPercent = filterOpacityPercent;
             m_FilterColor = filterColor;
@@ -269,7 +286,25 @@ namespace Advanced_Graphics
 
         private void BuildTextures()
         {
+            var timer = TexturePerformance.StartTimer(SurfaceName);
             m_ColorBeforeCracks = m_StampedCrackNormals = null;
+            if (m_FilterOnly && m_Color != null && m_ColorBeforeFilter != null)
+            {
+                // Re-applies only the filter; the normal map stays.
+                m_FilterOnly = false;
+                m_NormalOnly = false;
+                var filtered = BuildFilteredColor();
+                if (filtered != null)
+                {
+                    RestoreMaterials();
+                    UnityEngine.Object.Destroy(m_Color);
+                    m_Color = filtered;
+                    timer.Mark("filter+upload");
+                    timer.Log("filter only, " + filtered.width + "px");
+                    return;
+                }
+            }
+            m_FilterOnly = false;
             if (m_NormalOnly && m_Color != null)
             {
                 var normalOnly = ShouldBuildSurfaceNormal
@@ -278,12 +313,16 @@ namespace Advanced_Graphics
                 if (m_Normal != null) UnityEngine.Object.Destroy(m_Normal);
                 m_Normal = normalOnly;
                 m_NormalOnly = false;
+                timer.Mark("normal");
+                timer.Log("depth only");
                 return;
             }
 
             var sourceColor = CacheSourceColor && m_CachedSourceLevel == m_Level ? m_CachedSourceColor : null;
+            bool sourceFromCache = sourceColor != null;
             if (sourceColor == null) sourceColor = m_Level == 0 ? LoadOriginalColor() :
                 m_Level == 2 ? LoadCustomTexture() : GenerateNeutralAsphalt();
+            timer.Mark(sourceFromCache ? "source (cached)" : "source");
             if (sourceColor == null)
             {
                 RestoreMaterials();
@@ -291,6 +330,7 @@ namespace Advanced_Graphics
                 return;
             }
             Texture2D color = null, normal = null;
+            Color32[] beforeFilter = null;
             if (CacheSourceColor && m_CachedSourceColor != sourceColor)
             {
                 ClearSourceCache();
@@ -299,14 +339,28 @@ namespace Advanced_Graphics
             }
             try
             {
-                color = Transform(sourceColor, false, true);
+                // Uploaded once at the end, after all CPU steps.
+                color = TransformCore(sourceColor, false, true, null, null, false);
+                timer.Mark("transform");
                 PostprocessSurfaceColor(color, sourceColor);
                 byte[] crackMask = m_CrackCount > 0 && m_CrackOpacity > 0 ? AddCrackOverlay(color) : null;
+                if (crackMask != null) timer.Mark("cracks");
                 if (ShouldBuildSurfaceNormal)
+                {
                     normal = BuildSelectedNormal(color, m_Depth, m_UvSize, crackMask);
+                    timer.Mark("normal");
+                }
                 ApplyIntrinsicColor(color);
+                if (TexturePerformance.FilterOnlyRebuild && color.isReadable)
+                {
+                    var buffer = PixelBuffer.Read(color);
+                    try { beforeFilter = buffer.Pixels.ToArray(); }
+                    finally { buffer.Dispose(); }
+                }
                 TextureColorFilter.Apply(color, m_FilterColor, m_FilterOpacityPercent);
-                color.Apply(true, !KeepTileReadable);
+                timer.Mark("filter");
+                TexturePerformance.ApplyWithMips(color, !KeepTileReadable, timer);
+                timer.Mark("upload");
             }
             catch
             {
@@ -324,6 +378,35 @@ namespace Advanced_Graphics
             DestroyTextures();
             m_Color = color;
             m_Normal = normal;
+            m_ColorBeforeFilter = beforeFilter;
+            timer.Log(color.width + "px");
+        }
+
+        // New color texture from the stored pre-filter pixels and the current filter.
+        private Texture2D BuildFilteredColor()
+        {
+            var previous = m_Color;
+            var result = new Texture2D(previous.width, previous.height, TextureFormat.RGBA32, true, false);
+            try
+            {
+                if (!PixelBuffer.TryWrite(result, out var view) || view.Length != m_ColorBeforeFilter.Length)
+                {
+                    UnityEngine.Object.Destroy(result);
+                    return null;
+                }
+                view.CopyFrom(m_ColorBeforeFilter);
+                TextureColorFilter.Apply(result, m_FilterColor, m_FilterOpacityPercent);
+                TexturePerformance.ApplyWithMips(result, !KeepTileReadable);
+                result.name = previous.name;
+                result.wrapMode = previous.wrapMode;
+                SurfaceTextureSampling.Apply(result);
+                return result;
+            }
+            catch
+            {
+                UnityEngine.Object.Destroy(result);
+                throw;
+            }
         }
 
         protected virtual Texture2D LoadOriginalColor()
@@ -440,36 +523,37 @@ namespace Advanced_Graphics
         private Texture2D CreateNormalFromColor(Texture2D source, int depth, int uvSize, byte[] crackMask)
         {
             int width = source.width, height = source.height;
-            var colors = m_ColorBeforeCracks ?? source.GetPixels32();
-            var normals = new Color32[colors.Length];
-
-            for (int y = 0; y < height; y++)
-            for (int x = 0; x < width; x++)
+            var colors = m_ColorBeforeCracks != null ? PixelBuffer.Copy(m_ColorBeforeCracks) : PixelBuffer.Read(source);
+            bool useCrackMask = crackMask != null && m_StampedCrackNormals == null;
+            var mask = useCrackMask ? new NativeArray<byte>(crackMask, Allocator.TempJob) : new NativeArray<byte>(1, Allocator.TempJob);
+            var output = PixelBuffer.Allocate(colors.Length);
+            Color32[] normals;
+            try
             {
-                int left = y * width + (x + width - 1) % width;
-                int right = y * width + (x + 1) % width;
-                int down = ((y + height - 1) % height) * width + x;
-                int up = ((y + 1) % height) * width + x;
-                float relief = 0.025f * depth / 100f * uvSize / 100f;
-                float nx = (colors[left].r - colors[right].r) * relief;
-                float ny = (colors[down].r - colors[up].r) * relief;
-                if (crackMask != null && m_StampedCrackNormals == null)
+                TexturePerformance.Run(new NormalFromColorRowsJob
                 {
-                    float crackRelief = 0.008f * CrackDepth / 100f;
-                    nx += (crackMask[right] - crackMask[left]) * crackRelief;
-                    ny += (crackMask[up] - crackMask[down]) * crackRelief;
-                }
-                var n = new Vector3(nx, ny, 1f).normalized;
-                normals[y * width + x] = new Color32(
-                    (byte)Mathf.Clamp((n.x * 0.5f + 0.5f) * 255f, 0f, 255f),
-                    (byte)Mathf.Clamp((n.y * 0.5f + 0.5f) * 255f, 0f, 255f),
-                    (byte)Mathf.Clamp((n.z * 0.5f + 0.5f) * 255f, 0f, 255f), 255);
+                    Colors = colors.Pixels,
+                    CrackMask = mask,
+                    Normals = output.Pixels,
+                    Width = width,
+                    Height = height,
+                    Relief = 0.025f * depth / 100f * uvSize / 100f,
+                    CrackRelief = 0.008f * CrackDepth / 100f,
+                    UseCrackMask = useCrackMask
+                }, height);
+                normals = output.Pixels.ToArray();
+            }
+            finally
+            {
+                colors.Dispose();
+                mask.Dispose();
+                output.Dispose();
             }
             ApplyAuthoredCrackNormals(normals, crackMask, CrackDepth);
             EncodeNormalPixels(normals);
             var result = new Texture2D(width, height, TextureFormat.RGBA32, true, true);
             result.SetPixels32(normals);
-            result.Apply(true, !KeepTileReadable);
+            TexturePerformance.ApplyWithMips(result, !KeepTileReadable);
             result.name = "Advanced Graphics Road Asphalt Normal";
             result.wrapMode = TextureWrapMode.Repeat;
             SurfaceTextureSampling.Apply(result);
@@ -481,75 +565,79 @@ namespace Advanced_Graphics
             int size = source.width;
             if (size != source.height)
                 throw new InvalidDataException("Road asphalt detail texture must be square.");
-            var pixels = source.GetPixels32();
-            // Keep asphalt relief independent of the dark crack overlay.
-            if (HasIndependentCrackControls) m_ColorBeforeCracks = (Color32[])pixels.Clone();
-            var mask = new byte[pixels.Length];
-            var random = new System.Random(73129 + m_CrackRandomness * 97);
-            // A custom image contains a whole crack pattern, so use a lower starting density and add only 0.05 per tiling unit above 1 (0.25 at 1; 0.60 at 8).
-            var customMask = m_CustomCracks ? LoadCrackMask() : null;
-            bool custom = customMask != null;
-            float density = custom ? (m_Tiling <= 1f ? m_Tiling * 0.25f : 0.25f + (m_Tiling - 1f) * 0.05f) : m_Tiling;
-            int limit = GetType() == typeof(RoadAsphaltSystem) ? Setting.MaxRoadCrackCount * 2 : 800;
-            int count = Math.Min(limit, Mathf.RoundToInt(m_CrackCount * density));
-            if (custom && m_CrackCount > 0) count = Math.Max(1, count);
-            if (count == 0) return mask;
-            int columns = Mathf.CeilToInt(Mathf.Sqrt(count));
-            int rows = Mathf.CeilToInt((float)count / columns);
-            float cellWidth = (float)size / columns;
-            float cellHeight = (float)size / rows;
-            float jitter = m_CrackRandomness / 100f;
-            float scale = m_CrackSize / 100f;
-            float radius = Math.Max(0.25f, scale * m_CrackWidth / 100f);
-            if (custom && m_CustomCrackNormals != null)
+            var pixels = PixelBuffer.Read(source);
+            try
             {
-                if (m_ColorBeforeCracks == null) m_ColorBeforeCracks = (Color32[])pixels.Clone();
-                m_StampedCrackNormals = new Color32[pixels.Length];
-            }
-            else if (custom) customMask = GetCrackWidthMask();
-            int crackShiftX = Mathf.RoundToInt(size * m_CrackOffsetX / 100f);
-            int crackShiftY = Mathf.RoundToInt(size * m_CrackOffsetY / 100f);
-            float customAngleOffset = custom ? (float)(random.NextDouble() * Math.PI * 2.0) : 0f;
-            for (int i = 0; i < count; i++)
-            {
-                float x = ((i % columns) + 0.5f + ((float)random.NextDouble() - 0.5f) * jitter) * cellWidth + crackShiftX;
-                float y = ((i / columns) + 0.5f + ((float)random.NextDouble() - 0.5f) * jitter) * cellHeight + crackShiftY;
-                float angle = (float)(random.NextDouble() * Math.PI * 2.0) + m_CrackRotation * Mathf.Deg2Rad;
-                if (customMask != null)
+                // Keep asphalt relief independent of the dark crack overlay.
+                if (HasIndependentCrackControls) m_ColorBeforeCracks = pixels.Pixels.ToArray();
+                var mask = new byte[pixels.Length];
+                var random = new System.Random(73129 + m_CrackRandomness * 97);
+                // A custom image contains a whole crack pattern, so use a lower starting density and add only 0.05 per tiling unit above 1 (0.25 at 1; 0.60 at 8).
+                var customMask = m_CustomCracks ? LoadCrackMask() : null;
+                bool custom = customMask != null;
+                float density = custom ? (m_Tiling <= 1f ? m_Tiling * 0.25f : 0.25f + (m_Tiling - 1f) * 0.05f) : m_Tiling;
+                int limit = GetType() == typeof(RoadAsphaltSystem) ? Setting.MaxRoadCrackCount * 2 : 800;
+                int count = Math.Min(limit, Mathf.RoundToInt(m_CrackCount * density));
+                if (custom && m_CrackCount > 0) count = Math.Max(1, count);
+                if (count == 0) return mask;
+                int columns = Mathf.CeilToInt(Mathf.Sqrt(count));
+                int rows = Mathf.CeilToInt((float)count / columns);
+                float cellWidth = (float)size / columns;
+                float cellHeight = (float)size / rows;
+                float jitter = m_CrackRandomness / 100f;
+                float scale = m_CrackSize / 100f;
+                float radius = Math.Max(0.25f, scale * m_CrackWidth / 100f);
+                if (custom && m_CustomCrackNormals != null)
                 {
-                    // Stratify orientations so even a small number of patterns differ visibly.
-                    angle = customAngleOffset + m_CrackRotation * Mathf.Deg2Rad + (i * 137.50776f + (float)random.NextDouble() * 45f * jitter) * Mathf.Deg2Rad;
-                    float variation = 1f + ((float)random.NextDouble() - 0.5f) * 0.4f * jitter;
-                    StampCrack(mask, size, customMask, x, y, angle, scale * variation, random.Next(2) == 0);
-                    continue;
+                    if (m_ColorBeforeCracks == null) m_ColorBeforeCracks = pixels.Pixels.ToArray();
+                    m_StampedCrackNormals = new Color32[pixels.Length];
                 }
-                int segments = 8 + random.Next(6);
-                for (int segment = 0; segment < segments; segment++)
+                else if (custom) customMask = GetCrackWidthMask();
+                int crackShiftX = Mathf.RoundToInt(size * m_CrackOffsetX / 100f);
+                int crackShiftY = Mathf.RoundToInt(size * m_CrackOffsetY / 100f);
+                float customAngleOffset = custom ? (float)(random.NextDouble() * Math.PI * 2.0) : 0f;
+                for (int i = 0; i < count; i++)
                 {
-                    angle += ((float)random.NextDouble() - 0.5f) * (0.3f + 2f * jitter);
-                    float length = (5f + (float)random.NextDouble() * 7f) * scale;
-                    float nextX = x + Mathf.Cos(angle) * length;
-                    float nextY = y + Mathf.Sin(angle) * length;
-                    PaintCrack(mask, size, x, y, nextX, nextY, radius);
-                    x = nextX;
-                    y = nextY;
+                    float x = ((i % columns) + 0.5f + ((float)random.NextDouble() - 0.5f) * jitter) * cellWidth + crackShiftX;
+                    float y = ((i / columns) + 0.5f + ((float)random.NextDouble() - 0.5f) * jitter) * cellHeight + crackShiftY;
+                    float angle = (float)(random.NextDouble() * Math.PI * 2.0) + m_CrackRotation * Mathf.Deg2Rad;
+                    if (customMask != null)
+                    {
+                        // Stratify orientations so even a small number of patterns differ visibly.
+                        angle = customAngleOffset + m_CrackRotation * Mathf.Deg2Rad + (i * 137.50776f + (float)random.NextDouble() * 45f * jitter) * Mathf.Deg2Rad;
+                        float variation = 1f + ((float)random.NextDouble() - 0.5f) * 0.4f * jitter;
+                        StampCrack(mask, size, customMask, x, y, angle, scale * variation, random.Next(2) == 0);
+                        continue;
+                    }
+                    int segments = 8 + random.Next(6);
+                    for (int segment = 0; segment < segments; segment++)
+                    {
+                        angle += ((float)random.NextDouble() - 0.5f) * (0.3f + 2f * jitter);
+                        float length = (5f + (float)random.NextDouble() * 7f) * scale;
+                        float nextX = x + Mathf.Cos(angle) * length;
+                        float nextY = y + Mathf.Sin(angle) * length;
+                        PaintCrack(mask, size, x, y, nextX, nextY, radius);
+                        x = nextX;
+                        y = nextY;
+                    }
                 }
+                var nativeMask = new NativeArray<byte>(mask, Allocator.TempJob);
+                try
+                {
+                    TexturePerformance.Run(new CrackShadeBlocksJob
+                    {
+                        Pixels = pixels.Pixels,
+                        Mask = nativeMask,
+                        Strength = m_CrackOpacity / 100f
+                    }, CrackShadeBlocksJob.Blocks(pixels.Length));
+                    nativeMask.CopyTo(mask);
+                }
+                finally { nativeMask.Dispose(); }
+                // A view already wrote into the texture; BuildTextures uploads once at the end.
+                if (!pixels.IsView) source.SetPixels32(pixels.Pixels.ToArray());
+                return mask;
             }
-            for (int i = 0; i < pixels.Length; i++)
-            {
-                if (mask[i] == 0) continue;
-                float strength = m_CrackOpacity / 100f;
-                float shade = Mathf.Max(0f, 1f - mask[i] / 255f * 0.67f * strength);
-                mask[i] = (byte)Mathf.Min(255f, mask[i] * strength);
-                var color = pixels[i];
-                color.r = (byte)(color.r * shade);
-                color.g = (byte)(color.g * shade);
-                color.b = (byte)(color.b * shade);
-                pixels[i] = color;
-            }
-            source.SetPixels32(pixels);
-            source.Apply(false, false);
-            return mask;
+            finally { pixels.Dispose(); }
         }
 
         private static void PaintCrack(byte[] mask, int size, float x0, float y0, float x1, float y1, float radius)
@@ -576,14 +664,17 @@ namespace Advanced_Graphics
         }
 
         protected Texture2D Transform(Texture2D source, bool linear, bool keepReadable,
-            float? strengthOverride = null, int? resolutionOverride = null)
+            float? strengthOverride = null, int? resolutionOverride = null) =>
+            TransformCore(source, linear, keepReadable, strengthOverride, resolutionOverride, true);
+
+        // apply = false leaves the upload to the caller, so an edited texture is uploaded once.
+        private Texture2D TransformCore(Texture2D source, bool linear, bool keepReadable,
+            float? strengthOverride, int? resolutionOverride, bool apply)
         {
             float normalStrength = strengthOverride ?? AuthoredNormalStrength;
             int size = source.width;
             int outputSize = Math.Min(resolutionOverride ?? size, MaximumTileResolution);
             if (size != source.height) throw new InvalidDataException("Road asphalt detail texture must be square.");
-            var input = source.GetPixels32();
-            var output = new Color32[outputSize * outputSize];
             float shiftX = m_OffsetX * size / 100f;
             float shiftY = m_OffsetY * size / 100f;
             float tiling = 1f;
@@ -597,83 +688,54 @@ namespace Advanced_Graphics
                 cosine = Mathf.Round(cosine);
                 sine = Mathf.Round(sine);
             }
-            float sampleOffset = TextureSampleOffset;
-            for (int y = 0; y < outputSize; y++)
-            for (int x = 0; x < outputSize; x++)
-            {
-                float u = (x + sampleOffset) * period / outputSize + shiftX;
-                float v = (y + sampleOffset) * period / outputSize + shiftY;
-                float dx = x < seamWidth ? period : x >= outputSize - seamWidth ? -period : 0f;
-                float dy = y < seamWidth ? period : y >= outputSize - seamWidth ? -period : 0f;
-                float wx = dx == 0f ? 0f : 0.5f * (1f - Math.Min(x, outputSize - 1 - x) / seamWidth);
-                float wy = dy == 0f ? 0f : 0.5f * (1f - Math.Min(y, outputSize - 1 - y) / seamWidth);
-                var pixel = SampleRotated(input, size, u, v, rotation, cosine, sine);
-                if (wx > 0f) pixel = Blend(pixel, SampleRotated(input, size, u + dx, v, rotation, cosine, sine), wx);
-                if (wy > 0f)
-                {
-                    var other = SampleRotated(input, size, u, v + dy, rotation, cosine, sine);
-                    if (wx > 0f) other = Blend(other, SampleRotated(input, size, u + dx, v + dy, rotation, cosine, sine), wx);
-                    pixel = Blend(pixel, other, wy);
-                }
-                if (linear && rotation != 0)
-                {
-                    float nx = pixel.r - 128f, ny = pixel.g - 128f;
-                    pixel.r = (byte)Mathf.Clamp(128f + nx * cosine - ny * sine, 0f, 255f);
-                    pixel.g = (byte)Mathf.Clamp(128f + nx * sine + ny * cosine, 0f, 255f);
-                }
-                if (linear && normalStrength != 1f)
-                {
-                    var nx = (pixel.r / 255f * 2f - 1f) * normalStrength;
-                    var ny = (pixel.g / 255f * 2f - 1f) * normalStrength;
-                    var n = new Vector3(nx, ny, Mathf.Max(0.001f, pixel.b / 255f * 2f - 1f)).normalized;
-                    pixel.r = (byte)Mathf.Clamp((n.x * 0.5f + 0.5f) * 255f, 0f, 255f);
-                    pixel.g = (byte)Mathf.Clamp((n.y * 0.5f + 0.5f) * 255f, 0f, 255f);
-                    pixel.b = (byte)Mathf.Clamp((n.z * 0.5f + 0.5f) * 255f, 0f, 255f);
-                }
-                output[y * outputSize + x] = pixel;
-            }
             var texture = new Texture2D(outputSize, outputSize, TextureFormat.RGBA32, true, linear);
-            texture.SetPixels32(output);
-            texture.Apply(true, !keepReadable);
-            texture.name = "Advanced Graphics Road Asphalt " + (linear ? "Normal" : "Color");
-            texture.wrapMode = TextureWrapMode.Repeat;
-            SurfaceTextureSampling.Apply(texture);
-            return texture;
-        }
-
-        private static Color32 SampleRotated(Color32[] pixels, int size, float u, float v,
-            int rotation, float cosine, float sine)
-        {
-            if (rotation == 0) return Sample(pixels, size, u, v);
-            float center = size * 0.5f;
-            float x = u - center, y = v - center;
-            return Sample(pixels, size, center + x * cosine + y * sine,
-                center - x * sine + y * cosine);
-        }
-
-        private static Color32 Blend(Color32 a, Color32 b, float weight)
-        {
-            return new Color32((byte)Mathf.Lerp(a.r, b.r, weight), (byte)Mathf.Lerp(a.g, b.g, weight),
-                (byte)Mathf.Lerp(a.b, b.b, weight), (byte)Mathf.Lerp(a.a, b.a, weight));
-        }
-
-        private static Color32 Sample(Color32[] pixels, int size, float x, float y)
-        {
-            x %= size;
-            y %= size;
-            if (x < 0) x += size;
-            if (y < 0) y += size;
-            int x0 = (int)x, y0 = (int)y;
-            int x1 = (x0 + 1) % size, y1 = (y0 + 1) % size;
-            float fx = x - x0, fy = y - y0;
-            Color32 a = pixels[y0 * size + x0], b = pixels[y0 * size + x1];
-            Color32 c = pixels[y1 * size + x0], d = pixels[y1 * size + x1];
-            float w0 = (1f - fx) * (1f - fy), w1 = fx * (1f - fy);
-            float w2 = (1f - fx) * fy, w3 = fx * fy;
-            return new Color32((byte)(a.r * w0 + b.r * w1 + c.r * w2 + d.r * w3),
-                (byte)(a.g * w0 + b.g * w1 + c.g * w2 + d.g * w3),
-                (byte)(a.b * w0 + b.b * w1 + c.b * w2 + d.b * w3),
-                (byte)(a.a * w0 + b.a * w1 + c.a * w2 + d.a * w3));
+            try
+            {
+                var input = PixelBuffer.Read(source);
+                var fallback = default(PixelBuffer);
+                try
+                {
+                    bool direct = PixelBuffer.TryWrite(texture, out var output);
+                    if (!direct)
+                    {
+                        fallback = PixelBuffer.Allocate(outputSize * outputSize);
+                        output = fallback.Pixels;
+                    }
+                    TexturePerformance.Run(new TransformRowsJob
+                    {
+                        Input = input.Pixels,
+                        Output = output,
+                        Size = size,
+                        OutputSize = outputSize,
+                        Rotation = rotation,
+                        ShiftX = shiftX,
+                        ShiftY = shiftY,
+                        Period = period,
+                        SeamWidth = seamWidth,
+                        SampleOffset = TextureSampleOffset,
+                        Cosine = cosine,
+                        Sine = sine,
+                        NormalStrength = normalStrength,
+                        Linear = linear
+                    }, outputSize);
+                    if (!direct) texture.SetPixels32(output.ToArray());
+                }
+                finally
+                {
+                    input.Dispose();
+                    fallback.Dispose();
+                }
+                if (apply) TexturePerformance.ApplyWithMips(texture, !keepReadable);
+                texture.name = "Advanced Graphics Road Asphalt " + (linear ? "Normal" : "Color");
+                texture.wrapMode = TextureWrapMode.Repeat;
+                SurfaceTextureSampling.Apply(texture);
+                return texture;
+            }
+            catch
+            {
+                UnityEngine.Object.Destroy(texture);
+                throw;
+            }
         }
 
         private void RestoreMaterials()
@@ -710,6 +772,8 @@ namespace Advanced_Graphics
             if (m_Color != null) UnityEngine.Object.Destroy(m_Color);
             if (m_Normal != null) UnityEngine.Object.Destroy(m_Normal);
             m_Color = m_Normal = null;
+            m_ColorBeforeFilter = null;
+            m_FilterOnly = false;
         }
 
         public void RestoreNow()

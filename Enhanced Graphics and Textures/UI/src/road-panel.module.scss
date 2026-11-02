@@ -149,7 +149,7 @@
 .colorPresets button { width: 25rem; height: 25rem; cursor: pointer; border: 1rem solid #d6e7f2; border-radius: 4rem; }
 .colorPresets button[aria-pressed="true"] { outline: 2rem solid #71def8; outline-offset: 2rem; }
 .colorActions { display: flex; gap: 8rem; }
-.endcapKinds { display: flex; flex-wrap: wrap; }
+.endcapKinds { display: flex; flex-wrap: wrap; margin-bottom: 12rem; }
 .endcapKinds button { margin-right: 8rem; }
 
 .colorWindow .header strong { flex: 1; min-width: 0; margin-right: 8rem; }
@@ -175,6 +175,11 @@
 .settingsButton svg { width: 20rem; height: 20rem; }
 .settingsButton[aria-pressed="true"] { background-color: rgba(58, 125, 158, .95); }
 .generalWindow { z-index: 96; }
+.panel.generalWindow { width: 460rem !important; }
+.generalActions { display: flex; flex-direction: row; margin-top: 10rem; }
+.generalActions .reset { margin-top: 0; }
+.generalActions .reset:first-child { flex: 1 1 auto; }
+.generalActions .reset + .reset { margin-left: 8rem; }
 .generalWindow .header strong { flex: 1; min-width: 0; margin-right: 8rem; }
 
 

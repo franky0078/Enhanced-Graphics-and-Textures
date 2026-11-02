@@ -80,7 +80,18 @@ namespace Advanced_Graphics
             m_AlleyCurrentMaterialSources.Add(original);
         }
 
+        // Timing wrapper; logs passes of 10 ms or more or with new endcap atlases.
         protected int ApplyIsolatedAlleyBatches(bool nodesOnly = false)
+        {
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            int endcapsBefore = m_EndcapTexturesBuilt;
+            int applied = ApplyIsolatedAlleyBatchesCore(nodesOnly);
+            TexturePerformance.LogBatchIsolation(TimingLabel, watch.Elapsed.TotalMilliseconds, nodesOnly, applied,
+                m_EndcapTexturesBuilt - endcapsBefore);
+            return applied;
+        }
+
+        private int ApplyIsolatedAlleyBatchesCore(bool nodesOnly)
         {
             var batchManager = World.GetExistingSystemManaged<BatchManagerSystem>();
             var prefabs = World.GetExistingSystemManaged<PrefabSystem>();

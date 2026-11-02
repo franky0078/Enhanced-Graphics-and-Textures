@@ -815,7 +815,38 @@ namespace Advanced_Graphics
             AddNormalToggleEntries(entries);
             AddEndcapEntries(entries);
             AddDebugWindowEntries(entries);
+            AddLogOutputEntries(entries);
             return entries;
+        }
+
+        private void AddLogOutputEntries(Dictionary<string, string> entries)
+        {
+            string label, description;
+            switch (m_Language)
+            {
+                case "de":
+                    label = "Log-Ausgabe aktivieren";
+                    description = "Schreibt Statusmeldungen der Mod ins Log. Aus: Es werden nur Fehler geschrieben.";
+                    break;
+                case "es":
+                    label = "Activar salida de registro";
+                    description = "Escribe los mensajes de estado del mod en el registro. Desactivado: solo se escriben los errores.";
+                    break;
+                case "fr":
+                    label = "Activer la sortie du journal";
+                    description = "Écrit les messages d’état du mod dans le journal. Désactivé : seules les erreurs sont écrites.";
+                    break;
+                case "it":
+                    label = "Attiva output del log";
+                    description = "Scrive i messaggi di stato della mod nel log. Disattivato: vengono scritti solo gli errori.";
+                    break;
+                default:
+                    label = "Enable log output";
+                    description = "Writes the mod's status messages to the log. Off: only errors are written.";
+                    break;
+            }
+            entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.EnableLogOutput))] = label;
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.EnableLogOutput))] = description;
         }
 
         private void AddDebugWindowEntries(Dictionary<string, string> entries)
@@ -1346,23 +1377,23 @@ namespace Advanced_Graphics
             switch (m_Language)
             {
                 case "de":
-                    labels = new[] { "Schotter", "Straßenschotter aktivieren", "Schotterstruktur", "UV-Größe", "Tiefenwirkung", "Versatz X", "Versatz Y", "Drehung", "Schottertextur neu laden", "Straßenschotter zurücksetzen", "Texturordner öffnen", "Schotter-Tabs im Spiel anzeigen", "Straßenrand", "Straßenrand aktivieren", "Rand-UV-Größe", "Rand-Tiefenwirkung", "Straßenrand zurücksetzen" };
+                    labels = new[] { "Schotterstraße", "Straßenschotter aktivieren", "Schotterstruktur", "UV-Größe", "Tiefenwirkung", "Versatz X", "Versatz Y", "Drehung", "Schottertextur neu laden", "Straßenschotter zurücksetzen", "Texturordner öffnen", "Schotter-Tabs im Spiel anzeigen", "Straßenrand", "Straßenrand aktivieren", "Rand-UV-Größe", "Rand-Tiefenwirkung", "Straßenrand zurücksetzen" };
                     tips = new[] { "Ändert das Schotter-Material der Fahrbahn.", "0 = Original; 1 = hellerer, feinerer Straßenschotter; 2 = eigene RoadGravel_BaseColor.png.", "100 = ursprüngliche Größe. Höhere Werte vergrößern die Steine.", "0 = ursprüngliche Normalmap bei Original, flach bei Generiert. Höhere Werte verstärken das passende Relief; keine echte Geometrie.", "Verschiebt die Textur horizontal.", "Verschiebt die Textur vertikal.", "Dreht Farbe und Normalmap gemeinsam.", "Lädt RoadGravel_BaseColor.png aus ModsData/Enhanced_Graphics_and_Textures/Textures/Gravel neu.", "Stellt Originalmaterial und Standardwerte wieder her.", "Öffnet ModsData/Enhanced_Graphics_and_Textures/Textures/Gravel.", "Zeigt Schotter und Straßenrand im Texturfenster.", "Ändert den seitlichen GravelShoulder-Streifen.", "100 = Originalmaßstab. Höhere Werte vergrößern die vorhandene Struktur.", "0 = ursprüngliches Relief. Höhere Werte verstärken die Original-Normalmap.", "Stellt den Originalatlas wieder her.", "Der Straßenrand verwendet seine eigene Atlastextur. Hier werden Größe und Tiefe der Originalstruktur angepasst.", "RoadGravel_BaseColor.png in ModsData/Enhanced_Graphics_and_Textures/Textures/Gravel kopieren und neu laden." };
                     break;
                 case "es":
-                    labels = new[] { "Grava", "Activar grava de calles", "Textura", "Tamaño UV", "Relieve", "Desplazamiento X", "Desplazamiento Y", "Rotación", "Recargar textura", "Restablecer grava", "Abrir carpeta", "Mostrar pestañas de grava", "Borde", "Activar borde", "Tamaño UV del borde", "Relieve del borde", "Restablecer borde" };
+                    labels = new[] { "Camino de grava", "Activar grava de calles", "Textura", "Tamaño UV", "Relieve", "Desplazamiento X", "Desplazamiento Y", "Rotación", "Recargar textura", "Restablecer grava", "Abrir carpeta", "Mostrar pestañas de grava", "Borde", "Activar borde", "Tamaño UV del borde", "Relieve del borde", "Restablecer borde" };
                     tips = new[] { "Modifica el material Gravel de la calzada.", "0 = original; 1 = grava más clara y fina; 2 = RoadGravel_BaseColor.png propia.", "100 = tamaño original; valores mayores amplían las piedras.", "0 = normal original en Original, plana en Generado. Valores mayores refuerzan el relieve; sin geometría real.", "Desplaza la textura horizontalmente.", "Desplaza la textura verticalmente.", "Gira el color y la normal juntos.", "Recarga RoadGravel_BaseColor.png desde ModsData/Enhanced_Graphics_and_Textures/Textures/Gravel.", "Restaura material y ajustes originales.", "Abre ModsData/Enhanced_Graphics_and_Textures/Textures/Gravel.", "Muestra las pestañas de grava y borde.", "Modifica la franja lateral GravelShoulder.", "100 = escala original; valores mayores amplían la estructura.", "0 = relieve original; valores mayores refuerzan la normal original.", "Restaura el atlas original.", "El borde usa su propio atlas. Ajusta el tamaño y relieve originales.", "Copia RoadGravel_BaseColor.png en ModsData/Enhanced_Graphics_and_Textures/Textures/Gravel y recarga." };
                     break;
                 case "fr":
-                    labels = new[] { "Gravier", "Activer le gravier routier", "Texture", "Taille UV", "Relief", "Décalage X", "Décalage Y", "Rotation", "Recharger la texture", "Réinitialiser le gravier", "Ouvrir le dossier", "Afficher les onglets gravier", "Accotement", "Activer l’accotement", "Taille UV du bord", "Relief du bord", "Réinitialiser le bord" };
+                    labels = new[] { "Route en gravier", "Activer le gravier routier", "Texture", "Taille UV", "Relief", "Décalage X", "Décalage Y", "Rotation", "Recharger la texture", "Réinitialiser le gravier", "Ouvrir le dossier", "Afficher les onglets gravier", "Accotement", "Activer l’accotement", "Taille UV du bord", "Relief du bord", "Réinitialiser le bord" };
                     tips = new[] { "Modifie le matériau Gravel de la chaussée.", "0 = origine ; 1 = gravier plus clair et fin ; 2 = RoadGravel_BaseColor.png personnelle.", "100 = taille originale ; une valeur supérieure agrandit les pierres.", "0 = normale originale en Origine, plate en Généré. Les valeurs supérieures renforcent le relief ; sans géométrie réelle.", "Décale horizontalement.", "Décale verticalement.", "Tourne la couleur et la normale ensemble.", "Recharge RoadGravel_BaseColor.png dans ModsData/Enhanced_Graphics_and_Textures/Textures/Gravel.", "Restaure le matériau et les réglages originaux.", "Ouvre ModsData/Enhanced_Graphics_and_Textures/Textures/Gravel.", "Affiche les onglets gravier et accotement.", "Modifie la bande latérale GravelShoulder.", "100 = échelle originale ; plus grand agrandit la structure.", "0 = relief original ; plus grand renforce la normale originale.", "Restaure l’atlas original.", "Le bord utilise son propre atlas. Réglez la taille et le relief d’origine.", "Copiez RoadGravel_BaseColor.png dans ModsData/Enhanced_Graphics_and_Textures/Textures/Gravel puis rechargez." };
                     break;
                 case "it":
-                    labels = new[] { "Ghiaia", "Attiva ghiaia stradale", "Struttura", "Dimensione UV", "Rilievo", "Spostamento X", "Spostamento Y", "Rotazione", "Ricarica texture", "Ripristina ghiaia", "Apri cartella", "Mostra schede ghiaia", "Bordo", "Attiva bordo", "Dimensione UV bordo", "Rilievo bordo", "Ripristina bordo" };
+                    labels = new[] { "Strada in ghiaia", "Attiva ghiaia stradale", "Struttura", "Dimensione UV", "Rilievo", "Spostamento X", "Spostamento Y", "Rotazione", "Ricarica texture", "Ripristina ghiaia", "Apri cartella", "Mostra schede ghiaia", "Bordo", "Attiva bordo", "Dimensione UV bordo", "Rilievo bordo", "Ripristina bordo" };
                     tips = new[] { "Modifica il materiale Gravel della carreggiata.", "0 = originale; 1 = ghiaia più chiara e fine; 2 = RoadGravel_BaseColor.png personale.", "100 = dimensione originale; valori maggiori ingrandiscono i sassi.", "0 = normale originale in Originale, piatta in Generata. Valori maggiori rafforzano il rilievo; nessuna geometria reale.", "Sposta orizzontalmente.", "Sposta verticalmente.", "Ruota colore e normale insieme.", "Ricarica RoadGravel_BaseColor.png da ModsData/Enhanced_Graphics_and_Textures/Textures/Gravel.", "Ripristina materiale e valori originali.", "Apre ModsData/Enhanced_Graphics_and_Textures/Textures/Gravel.", "Mostra le schede ghiaia e bordo.", "Modifica la fascia laterale GravelShoulder.", "100 = scala originale; valori maggiori ingrandiscono la struttura.", "0 = rilievo originale; valori maggiori rafforzano la normale originale.", "Ripristina l’atlante originale.", "Il bordo usa un atlante proprio. Regola dimensione e rilievo originali.", "Copia RoadGravel_BaseColor.png in ModsData/Enhanced_Graphics_and_Textures/Textures/Gravel e ricarica." };
                     break;
                 default:
-                    labels = new[] { "Gravel", "Enable road gravel", "Texture", "UV size", "Surface depth", "Offset X", "Offset Y", "Rotation", "Reload texture", "Reset road gravel", "Open texture folder", "Show gravel tabs in game", "Road edge", "Enable road edge", "Edge UV size", "Edge depth", "Reset road edge" };
+                    labels = new[] { "Gravel road", "Enable road gravel", "Texture", "UV size", "Surface depth", "Offset X", "Offset Y", "Rotation", "Reload texture", "Reset road gravel", "Open texture folder", "Show gravel tabs in game", "Road edge", "Enable road edge", "Edge UV size", "Edge depth", "Reset road edge" };
                     tips = new[] { "Changes the road surface Gravel material.", "0 = original; 1 = lighter, finer road gravel; 2 = custom RoadGravel_BaseColor.png.", "100 = original size; higher values enlarge the stones.", "0 = original normal in Original, flat in Generated. Higher values strengthen matching relief; no real geometry.", "Shifts the texture horizontally.", "Shifts the texture vertically.", "Rotates color and normal together.", "Reloads RoadGravel_BaseColor.png from ModsData/Enhanced_Graphics_and_Textures/Textures/Gravel.", "Restores original material and defaults.", "Opens ModsData/Enhanced_Graphics_and_Textures/Textures/Gravel.", "Shows gravel and road edge tabs.", "Changes the GravelShoulder side strip.", "100 = original scale; higher values enlarge the existing pattern.", "0 = original relief; higher values strengthen the original normal.", "Restores the original atlas.", "The road edge uses a separate atlas. Adjusts its original pattern size and depth.", "Copy RoadGravel_BaseColor.png to ModsData/Enhanced_Graphics_and_Textures/Textures/Gravel and reload." };
                     break;
             }

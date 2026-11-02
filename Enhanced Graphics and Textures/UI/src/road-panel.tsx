@@ -479,9 +479,11 @@ function TextureGeneralWindow({ endcapValues, endcapKind, normalEnabled, surface
                     timer.current = dragging ? null : setTimeout(commit, 120);
                 }} onCommit={commit} />
             <p className={styles.textureHint}>{text("TextureFiltering16", "Anisotropic filtering: 16×")}</p>
-            <button className={styles.reset} title={text("ReloadAllCustomTexturesHint", "Reloads all custom color and normal maps, including the road crack mask.")}
-                onClick={() => { commit(); trigger(group, "reloadAllCustomTextures", "reload"); }}>{text("ReloadAllCustomTextures", "Reload all custom textures")}</button>
-            <button className={styles.reset} onClick={() => { pending.current = 0; setDraft(0); commit(); }}>{text("Reset", "Reset")}</button>
+            <div className={styles.generalActions}>
+                <button className={styles.reset} title={text("ReloadAllCustomTexturesHint", "Reloads all custom color and normal maps, including the road crack mask.")}
+                    onClick={() => { commit(); trigger(group, "reloadAllCustomTextures", "reload"); }}>{text("ReloadAllCustomTextures", "Reload all custom textures")}</button>
+                <button className={styles.reset} onClick={() => { pending.current = 0; setDraft(0); commit(); }}>{text("Reset", "Reset")}</button>
+            </div>
         </div>
     </div>;
 }

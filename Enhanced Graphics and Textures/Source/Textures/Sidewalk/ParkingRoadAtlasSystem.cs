@@ -60,6 +60,7 @@ namespace Advanced_Graphics
 
         protected override void OnUpdate()
         {
+            TexturePool.Trim();
             var settings = Mod.ActiveSetting;
             var asphaltColor = Mod.RoadAsphalt?.ActiveColorTexture;
             var asphaltNormal = asphaltColor != null ? Mod.RoadAsphalt?.ActiveNormalTexture : null;
@@ -157,91 +158,102 @@ namespace Advanced_Graphics
 
         private Texture2D BuildParkingAtlas(Texture source, bool linear, Texture referenceColor = null)
         {
+            var timer = TexturePerformance.StartTimer("Parking road atlas " + (linear ? "normal" : "color"));
             if (!m_ParkingReadbacks.TryGetValue(source, out var cached))
             {
                 cached = ReadParkingTexture(source, linear);
                 m_ParkingReadbacks.Add(source, cached);
+                timer.Mark("atlas readback");
             }
-            var result = new Texture2D(cached.width, cached.height, TextureFormat.RGBA32, true, linear);
+            var result = TexturePool.Get(cached.width, cached.height, linear, out bool reused);
+            timer.Mark(reused ? "texture reused" : "texture new");
             try
             {
-                var pixels = cached.GetPixels32();
-                float referenceAspect = (referenceColor ?? source).height / (float)(referenceColor ?? source).width;
-                if (m_AsphaltColor != null)
-                    FillParkingStrip(pixels, cached.width, cached.height, 0, ParkingEnd,
-                        linear ? m_AsphaltNormal : m_AsphaltColor, linear, AsphaltRepeatsPerAtlas * m_ParkingScaleFactor, referenceAspect, m_ParkingDepthFactor);
-                if (m_SidewalkColor != null)
+                var pixels = PixelBuffer.Read(cached);
+                var copy = default(PixelBuffer);
+                bool direct = PixelBuffer.TryWrite(result, out var target);
+                try
                 {
-                    float repeatsV = m_SidewalkCustom ? 1f / ((32f / 5f) * ParkingVPerMetre) : SidewalkRepeatsV;
-                    FillParkingStrip(pixels, cached.width, cached.height, SidewalkStart, SidewalkEnd,
-                        linear ? m_SidewalkNormal : m_SidewalkColor, linear, SidewalkRepeatsU * m_SidewalkScaleU, 1f, 1f, repeatsV * m_SidewalkScaleV);
+                    if (!direct)
+                    {
+                        // Never write into the cached readback.
+                        copy = PixelBuffer.Allocate(pixels.Length);
+                        target = copy.Pixels;
+                    }
+                    target.CopyFrom(pixels.Pixels);
+                    float referenceAspect = (referenceColor ?? source).height / (float)(referenceColor ?? source).width;
+                    if (m_AsphaltColor != null)
+                        FillParkingStrip(target, cached.width, cached.height, 0, ParkingEnd,
+                            linear ? m_AsphaltNormal : m_AsphaltColor, linear, AsphaltRepeatsPerAtlas * m_ParkingScaleFactor, referenceAspect, m_ParkingDepthFactor);
+                    if (m_SidewalkColor != null)
+                    {
+                        float repeatsV = m_SidewalkCustom ? 1f / ((32f / 5f) * ParkingVPerMetre) : SidewalkRepeatsV;
+                        FillParkingStrip(target, cached.width, cached.height, SidewalkStart, SidewalkEnd,
+                            linear ? m_SidewalkNormal : m_SidewalkColor, linear, SidewalkRepeatsU * m_SidewalkScaleU, 1f, 1f, repeatsV * m_SidewalkScaleV);
+                    }
+                    // Fallback: an owned copy must be written back.
+                    if (!direct) result.SetPixels32(target.ToArray());
                 }
-                result.SetPixels32(pixels);
-                result.Apply(true, true);
+                finally
+                {
+                    pixels.Dispose();
+                    copy.Dispose();
+                }
+                timer.Mark("strips");
+                TexturePerformance.ApplyWithMips(result, !KeepOwnAtlasReadable && !TexturePerformance.ReuseTextures, timer);
+                timer.Mark("upload");
                 result.name = "Enhanced Graphics and Textures Parking road " + (linear ? "Normal" : "Color");
                 result.wrapMode = source.wrapMode;
                 SurfaceTextureSampling.Apply(result);
+                timer.Log(cached.width + "x" + cached.height);
                 return result;
             }
             catch { UnityEngine.Object.Destroy(result); throw; }
         }
 
-        private static void FillParkingStrip(Color32[] pixels, int width, int height,
+        private static void FillParkingStrip(Unity.Collections.NativeArray<Color32> pixels, int width, int height,
             int referenceLeft, int referenceRight, Texture2D tile, bool linear, float repeatsPerAtlas, float referenceAspect, float normalStrength = 1f,
             float repeatsPerV = float.NaN)
         {
+            // Only a non-readable tile is still read back from the GPU.
             Texture2D readable = tile;
             bool releaseTile = tile != null && !tile.isReadable;
             if (releaseTile) readable = ReadParkingTexture(tile, linear);
+            var detail = readable != null ? PixelBuffer.Read(readable) : PixelBuffer.Allocate(1);
             try
             {
-                var detail = readable != null ? readable.GetPixels32() : null;
                 int left = Mathf.RoundToInt(width * referenceLeft / (float)ReferenceWidth);
                 int right = Mathf.RoundToInt(width * referenceRight / (float)ReferenceWidth);
-                for (int y = 0; y < height; y++)
-                for (int x = left; x < right; x++)
+                float vRepeats = float.IsNaN(repeatsPerV) ? referenceAspect * repeatsPerAtlas : repeatsPerV;
+                TexturePerformance.Run(new ParkingStripRowsJob
                 {
-                    int index = y * width + x;
-                    var original = pixels[index];
-                    Color32 replacement = new Color32(128, 128, 255, 255);
-                    if (detail != null)
-                    {
-                        int u = Mathf.FloorToInt((x / (float)width - referenceLeft / (float)ReferenceWidth) * repeatsPerAtlas * readable.width);
-                        float vRepeats = float.IsNaN(repeatsPerV) ? referenceAspect * repeatsPerAtlas : repeatsPerV;
-                        int v = Mathf.FloorToInt(y / (float)height * vRepeats * readable.height);
-                        u = (u % readable.width + readable.width) % readable.width;
-                        v = (v % readable.height + readable.height) % readable.height;
-                        replacement = detail[v * readable.width + u];
-                    }
-                    if (linear)
-                    {
-                        if (normalStrength == 0f)
-                        {
-                            replacement.r = replacement.g = 128;
-                        }
-                        else if (normalStrength != 1f)
-                        {
-                            // Scale the tangent-space normal before packing it for the parking atlas.
-                            var normal = new Vector3(
-                                (replacement.r / 255f * 2f - 1f) * normalStrength,
-                                (replacement.g / 255f * 2f - 1f) * normalStrength,
-                                Mathf.Max(0.001f, replacement.b / 255f * 2f - 1f)).normalized;
-                            replacement.r = (byte)Mathf.Clamp((normal.x * 0.5f + 0.5f) * 255f, 0f, 255f);
-                            replacement.g = (byte)Mathf.Clamp((normal.y * 0.5f + 0.5f) * 255f, 0f, 255f);
-                        }
-                        // Stabilize after the parking depth multiplier, before converting RGB to AG.
-                        replacement = RoadNormalEncoding.Stabilize(replacement);
-                        // Match the existing RoadEU atlas's packed normal channels.
-                        replacement.a = replacement.r;
-                        replacement.r = original.r;
-                        replacement.b = original.b;
-                    }
-                    else replacement.a = original.a;
-                    pixels[index] = replacement;
-                }
+                    Pixels = pixels,
+                    Detail = detail.Pixels,
+                    HasDetail = readable != null,
+                    Linear = linear,
+                    Width = width,
+                    Height = height,
+                    Left = left,
+                    Right = right,
+                    DetailWidth = readable != null ? readable.width : 1,
+                    DetailHeight = readable != null ? readable.height : 1,
+                    ReferenceLeftU = referenceLeft / (float)ReferenceWidth,
+                    RepeatsPerAtlas = repeatsPerAtlas,
+                    VRepeats = vRepeats,
+                    NormalStrength = normalStrength
+                }, height);
             }
-            finally { if (releaseTile && readable != null) UnityEngine.Object.Destroy(readable); }
+            finally
+            {
+                detail.Dispose();
+                if (releaseTile && readable != null) UnityEngine.Object.Destroy(readable);
+            }
         }
+
+        protected override bool TryGetCachedReadback(Texture source, out Texture2D readback) =>
+            m_ParkingReadbacks.TryGetValue(source, out readback) && readback != null;
+
+        protected override void CacheReadback(Texture source, Texture2D readback) => m_ParkingReadbacks[source] = readback;
 
         private static Texture2D ReadParkingTexture(Texture source, bool linear)
         {
@@ -308,8 +320,8 @@ namespace Advanced_Graphics
         {
             RestoreIsolatedAlleyBatches();
             m_ParkingMaterials.Clear();
-            foreach (var copy in m_ParkingColors.Values) if (copy != null) UnityEngine.Object.Destroy(copy);
-            foreach (var copy in m_ParkingNormals.Values) if (copy != null) UnityEngine.Object.Destroy(copy);
+            foreach (var copy in m_ParkingColors.Values) TexturePool.Release(copy, false);
+            foreach (var copy in m_ParkingNormals.Values) TexturePool.Release(copy, true);
             m_ParkingColors.Clear();
             m_ParkingNormals.Clear();
             m_AsphaltColor = m_AsphaltNormal = m_SidewalkColor = m_SidewalkNormal = null;
@@ -317,6 +329,7 @@ namespace Advanced_Graphics
             {
                 foreach (var copy in m_ParkingReadbacks.Values) if (copy != null) UnityEngine.Object.Destroy(copy);
                 m_ParkingReadbacks.Clear();
+                TexturePool.Clear();
             }
         }
 

@@ -63,49 +63,113 @@ namespace Advanced_Graphics
             return result;
         }
 
+        private int m_EndcapTexturesBuilt;
+
         private Texture2D ScaleEndcapAtlas(Texture source, bool linear, bool parking, float scaleU, float scaleV)
         {
             var key = (source, linear, parking, scaleU, scaleV);
             if (m_EndcapTextures.TryGetValue(key, out var result)) return result;
-            var readable = Readback(source, linear);
+            var timer = TexturePerformance.StartTimer(TimingLabel + " endcap atlas " + (linear ? "normal" : "color"));
+            // No GPU readback when the pixels are already on the CPU.
+            Texture2D readable;
+            bool release = false;
+            string origin;
+            if (IsDirectlyReadable(source))
+            {
+                readable = (Texture2D)source;
+                origin = "source direct";
+            }
+            else if (TryGetCachedReadback(source, out readable))
+            {
+                origin = "source cached";
+            }
+            else
+            {
+                readable = Readback(source, linear);
+                origin = "source GPU readback";
+                if (IsGameTexture(source)) CacheReadback(source, readable);
+                else release = true;
+            }
+            timer.Mark(origin);
             try
             {
                 int width = readable.width, height = readable.height;
-                var original = readable.GetPixels32();
-                var pixels = (Color32[])original.Clone();
                 bool whole = parking && IsAlleyAtlas;
                 int left = whole ? 0 : Mathf.RoundToInt(width * (parking ? 516f / 2048f : X0 / 1024f));
                 int right = whole ? width : Mathf.RoundToInt(width * (parking ? 942f / 2048f : X1 / 1024f));
                 int span = Mathf.Max(1, right - left);
-                for (int y = 0; y < height; y++)
+                result = TexturePool.Get(width, height, linear, out bool reused);
+                result.name = "Enhanced Graphics and Textures endcap atlas";
+                timer.Mark(reused ? "texture reused" : "texture new");
+                try
                 {
-                    int sy = Mathf.Min(height - 1, Mathf.FloorToInt(Mathf.Repeat((y + 0.5f) / height * scaleV, 1f) * height));
-                    for (int x = left; x < right; x++)
+                    var original = PixelBuffer.Read(readable);
+                    var copy = default(PixelBuffer);
+                    try
                     {
-                        int sx = left + Mathf.Min(span - 1, Mathf.FloorToInt(Mathf.Repeat((x - left + 0.5f) / span * scaleU, 1f) * span));
-                        int i = y * width + x;
-                        var pixel = original[sy * width + sx];
-                        // Keep non-normal channels and the color material mask at their original UVs.
-                        if (linear) { pixel.r = original[i].r; pixel.b = original[i].b; }
-                        else pixel.a = original[i].a;
-                        pixels[i] = pixel;
+                        bool direct = PixelBuffer.TryWrite(result, out var pixels);
+                        if (!direct)
+                        {
+                            copy = PixelBuffer.Allocate(original.Length);
+                            pixels = copy.Pixels;
+                        }
+                        pixels.CopyFrom(original.Pixels);
+                        TexturePerformance.Run(new EndcapScaleRowsJob
+                        {
+                            Original = original.Pixels,
+                            Pixels = pixels,
+                            Width = width,
+                            Height = height,
+                            Left = left,
+                            Right = right,
+                            Span = span,
+                            ScaleU = scaleU,
+                            ScaleV = scaleV,
+                            Linear = linear
+                        }, height);
+                        if (!direct) result.SetPixels32(pixels.ToArray());
                     }
+                    finally
+                    {
+                        original.Dispose();
+                        copy.Dispose();
+                    }
+                    timer.Mark("scale");
+                    TexturePerformance.ApplyWithMips(result, !TexturePerformance.ReuseTextures, timer);
+                    timer.Mark("upload");
+                    SurfaceTextureSampling.Apply(result);
                 }
-                result = new Texture2D(width, height, TextureFormat.RGBA32, true, linear)
-                    { name = "Enhanced Graphics and Textures endcap atlas" };
-                result.SetPixels32(pixels);
-                result.Apply(true, true);
-                SurfaceTextureSampling.Apply(result);
+                catch
+                {
+                    UnityEngine.Object.Destroy(result);
+                    throw;
+                }
                 m_EndcapTextures.Add(key, result);
+                m_EndcapTexturesBuilt++;
+                timer.Log(width + "x" + height + ", scale " + scaleU.ToString("0.##") + "x" + scaleV.ToString("0.##"));
                 return result;
             }
-            finally { UnityEngine.Object.Destroy(readable); }
+            finally { if (release) UnityEngine.Object.Destroy(readable); }
         }
+
+        private string TimingLabel => this is ParkingRoadAtlasSystem ? "Parking road" : SurfaceLabel;
+
+        internal static bool IsDirectlyReadable(Texture texture) => texture is Texture2D tile && tile.isReadable &&
+            tile.format == TextureFormat.RGBA32 && tile.width <= 4096 && tile.height <= 4096;
+
+        private static bool IsGameTexture(Texture texture) => texture != null && texture.name != null &&
+            !texture.name.StartsWith("Advanced Graphics", System.StringComparison.Ordinal) &&
+            !texture.name.StartsWith("Enhanced Graphics and Textures", System.StringComparison.Ordinal);
+
+        protected virtual bool TryGetCachedReadback(Texture source, out Texture2D readback) =>
+            m_Readbacks.TryGetValue(source, out readback) && readback != null;
+
+        protected virtual void CacheReadback(Texture source, Texture2D readback) => m_Readbacks[source] = readback;
 
         private void ReleaseEndcapScaling()
         {
             foreach (var material in m_EndcapMaterials.Values) if (material != null) UnityEngine.Object.Destroy(material);
-            foreach (var texture in m_EndcapTextures.Values) if (texture != null) UnityEngine.Object.Destroy(texture);
+            foreach (var pair in m_EndcapTextures) TexturePool.Release(pair.Value, pair.Key.Item2);
             m_EndcapMaterials.Clear();
             m_EndcapTextures.Clear();
         }

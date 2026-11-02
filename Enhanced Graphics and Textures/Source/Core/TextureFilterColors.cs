@@ -243,9 +243,21 @@ namespace Advanced_Graphics
         internal static void Apply(Texture2D texture, int color, int opacityPercent)
         {
             if (!IsActive(color, opacityPercent)) return;
-            var pixels = texture.GetPixels32();
-            for (int i = 0; i < pixels.Length; i++) pixels[i] = Apply(pixels[i], color, opacityPercent);
-            texture.SetPixels32(pixels);
+            // Filters in place in the texture's pixel memory.
+            var pixels = PixelBuffer.Read(texture);
+            try
+            {
+                TexturePerformance.Run(new ColorFilterBlocksJob
+                {
+                    Pixels = pixels.Pixels,
+                    R = (color >> 16) & 255,
+                    G = (color >> 8) & 255,
+                    B = color & 255,
+                    OpacityPercent = opacityPercent
+                }, ColorFilterBlocksJob.Blocks(pixels.Length));
+                if (!pixels.IsView) texture.SetPixels32(pixels.Pixels.ToArray());
+            }
+            finally { pixels.Dispose(); }
         }
     }
 }
