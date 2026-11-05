@@ -14,7 +14,7 @@ namespace Advanced_Graphics
         public static readonly ModLog log = new ModLog(LogManager.GetLogger("Enhanced Graphics and Textures").SetShowsErrorsInUI(false));
         // Developer builds may opt in here; a saved checkbox cannot enable diagnostics by itself.
         internal const bool DebugMode = false;
-        internal static bool DebugBackendEnabled => DebugMode && ActiveSetting?.ShowDebugWindow == false;
+        internal static bool DebugBackendEnabled => DebugMode && ActiveSetting?.ShowDebugWindow == true;
         private static readonly System.Collections.Concurrent.ConcurrentQueue<string> s_DeferredLog =
             new System.Collections.Concurrent.ConcurrentQueue<string>();
         internal static void LogLater(string message)

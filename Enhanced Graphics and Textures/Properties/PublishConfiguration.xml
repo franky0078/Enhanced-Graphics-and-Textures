@@ -141,7 +141,7 @@
 	<AccessLevel Value="Public" />
 	<Tag Value="Code Mod" />
 	
-	<ModVersion Value="1.6.4" />
+	<ModVersion Value="1.7.0" />
 	
 	<!--Existing value retained. Set this to the game version tested locally before publishing.-->
 	<GameVersion Value="1.6.*" />
@@ -149,7 +149,11 @@
 	<ChangeLog>
 		Latest changes:
 
-		- performance improvements and bug fixes
+		- fixed parking road textures (asphalt, cracks and sidewalk) no longer get squashed on short road segments and between junctions
+		- Textures now tile per metre
+		- fixed stretched textures on medium Roads with parking and on alleys with parking
+		- fixed bend from a parking road with sidewalk into an alley with parking(the alley sidewalk continues the straight slab grid of the parking corner).
+		- added an option to turn off the sidewalk straightening at junctions and use the game's original look instead (mod settings → Sidewalk). The straightening is enabled by default.
 
 	</ChangeLog>
 

@@ -16,11 +16,18 @@ using UnityEngine;
 namespace Advanced_Graphics
 {
 
+    // Straight sidewalk slabs at junctions: runtime copies of node meshes with remapped sidewalk UVs, swapped in only while rendering.
     public partial class SidewalkJunctionMeshSystem : GameSystemBase, IPreSerialize, IPreDeserialize
     {
         private const float LeftUv = 318f / 1024f;
         private const float RightUv = 759f / 1024f;
         private const float UvEpsilon = 0.0005f;
+        // Parking atlas (2048 px reference): sidewalk strip.
+        private const float ParkingLeftUv = 516f / 2048f;
+        private const float ParkingRightUv = 942f / 2048f;
+        private const float ParkingAsphaltRightUv = 482f / 2048f;
+        private static float s_WalkLeft = LeftUv, s_WalkRight = RightUv;
+        private static bool s_ParkingMode;
         private const int BuildsPerScan = 16;
         private const int MaximumCorners = 4096;
 
@@ -30,6 +37,7 @@ namespace Advanced_Graphics
             public Entity Source;
             public Entity Composition;
             public bool Announced;
+            public bool Parking;
             public Entity Mesh;
             public readonly List<Entity> Created = new List<Entity>();
             public readonly List<SourceFrame> Frames = new List<SourceFrame>();
@@ -83,6 +91,9 @@ namespace Advanced_Graphics
         internal static bool IsRuntimeMesh(Entity mesh) => s_RuntimeMeshes.Contains(mesh);
         private static readonly HashSet<Entity> s_CornerMeshes = new HashSet<Entity>();
         internal static bool IsCornerMesh(Entity mesh) => s_CornerMeshes.Contains(mesh);
+        private static readonly HashSet<Entity> s_ParkingCornerMeshes = new HashSet<Entity>();
+        internal static IEnumerable<Entity> ParkingCornerMeshes => s_ParkingCornerMeshes;
+        internal static int ParkingCornerVersion { get; private set; }
 
         private static bool s_RecomputeTangents = false;
         private static float s_EndTilingU = 1f, s_EndTilingV = 1f;
@@ -96,25 +107,21 @@ namespace Advanced_Graphics
         private float m_NextScan;
         private bool m_Failed;
         private bool m_SyncOnRestore;
-        // Debug: blend of the node sync targets used for UV placement (see SyncWeight).
         private static int s_SyncBlendMode;
+        private static bool s_SquareSync;
+        private static bool s_BendSync;
 
         private const bool BuildRoundedCurbEnds = false;
-        private const bool BuildStraightEnds = false; // off: the shortened game ramp is the accepted corner look
+        private const bool BuildStraightEnds = false;
         private static string s_CurbEndWhy = "", s_CurbEndNumbers = "";
         private string m_LastReport;
 
-        // Diagnostics of the last scan.
         private int m_Caps, m_CurbEnds, m_WrappedParts, m_SidewalkEnds, m_AlleyMeshes, m_CurbTriangles, m_CurbLogged, m_RampsReshaped, m_RampsFailed, m_RampLogged, m_MixedTriangles;
         private Dictionary<Entity, MeshVertex[]> m_Reshaped;
-        // The game's logger failed on bursts of debug lines; detailed data goes to a file instead.
         private const bool VerboseJunctionLog = false;
         private readonly HashSet<string> m_DumpedRamps = new HashSet<string>();
-        // Per reshaped piece: vertex -> vertex of row 0 whose profile it took (-1 = unchanged).
         private Dictionary<Entity, int[]> m_ReshapeMap;
-        // Per reshaped piece: new atlas U per vertex (NaN = keep).
         private Dictionary<Entity, float[]> m_ReshapeU;
-        // Per reshaped piece: added curb faces at the end of the ramp (curb around the corner).
         private Dictionary<Entity, RampExtra> m_ReshapeExtra;
         private Dictionary<Entity, HashSet<int>> m_ReshapeDrop;
         private Dictionary<Entity, RampExtra> m_ReshapeFill;
@@ -127,6 +134,10 @@ namespace Advanced_Graphics
             public readonly List<float2> Uvs = new List<float2>();
             public readonly List<int> Indices = new List<int>();
         }
+        private int m_ParkingCorners, m_ParkingLogged, m_ParkingNeighbourCorners, m_DensityStandIns, m_AsphaltTriangles;
+        private List<ParkingStrip> m_ParkingStrips;
+        private List<NetCompositionPiece> m_ExtraPieces;
+        private Entity m_ParkingEdgeComposition;
         private int m_Corners, m_Built, m_Skipped, m_SplitPieces, m_WalkTriangles, m_NoFrame, m_Stale, m_NotLoaded, m_Clamped;
         private float m_ClampExcess;
 
@@ -140,12 +151,11 @@ namespace Advanced_Graphics
 
         protected override void OnUpdate()
         {
-            // Called in PreCulling, before PreCullingSystem. Restore first in case a phase was skipped.
             EndRendering();
             var setting = Mod.ActiveSetting;
             if (setting == null || !setting.SidewalkJunctionOverlay)
             {
-                if (m_Runtimes.Count > 0) DropAll();
+                if (m_Runtimes.Count > 0 || m_ParkingEdgeRuntimes.Count > 0 || m_ParkingNodeRuntimes.Count > 0) DropAll();
                 m_Failed = false;
                 m_LastReport = null;
                 return;
@@ -184,7 +194,6 @@ namespace Advanced_Graphics
                 var native = m_Attached.TryGetValue(edge, out var saved) ? saved : current;
                 if ((start ? native.m_StartNode : native.m_EndNode) != runtime.Source)
                 {
-                    // The game rebuilt this edge. Render natively until the next scan rebuilds.
                     runtime.Signature = 0;
                     m_NextScan = math.min(m_NextScan, UnityEngine.Time.unscaledTime + 0.25f);
                     m_Stale++;
@@ -196,12 +205,13 @@ namespace Advanced_Graphics
                 EntityManager.SetComponentData(edge, current);
                 if (!runtime.Announced)
                 {
-                    // BatchInstanceSystem must pick the runtime mesh for this edge.
                     EntityManager.AddComponent<BatchesUpdated>(edge);
                     runtime.Announced = true;
                     announced = true;
+                    if (runtime.Parking) ParkingCornerVersion++;
                 }
             }
+            AttachParkingEdges(ref announced);
             if (announced && m_Attached.Count > 0)
             {
                 World.GetOrCreateSystemManaged<Game.Rendering.RequiredBatchesSystem>().Update();
@@ -210,13 +220,12 @@ namespace Advanced_Graphics
             }
         }
 
-        // Restores the native compositions. Runs at every phase boundary where other systems read them.
+        // Restores the native compositions.
         public void EndRendering()
         {
             if (m_Attached.Count == 0) return;
             if (m_SyncOnRestore)
             {
-                // Jobs scheduled by the forced RequiredBatchesSystem update still read Composition.
                 EntityManager.CompleteAllTrackedJobs();
                 m_SyncOnRestore = false;
             }
@@ -230,6 +239,8 @@ namespace Advanced_Graphics
                 { current.m_StartNode = pair.Value.m_StartNode; changed = true; }
                 if (current.m_EndNode != pair.Value.m_EndNode && m_Owned.Contains(current.m_EndNode))
                 { current.m_EndNode = pair.Value.m_EndNode; changed = true; }
+                if (current.m_Edge != pair.Value.m_Edge && m_Owned.Contains(current.m_Edge))
+                { current.m_Edge = pair.Value.m_Edge; changed = true; }
                 if (changed) EntityManager.SetComponentData(edge, current);
             }
             m_Attached.Clear();
@@ -239,12 +250,17 @@ namespace Advanced_Graphics
 
         public void PreDeserialize(Context context)
         {
-            // The world is cleared next; forget runtime entities without touching them.
             m_Attached.Clear();
             m_Runtimes.Clear();
             m_Owned.Clear();
             m_Retired.Clear();
             m_SidewalkFreeMeshes.Clear();
+            m_RoadSidewalkMeshes.Clear();
+            s_RuntimeMeshes.Clear();
+            s_CornerMeshes.Clear();
+            s_ParkingCornerMeshes.Clear();
+            ForgetParkingEdges();
+            ParkingCornerVersion++;
             m_NextScan = 0f;
         }
 
@@ -259,6 +275,7 @@ namespace Advanced_Graphics
                     EntityManager.AddComponent<BatchesUpdated>(edge);
             }
             m_Runtimes.Clear();
+            DropParkingEdges();
             m_NextScan = 0f;
         }
 
@@ -271,6 +288,11 @@ namespace Advanced_Graphics
         private void Retire(Runtime runtime)
         {
             if (runtime.Composition != Entity.Null) m_Owned.Remove(runtime.Composition);
+            if (runtime.Parking)
+            {
+                foreach (var entity in runtime.Created) s_ParkingCornerMeshes.Remove(entity);
+                ParkingCornerVersion++;
+            }
             if (runtime.Created.Count > 0)
                 m_Retired.Add(new Retired { Time = UnityEngine.Time.unscaledTime, Entities = new List<Entity>(runtime.Created) });
             runtime.Created.Clear();
@@ -287,6 +309,7 @@ namespace Advanced_Graphics
                 {
                     s_RuntimeMeshes.Remove(entity);
                     s_CornerMeshes.Remove(entity);
+                    s_ParkingCornerMeshes.Remove(entity);
                     if (!EntityManager.Exists(entity)) continue;
                     if (EntityManager.HasBuffer<MeshVertex>(entity)) { var b = EntityManager.GetBuffer<MeshVertex>(entity); b.Clear(); b.TrimExcess(); }
                     if (EntityManager.HasBuffer<MeshNormal>(entity)) { var b = EntityManager.GetBuffer<MeshNormal>(entity); b.Clear(); b.TrimExcess(); }
@@ -307,8 +330,12 @@ namespace Advanced_Graphics
             }
         }
 
+        // Finds the corners to rebuild (alley junctions, parking corners, roads at parking junctions, road ends).
         private void Scan()
         {
+            m_ParkingCorners = m_ParkingNeighbourCorners = m_DensityStandIns = m_AsphaltTriangles = m_MiterParts = m_MiterLogged = m_BorrowedSlots = 0;
+            m_ParkingSidewalkEnds.Clear();
+            m_ParkingEndCorners.Clear();
             m_Corners = m_Built = m_Skipped = m_SplitPieces = m_WalkTriangles = m_NoFrame = m_NotLoaded = m_Clamped = 0;
             m_ClampExcess = 0f;
             s_SyncBlendMode = Mod.DebugBackendEnabled ? math.clamp(Mod.ActiveSetting?.JunctionSyncBlendMode ?? 0, 0, 6) : 0;
@@ -326,6 +353,7 @@ namespace Advanced_Graphics
             var roads = m_Roads.ToEntityArray(Allocator.Temp);
             try
             {
+                for (int pass = 0; pass < 2; pass++)
                 foreach (var road in roads)
                 {
                     if (active.Count >= MaximumCorners) break;
@@ -335,17 +363,31 @@ namespace Advanced_Graphics
                         RoadBuilderSurfaceCompatibility.IsRoadBuilderRoad(prefab)) continue;
                     var edge = EntityManager.GetComponentData<Edge>(road);
                     var composition = EntityManager.GetComponentData<Composition>(road);
+                    bool parkingRoad = IsParkingRoad(prefab.name) && !HasRoadSidewalk(road);
                     for (int side = 0; side < 2; side++)
                     {
                         bool start = side == 0;
                         var junction = start ? edge.m_Start : edge.m_End;
-                        // Round road end (dead end): slabs follow the arc instead of fanning unevenly.
                         bool cap = EntityManager.HasBuffer<ConnectedEdge>(junction) &&
                             EntityManager.GetBuffer<ConnectedEdge>(junction, true).Length == 1;
-                        if (!cap && !AtAlleyJunction(junction)) continue;
-                        if (EntityManager.GetBuffer<ConnectedEdge>(junction, true).Length == 2) sidewalkEnds.Add(junction);
-                        if (Mod.DebugBackendEnabled && VerboseJunctionLog && !cap) InspectAlleyNode(start ? edge.m_Start : edge.m_End);
-                        if (cap) m_Caps++; else m_Corners++;
+                        bool parking = false, parkingNeighbour = false;
+                        if (!cap && parkingRoad && AtParkingJunction(road, prefabEntity, junction)) parking = true;
+                        else if (!cap && !AtAlleyJunction(junction))
+                        {
+                            if (!parkingRoad) { if (!HasParkingNeighbour(road, junction)) continue; parkingNeighbour = true; }
+                            else if (!AtParkingJunction(road, prefabEntity, junction)) continue;
+                            else parking = true;
+                        }
+                        if ((pass == 1) != parkingNeighbour) continue;
+                        if (!parking && !parkingNeighbour && EntityManager.GetBuffer<ConnectedEdge>(junction, true).Length == 2) sidewalkEnds.Add(junction);
+                        if (parking && EntityManager.GetBuffer<ConnectedEdge>(junction, true).Length == 2 && AtAlleyJunction(junction))
+                        {
+                            sidewalkEnds.Add(junction);
+                            m_ParkingSidewalkEnds.Add(junction);
+                            m_ParkingEndCorners[junction] = (road, start);
+                        }
+                        if (Mod.DebugBackendEnabled && VerboseJunctionLog && !cap && !parking && !parkingNeighbour) InspectAlleyNode(start ? edge.m_Start : edge.m_End);
+                        if (cap) m_Caps++; else if (parking) m_ParkingCorners++; else if (parkingNeighbour) m_ParkingNeighbourCorners++; else m_Corners++;
                         bool hasNodeGeometry = start ? EntityManager.HasComponent<StartNodeGeometry>(road)
                             : EntityManager.HasComponent<EndNodeGeometry>(road);
                         if (!hasNodeGeometry || !EntityManager.HasComponent<EdgeGeometry>(road)) { m_Skipped++; continue; }
@@ -368,10 +410,14 @@ namespace Advanced_Graphics
 
                         var key = (road, start);
                         active.Add(key);
-                        mainCorners.Add((start ? edge.m_Start : edge.m_End, key));
+                        int borrowSignature = 0;
+                        var borrow = parkingNeighbour ? BorrowParkingFrames(road, start, junction, out borrowSignature) : null;
+                        if (borrow != null) borrowSignature = borrowSignature * 31 + PatternSignature();
+                        if (!parking && !parkingNeighbour) mainCorners.Add((start ? edge.m_Start : edge.m_End, key));
                         int signature = geometry.GetHashCode() ^ source.GetHashCode() * 397 ^ meshRef.m_Mesh.GetHashCode() * 31 ^
                             (edgeGeometry.m_Start.m_Length + edgeGeometry.m_End.m_Length).GetHashCode() * 17 ^ (start ? 0x5bd1e995 : 0) ^
-                            (s_SyncBlendMode + 1) * 0x01000193 ^ (cap ? 0x3c6ef372 ^ (s_EndTilingU * 97f + s_EndTilingV * 7919f).GetHashCode() : 0) ^ (s_RecomputeTangents ? 0x6a09e667 : 0);
+                            (s_SyncBlendMode + 1) * 0x01000193 ^ (cap ? 0x3c6ef372 ^ (s_EndTilingU * 97f + s_EndTilingV * 7919f).GetHashCode() : 0) ^ (s_RecomputeTangents ? 0x6a09e667 : 0) ^ (parking ? 0x1b873593 : 0) ^ (parkingNeighbour ? 0x2e1b2138 : 0) ^ borrowSignature * 0x3243f6a9 ^
+                            (parking ? PatternSignature() * 0x2c1b3c6d : 0);
                         if (signature == 0) signature = 1;
                         m_Runtimes.TryGetValue(key, out var old);
                         if (old != null && old.Signature == signature) continue;
@@ -381,8 +427,22 @@ namespace Advanced_Graphics
                             continue;
                         }
                         builds++;
+                        m_DumpNeighbour = parkingNeighbour;
+                        s_SquareSync = parking;
+                        s_BendSync = false;
+                        m_DumpLabel = prefab.name + " | " + (cap ? "cap" : parking ? "parking corner" : parkingNeighbour ? "road at parking junction" : "corner") +
+                            " | " + EntityManager.GetBuffer<ConnectedEdge>(junction, true).Length + " edges | node " +
+                            (EntityManager.HasComponent<Game.Net.Node>(junction) ? EntityManager.GetComponentData<Game.Net.Node>(junction).m_Position.xz.ToString() : "?");
+                        m_MiterJunction = (parking && UseMiter) || borrow != null ? junction : Entity.Null;
+                        m_MiterRoad = road;
+                        m_BorrowFrames = borrow;
                         var runtime = SafeBuild(source, () => Build(source, meshRef, compositionData, geometry, edgeGeometry, start,
-                            capInfo: cap ? MakeCapInfo(edgeGeometry, start) : null));
+                            capInfo: cap ? MakeCapInfo(edgeGeometry, start) : null, parking: parking, edgeComposition: composition.m_Edge));
+                        m_MiterJunction = Entity.Null;
+                        m_BorrowFrames = null;
+                        m_DumpNeighbour = false;
+                        s_SquareSync = false;
+                        s_BendSync = false;
                         if (runtime == null)
                         {
                             builds--;
@@ -417,12 +477,13 @@ namespace Advanced_Graphics
                     EntityManager.AddComponent<BatchesUpdated>(key.Item1);
             }
 
+            ScanParkingEdges();
+
             int live = 0, withBatches = 0, batchGroups = 0;
             foreach (var runtime in m_Runtimes.Values)
             {
                 if (runtime.Composition == Entity.Null) continue;
                 live++;
-                // BatchManagerSystem fills this buffer once it created batches for the runtime mesh.
                 if (runtime.Mesh != Entity.Null && EntityManager.Exists(runtime.Mesh) && EntityManager.HasBuffer<BatchGroup>(runtime.Mesh))
                 {
                     int groups = EntityManager.GetBuffer<BatchGroup>(runtime.Mesh, true).Length;
@@ -430,11 +491,11 @@ namespace Advanced_Graphics
                     if (groups > 0) withBatches++;
                 }
             }
-            string report = "Junction sidewalk meshes: " + live + " corners active (" + m_Corners + " alley corners found, " + m_Caps + " road ends, " + m_SidewalkEnds + " sidewalk ends, " + m_AlleyMeshes + " alley node meshes remapped, " +
+            string report = "Junction sidewalk meshes: " + live + " corners active (" + m_Corners + " alley corners found, " + m_ParkingCorners + " parking road corners (" + m_AsphaltTriangles + " asphalt triangles remapped, " + m_MiterParts + " mitered), " + m_TiledEdgeCompositions + " tiled parking edge compositions (" + m_TiledParkingEdges.Count + " edges), " + m_TiledNodeCompositions + " tiled parking node compositions, " + m_ParkingNeighbourCorners + " road corners at parking junctions (" + m_BorrowedSlots + " with the parking grid), " + m_Caps + " road ends, " + m_SidewalkEnds + " sidewalk ends, " + m_AlleyMeshes + " alley node meshes remapped, " +
                 m_Built + " built now, " + m_Skipped + " skipped, " + m_SplitPieces + " sidewalk pieces split, " +
                 m_WalkTriangles + " sidewalk triangles remapped (" + m_CurbTriangles + " widened curb, " + m_RampsReshaped + " curb ramps shortened (" + m_CurbEnds + " curb ends), " + m_RampsFailed + " not, " + m_MixedTriangles + " ramp end faces), " + m_Clamped + " UVs outside the strip (max " + m_ClampExcess.ToString("0.#") + " px, " + m_WrappedParts + " wrapped parts), " + m_NoFrame + " without frame, " + m_Stale + " stale swaps, " +
                 m_NotLoaded + " waiting for geometry, sync blend " + s_SyncBlendMode + ", " + withBatches + " meshes with batches / " + batchGroups + " batch groups).";
-            if (report != m_LastReport)
+            if (Mod.DebugBackendEnabled && report != m_LastReport)
             {
                 m_LastReport = report;
                 Mod.LogLater(report);
@@ -449,7 +510,6 @@ namespace Advanced_Graphics
             var signatures = new Dictionary<Entity, int>();
             foreach (var end in sidewalkEnds)
             {
-                // No frames: the ramp is shortened, the tiles keep the game's mapping along the curve.
                 frames[end] = new List<SourceFrame>();
                 signatures[end] = 0x2545f491;
                 m_SidewalkEnds++;
@@ -460,6 +520,18 @@ namespace Advanced_Graphics
                 if (!frames.TryGetValue(corner.Item1, out var list)) { list = new List<SourceFrame>(); frames.Add(corner.Item1, list); signatures.Add(corner.Item1, 0); }
                 list.AddRange(main.Frames);
                 signatures[corner.Item1] = signatures[corner.Item1] * 31 + main.Signature;
+            }
+            foreach (var pair in m_ParkingEndCorners)
+            {
+                if (!frames.TryGetValue(pair.Key, out var list) || !m_Runtimes.TryGetValue(pair.Value, out var main) ||
+                    main.Composition == Entity.Null || main.Frames.Count == 0) continue;
+                foreach (var item in main.Frames)
+                {
+                    var road = item.Frame != null ? ToRoadFrame(item.Frame) : null;
+                    if (road == null) continue;
+                    list.Add(new SourceFrame { Frame = road, Centroid = item.Centroid, MaterialIndex = AnyMaterial, MaxU = RightUv });
+                }
+                signatures[pair.Key] = (signatures[pair.Key] * 31 + main.Signature) * 31 + PatternSignature();
             }
             foreach (var pair in frames)
             {
@@ -493,15 +565,23 @@ namespace Advanced_Graphics
                     var key = (alley, start);
                     active.Add(key);
                     int signature = geometry.GetHashCode() ^ source.GetHashCode() * 397 ^ meshRef.m_Mesh.GetHashCode() * 31 ^
-                        signatures[node] * 0x2f0b3 ^ (start ? 0x7a3c5 : 0x13579);
+                        signatures[node] * 0x2f0b3 ^ (start ? 0x7a3c5 : 0x13579) ^
+                        (s_SyncBlendMode + 1) * 0x9e3779b ^ (m_ParkingSidewalkEnds.Contains(node) ? 0x51ed27 : 0);
                     if (signature == 0) signature = 1;
                     m_Runtimes.TryGetValue(key, out var old);
                     if (old != null && old.Signature == signature) { if (old.Composition != Entity.Null) m_AlleyMeshes++; continue; }
                     if (builds >= BuildsPerScan) { m_NextScan = UnityEngine.Time.unscaledTime + 0.1f; continue; }
                     builds++;
                     var edgeGeometry = EntityManager.GetComponentData<EdgeGeometry>(alley);
-                    // Sidewalk ends (road continues without sidewalk) keep the game's long taper.
+                    m_DumpAlleyEnd = m_ParkingSidewalkEnds.Contains(node);
+                    s_UntaperWalk = false;
+                    s_BendSync = m_DumpAlleyEnd;
+                    m_DumpLabel = "alley at parking sidewalk end | node " +
+                        (EntityManager.HasComponent<Game.Net.Node>(node) ? EntityManager.GetComponentData<Game.Net.Node>(node).m_Position.xz.ToString() : "?");
                     var runtime = SafeBuild(source, () => Build(source, meshRef, compositionData, geometry, edgeGeometry, start, pair.Value, sidewalkEnds.Contains(node)));
+                    m_DumpAlleyEnd = false;
+                    s_UntaperWalk = false;
+                    s_BendSync = false;
                     if (runtime == null) { builds--; m_NextScan = UnityEngine.Time.unscaledTime + 0.5f; continue; }
                     runtime.Signature = signature;
                     runtime.Mesh = runtime.Created.Count > 0 ? FindMesh(runtime) : Entity.Null;
@@ -518,6 +598,28 @@ namespace Advanced_Graphics
         }
 
         private readonly Dictionary<Entity, bool> m_SidewalkFreeMeshes = new Dictionary<Entity, bool>();
+        private readonly Dictionary<Entity, bool> m_RoadSidewalkMeshes = new Dictionary<Entity, bool>();
+
+        private bool HasRoadSidewalk(Entity edge)
+        {
+            if (!EntityManager.HasComponent<Composition>(edge)) return false;
+            var composed = EntityManager.GetComponentData<Composition>(edge).m_Edge;
+            if (composed == Entity.Null || !EntityManager.HasComponent<NetCompositionMeshRef>(composed)) return false;
+            var mesh = EntityManager.GetComponentData<NetCompositionMeshRef>(composed).m_Mesh;
+            if (mesh == Entity.Null || !EntityManager.HasBuffer<NetCompositionPiece>(mesh)) return false;
+            if (m_RoadSidewalkMeshes.TryGetValue(mesh, out bool found)) return found;
+            found = false;
+            var pieces = EntityManager.GetBuffer<NetCompositionPiece>(mesh, true);
+            for (int i = 0; i < pieces.Length && !found; i++)
+            {
+                if (!m_Prefabs.TryGetPrefab<PrefabBase>(pieces[i].m_Piece, out var prefab) || prefab == null || prefab.name == null) continue;
+                string name = prefab.name;
+                found = name.IndexOf("Sidewalk", StringComparison.OrdinalIgnoreCase) >= 0 &&
+                    name.IndexOf("Side Piece", StringComparison.OrdinalIgnoreCase) < 0 && !IsParkingAtlasPiece(name);
+            }
+            m_RoadSidewalkMeshes[mesh] = found;
+            return found;
+        }
 
         private bool IsAlley(Entity edge)
         {
@@ -568,7 +670,6 @@ namespace Advanced_Graphics
         {
             foreach (var check in EntityManager.GetBuffer<NetCompositionPiece>(mesh, true).ToNativeArray(Allocator.Temp))
             {
-                // Streamed geometry: retry on a later scan instead of logging empty pieces.
                 if (!PieceLoaded(check.m_Piece)) { m_InspectedMeshes.Remove(mesh); return; }
             }
             {
@@ -660,6 +761,56 @@ namespace Advanced_Graphics
             return alleys >= 1 && alleys < edges.Length;
         }
 
+        private static bool IsParkingRoad(string name) => name != null &&
+            (name.StartsWith("Alley", StringComparison.Ordinal) || name.StartsWith("Small Road", StringComparison.Ordinal) ||
+             name.StartsWith("Medium Road", StringComparison.Ordinal)) &&
+            name.IndexOf(" - ", StringComparison.Ordinal) >= 0 &&
+            name.IndexOf("Parking", StringComparison.OrdinalIgnoreCase) >= 0;
+
+        // Junction of a parking road with other roads (or the transition into a road of another kind).
+        private bool AtParkingJunction(Entity road, Entity prefabEntity, Entity node)
+        {
+            if (!EntityManager.HasBuffer<ConnectedEdge>(node)) return false;
+            var edges = EntityManager.GetBuffer<ConnectedEdge>(node, true);
+            if (edges.Length >= 3) return true;
+            if (edges.Length != 2) return false;
+            var other = edges[0].m_Edge == road ? edges[1].m_Edge : edges[0].m_Edge;
+            if (other == road || !EntityManager.HasComponent<PrefabRef>(other)) return false;
+            var otherPrefab = EntityManager.GetComponentData<PrefabRef>(other).m_Prefab;
+            if (otherPrefab == prefabEntity) return false;
+            if (!m_Prefabs.TryGetPrefab<PrefabBase>(otherPrefab, out var prefab) || prefab == null || !IsParkingRoad(prefab.name)) return true;
+            bool otherAlley = prefab.name.StartsWith("Alley", StringComparison.Ordinal);
+            bool ownAlley = m_Prefabs.TryGetPrefab<PrefabBase>(prefabEntity, out var own) && own != null &&
+                own.name.StartsWith("Alley", StringComparison.Ordinal);
+            return otherAlley != ownAlley;
+        }
+
+        // A road with its own sidewalk meeting a parking road (2 edges of different kind or a junction).
+        private bool HasParkingNeighbour(Entity road, Entity node)
+        {
+            if (!EntityManager.HasBuffer<ConnectedEdge>(node)) return false;
+            var edges = EntityManager.GetBuffer<ConnectedEdge>(node, true);
+            if (edges.Length < 2) return false;
+            for (int i = 0; i < edges.Length; i++)
+            {
+                var other = edges[i].m_Edge;
+                if (other == road || !EntityManager.HasComponent<PrefabRef>(other)) continue;
+                if (m_Prefabs.TryGetPrefab<PrefabBase>(EntityManager.GetComponentData<PrefabRef>(other).m_Prefab, out var prefab) &&
+                    prefab != null && IsParkingRoad(prefab.name) && !RoadBuilderSurfaceCompatibility.IsRoadBuilderRoad(prefab)) return true;
+            }
+            return false;
+        }
+
+        private static bool IsParkingAtlasPiece(string name) =>
+            !string.IsNullOrEmpty(name) && name.EndsWith(" Mesh", StringComparison.Ordinal);
+
+        private static void SetParkingMode(bool parking)
+        {
+            s_ParkingMode = parking;
+            s_WalkLeft = parking ? ParkingLeftUv : LeftUv;
+            s_WalkRight = parking ? ParkingRightUv : RightUv;
+        }
+
         private int m_BuildErrors;
         private Runtime SafeBuild(Entity source, Func<Runtime> build)
         {
@@ -667,6 +818,7 @@ namespace Advanced_Graphics
             catch (Exception ex)
             {
                 m_Reshaped = null; m_ReshapeMap = null; m_ReshapeU = null; m_ReshapeExtra = null; m_ReshapeDrop = null; m_ReshapeFill = null;
+                SetParkingMode(false);
                 if (m_BuildErrors++ < 5) Mod.log.Error(ex, "Junction sidewalk mesh skipped for one corner/road end.");
                 return new Runtime { Source = source };
             }
@@ -674,12 +826,33 @@ namespace Advanced_Graphics
 
         private Runtime Build(Entity source, NetCompositionMeshRef meshRef, NetCompositionData compositionData,
             EdgeNodeGeometry geometry, EdgeGeometry edgeGeometry, bool start, List<SourceFrame> external = null, bool sidewalkEnd = false,
-            CapInfo capInfo = null)
+            CapInfo capInfo = null, bool parking = false, Entity edgeComposition = default)
+        {
+            SetParkingMode(parking);
+            m_ParkingStrips = null;
+            m_ParkingEdgeComposition = edgeComposition;
+            try
+            {
+                var runtime = BuildCore(source, meshRef, compositionData, geometry, edgeGeometry, start, external, sidewalkEnd, capInfo);
+                if (runtime != null) runtime.Parking = parking;
+                return runtime;
+            }
+            finally
+            {
+                SetParkingMode(false);
+                m_ParkingStrips = null;
+                m_ExtraPieces = null;
+                m_ParkingEdgeComposition = Entity.Null;
+            }
+        }
+
+        private Runtime BuildCore(Entity source, NetCompositionMeshRef meshRef, NetCompositionData compositionData,
+            EdgeNodeGeometry geometry, EdgeGeometry edgeGeometry, bool start, List<SourceFrame> external, bool sidewalkEnd,
+            CapInfo capInfo)
         {
             var runtime = new Runtime { Source = source };
             var meshEntity = meshRef.m_Mesh;
             var meshData = EntityManager.GetComponentData<NetCompositionMeshData>(meshEntity);
-            // Copy everything before creating entities: structural changes invalidate buffers.
             var pieces = EntityManager.GetBuffer<NetCompositionPiece>(meshEntity, true).ToNativeArray(Allocator.Temp).ToArray();
             var meshMaterials = EntityManager.HasBuffer<MeshMaterial>(meshEntity)
                 ? EntityManager.GetBuffer<MeshMaterial>(meshEntity, true).ToNativeArray(Allocator.Temp).ToArray()
@@ -696,7 +869,6 @@ namespace Advanced_Graphics
                 {
                     if (!PieceLoaded(piece.m_Piece))
                     {
-                        // Geometry is streamed; try again on a later scan.
                         ReleaseCreated(runtime);
                         m_NotLoaded++;
                         return null;
@@ -746,7 +918,6 @@ namespace Advanced_Graphics
                         else m_RampsFailed++;
                         if (Mod.DebugBackendEnabled) DumpRamp(piece, meshData, geometry, compositionData, shaped, shapeMap, cut, start);
                     }
-                    // The outer side wall ends with the sidewalk (same side of the side road).
                     foreach (var piece in pieces)
                     {
                         if (!m_Reshaped.TryGetValue(piece.m_Piece, out var shapedWall) || m_ReshapeExtra.ContainsKey(piece.m_Piece) ||
@@ -757,7 +928,6 @@ namespace Advanced_Graphics
                             if (q.z > clampZ && q.z <= cut + 0.001f) shapedWall[i] = new MeshVertex { m_Vertex = new float3(q.x, q.y, clampZ) };
                         }
                     }
-                    // The ramp behind the cut row goes in every ramp piece.
                     if (m_ReshapeExtra.Count > 0)
                         foreach (var piece in pieces)
                         {
@@ -769,6 +939,18 @@ namespace Advanced_Graphics
                         }
                 }
 
+                if (s_ParkingMode)
+                {
+                    m_ParkingStrips = BuildParkingStrips(pieces, meshData, geometry, compositionData, edgeGeometry, start);
+                    if (m_ParkingStrips.Count == 0)
+                    {
+                        m_NoFrame++;
+                        ReleaseCreated(runtime);
+                        return runtime;
+                    }
+                }
+
+                m_ExtraPieces = new List<NetCompositionPiece>();
                 var split = new NetCompositionPiece[pieces.Length][];
                 for (int i = 0; i < pieces.Length; i++)
                 {
@@ -784,7 +966,7 @@ namespace Advanced_Graphics
                 var borrowed = external ?? runtime.Frames;
                 for (int i = 0; i < pieces.Length; i++)
                 {
-                    if (split[i] != null || borrowed.Count == 0) continue;
+                    if (split[i] != null || borrowed.Count == 0 || s_ParkingMode) continue;
                     if (TrySplit(pieces[i], meshData, geometry, compositionData, edgeGeometry, start, runtime.Created,
                         borrowed, null, external == null, out var rest, out var walk, out bool hasRest, capInfo))
                     {
@@ -795,18 +977,25 @@ namespace Advanced_Graphics
                 }
                 for (int i = 0; i < pieces.Length; i++)
                 {
+                    bool tileParking = s_ParkingMode && IsParkingAtlasPiece(
+                        m_Prefabs.TryGetPrefab<PrefabBase>(pieces[i].m_Piece, out var piecePrefab) && piecePrefab != null ? piecePrefab.name : null);
                     if (split[i] != null)
                     {
+                        if (tileParking)
+                            foreach (var part in split[i])
+                                if ((part.m_PieceFlags & NetPieceFlags.DisableTiling) == 0) TileNegativeV(part.m_Piece);
                         result.AddRange(split[i]);
                         continue;
                     }
                     var copy = pieces[i];
                     copy.m_Piece = CopyPiece(pieces[i].m_Piece);
                     runtime.Created.Add(copy.m_Piece);
+                    if (tileParking && (copy.m_PieceFlags & NetPieceFlags.DisableTiling) == 0) TileNegativeV(copy.m_Piece);
                     result.Add(copy);
                 }
                 AddCurbEndPieces(pieces, result, runtime);
-                // Sidewalk ends: no frames, but a shortened curb ramp is reason enough for a mesh.
+                result.AddRange(m_ExtraPieces);
+                m_ExtraPieces = null;
                 if (m_Reshaped != null && m_Reshaped.Count > 0) any = true;
                 m_Reshaped = null;
                 m_ReshapeMap = null;
@@ -828,6 +1017,7 @@ namespace Advanced_Graphics
                 runtime.Created.Add(mesh);
                 s_RuntimeMeshes.Add(mesh);
                 if (capInfo == null) s_CornerMeshes.Add(mesh);
+                if (s_ParkingMode) s_ParkingCornerMeshes.Add(mesh);
                 var data = meshData;
                 data.m_AvailableLayers = 0;
                 data.m_State &= ~MeshFlags.Default;
@@ -862,6 +1052,245 @@ namespace Advanced_Graphics
             }
         }
 
+        private static float NodeT(float3 position, NetCompositionPiece piece)
+        {
+            var local = position;
+            int flags = (int)piece.m_SectionFlags;
+            local.z *= (flags & 0x100) != 0 ? 1f : -1f;
+            if ((flags & 0x4000) != 0) local.z = local.z * 2f + piece.m_Size.z * 0.5f;
+            local.z += piece.m_Offset.z;
+            return (local.z / math.max(0.0001f, piece.m_Size.z) + 0.5f) * 2f;
+        }
+
+        private sealed class ParkingStrip
+        {
+            public Frame Frame;
+            public float2 A, B;
+            public string Info;
+        }
+
+        private static bool IsEdgeParkingPiece(string name) => !string.IsNullOrEmpty(name) &&
+            (IsParkingAtlasPiece(name) || (name.IndexOf("Parking", StringComparison.OrdinalIgnoreCase) >= 0 && !IsRoadAtlasPiece(name)));
+
+        private static List<float2> SeamPoints(MeshVertex[] positions, MeshUV0[] uvs, MeshIndex[] indices, int begin, int end,
+            NetCompositionPiece piece, NetCompositionMeshData data, EdgeNodeGeometry geometry, NetCompositionData compositionData)
+        {
+            var points = new List<float2>();
+            var seen = new HashSet<int>();
+            for (int i = begin; i + 2 < end; i += 3)
+            {
+                int a = indices[i].m_Index, b = indices[i + 1].m_Index, c = indices[i + 2].m_Index;
+                if (a < 0 || b < 0 || c < 0 || a >= positions.Length || b >= positions.Length || c >= positions.Length) continue;
+                if (!IsSidewalkTop(positions[a].m_Vertex, positions[b].m_Vertex, positions[c].m_Vertex,
+                    uvs[a].m_Uv, uvs[b].m_Uv, uvs[c].m_Uv)) continue;
+                foreach (int v in new[] { a, b, c })
+                {
+                    if (!seen.Add(v)) continue;
+                    float t = NodeT(positions[v].m_Vertex, piece);
+                    if (t >= -0.02f && t <= 0.08f)
+                        points.Add(ProjectToWorld(positions[v].m_Vertex, piece, data, geometry, compositionData).xz);
+                }
+            }
+            return points;
+        }
+
+        private static float SegmentDistance(float2 p, float2 a, float2 b)
+        {
+            var ab = b - a;
+            float t = math.saturate(math.dot(p - a, ab) / math.max(1e-6f, math.lengthsq(ab)));
+            return math.distance(p, a + ab * t);
+        }
+
+        private Frame PickParkingStrip(MeshVertex[] positions, MeshUV0[] uvs, MeshIndex[] indices, int begin, int end,
+            NetCompositionPiece piece, NetCompositionMeshData data, EdgeNodeGeometry geometry, NetCompositionData compositionData)
+        {
+            if (m_ParkingStrips == null || m_ParkingStrips.Count == 0) return null;
+            var points = SeamPoints(positions, uvs, indices, begin, end, piece, data, geometry, compositionData);
+            Frame best = null;
+            float bestDistance = 0.6f;
+            foreach (var strip in m_ParkingStrips)
+                foreach (var point in points)
+                {
+                    float distance = SegmentDistance(point, strip.A, strip.B);
+                    if (distance < bestDistance) { bestDistance = distance; best = strip.Frame; }
+                }
+            return best;
+        }
+
+        // Straight frames of a parking road corner, one per parking sidewalk strip of the straight road.
+        private List<ParkingStrip> BuildParkingStrips(NetCompositionPiece[] nodePieces, NetCompositionMeshData nodeData,
+            EdgeNodeGeometry geometry, NetCompositionData compositionData, EdgeGeometry edgeGeometry, bool start)
+        {
+            var result = new List<ParkingStrip>();
+            string log = Mod.DebugBackendEnabled && m_ParkingLogged < 6 ? "" : null;
+            try
+            {
+                var anchors = new List<float2>();
+                foreach (var piece in nodePieces)
+                {
+                    if ((piece.m_PieceFlags & NetPieceFlags.PreserveShape) != 0) continue;
+                    if (!m_Prefabs.TryGetPrefab<PrefabBase>(piece.m_Piece, out var prefab) || prefab == null ||
+                        !IsParkingAtlasPiece(prefab.name) || !PieceLoaded(piece.m_Piece)) continue;
+                    var positions = EntityManager.GetBuffer<MeshVertex>(piece.m_Piece, true).ToNativeArray(Allocator.Temp).ToArray();
+                    var uvs = EntityManager.GetBuffer<MeshUV0>(piece.m_Piece, true).ToNativeArray(Allocator.Temp).ToArray();
+                    var indices = EntityManager.GetBuffer<MeshIndex>(piece.m_Piece, true).ToNativeArray(Allocator.Temp).ToArray();
+                    if (uvs.Length != positions.Length) continue;
+                    anchors.AddRange(SeamPoints(positions, uvs, indices, 0, indices.Length, piece, nodeData, geometry, compositionData));
+                }
+
+                var composition = m_ParkingEdgeComposition;
+                if (anchors.Count == 0 || composition == Entity.Null || !EntityManager.HasComponent<NetCompositionMeshRef>(composition)) return result;
+                var mesh = EntityManager.GetComponentData<NetCompositionMeshRef>(composition).m_Mesh;
+                if (mesh == Entity.Null || !EntityManager.HasComponent<NetCompositionMeshData>(mesh) ||
+                    !EntityManager.HasBuffer<NetCompositionPiece>(mesh)) return result;
+                float width = EntityManager.GetComponentData<NetCompositionMeshData>(mesh).m_Width;
+                if (width < 0.5f) return result;
+                var segment = start ? edgeGeometry.m_Start : edgeGeometry.m_End;
+                var left = start ? segment.m_Left.a : segment.m_Left.d;
+                var right = start ? segment.m_Right.a : segment.m_Right.d;
+                var tangent = start
+                    ? MathUtils.StartTangent(segment.m_Left) + MathUtils.StartTangent(segment.m_Right)
+                    : MathUtils.EndTangent(segment.m_Left) + MathUtils.EndTangent(segment.m_Right);
+                var along = math.normalizesafe(tangent.xz);
+                if (math.lengthsq(along) < 0.5f || math.distance(left.xz, right.xz) < 0.5f) return result;
+
+                var edgePieces = EntityManager.GetBuffer<NetCompositionPiece>(mesh, true).ToNativeArray(Allocator.Temp).ToArray();
+                var sumV = new Dictionary<int, float>();
+                var sumZ = new Dictionary<int, float>();
+                var candidates = new List<(float lxMin, float lxMax, float u0, float lx0, float duDlx, int material, float pieceDensity, string name)>();
+                foreach (var piece in edgePieces)
+                {
+                    if ((piece.m_PieceFlags & (NetPieceFlags.PreserveShape | NetPieceFlags.DisableTiling)) != 0) continue;
+                    if (!PieceLoaded(piece.m_Piece)) continue;
+                    string name = m_Prefabs.TryGetPrefab<PrefabBase>(piece.m_Piece, out var prefab) && prefab != null ? prefab.name : null;
+                    if (log != null) log += (log.Length > 0 ? ", " : "") + name;
+                    var positions = EntityManager.GetBuffer<MeshVertex>(piece.m_Piece, true).ToNativeArray(Allocator.Temp).ToArray();
+                    var uvs = EntityManager.GetBuffer<MeshUV0>(piece.m_Piece, true).ToNativeArray(Allocator.Temp).ToArray();
+                    var indices = EntityManager.GetBuffer<MeshIndex>(piece.m_Piece, true).ToNativeArray(Allocator.Temp).ToArray();
+                    var slots = EntityManager.GetBuffer<MeshMaterial>(piece.m_Piece, true).ToNativeArray(Allocator.Temp).ToArray();
+                    if (uvs.Length != positions.Length) continue;
+                    float signX = ((int)piece.m_SectionFlags & 1) != 0 ? 1f : -1f;
+                    foreach (var slot in slots)
+                    {
+                        int begin = slot.m_StartIndex, end = slot.m_StartIndex + slot.m_IndexCount;
+                        if (begin < 0 || end > indices.Length || begin > end) continue;
+                        float slotV = 0f, slotZ = 0f;
+                        for (int i = begin; i + 2 < end; i += 3)
+                        {
+                            int a = indices[i].m_Index, b = indices[i + 1].m_Index, c = indices[i + 2].m_Index;
+                            if (a < 0 || b < 0 || c < 0 || a >= positions.Length || b >= positions.Length || c >= positions.Length) continue;
+                            float va = uvs[a].m_Uv.y, vb = uvs[b].m_Uv.y, vc = uvs[c].m_Uv.y;
+                            if (va < 0f && vb < 0f && vc < 0f) { va += 1f; vb += 1f; vc += 1f; }
+                            if (va < 0f || vb < 0f || vc < 0f) continue;
+                            float za = positions[a].m_Vertex.z, zb = positions[b].m_Vertex.z, zc = positions[c].m_Vertex.z;
+                            slotV += math.abs(vb - va) + math.abs(vc - vb) + math.abs(va - vc);
+                            slotZ += math.abs(zb - za) + math.abs(zc - zb) + math.abs(za - zc);
+                        }
+                        sumV[slot.m_MaterialIndex] = (sumV.TryGetValue(slot.m_MaterialIndex, out float v) ? v : 0f) + slotV;
+                        sumZ[slot.m_MaterialIndex] = (sumZ.TryGetValue(slot.m_MaterialIndex, out float z) ? z : 0f) + slotZ;
+                        if (!IsEdgeParkingPiece(name)) continue;
+
+                        float lxMin = float.MaxValue, lxMax = float.MinValue, duDlx = float.NaN, uRef = 0f, lxRef = 0f;
+                        for (int i = begin; i + 2 < end; i += 3)
+                        {
+                            int a = indices[i].m_Index, b = indices[i + 1].m_Index, c = indices[i + 2].m_Index;
+                            if (a < 0 || b < 0 || c < 0 || a >= positions.Length || b >= positions.Length || c >= positions.Length) continue;
+                            var pa = positions[a].m_Vertex; var pb = positions[b].m_Vertex; var pc = positions[c].m_Vertex;
+                            if (!IsSidewalkTop(pa, pb, pc, uvs[a].m_Uv, uvs[b].m_Uv, uvs[c].m_Uv)) continue;
+                            foreach (var p in new[] { pa, pb, pc })
+                            {
+                                float lx = signX * p.x + piece.m_Offset.x;
+                                lxMin = math.min(lxMin, lx);
+                                lxMax = math.max(lxMax, lx);
+                            }
+                            if (!float.IsNaN(duDlx)) continue;
+                            var ab = pb - pa; var ac = pc - pa;
+                            float determinant = ab.x * ac.z - ac.x * ab.z;
+                            if (math.abs(determinant) < 0.00001f) continue;
+                            float du = uvs[b].m_Uv.x - uvs[a].m_Uv.x, dv = uvs[c].m_Uv.x - uvs[a].m_Uv.x;
+                            float uPerX = (du * ac.z - dv * ab.z) / determinant;
+                            if (math.abs(uPerX) < 1e-5f) continue;
+                            duDlx = uPerX * signX;
+                            uRef = uvs[a].m_Uv.x;
+                            lxRef = signX * pa.x + piece.m_Offset.x;
+                        }
+                        if (float.IsNaN(duDlx) || lxMax - lxMin < 0.2f) continue;
+                        float lx0 = (lxMin + lxMax) * 0.5f;
+                        candidates.Add((lxMin, lxMax, uRef + duDlx * (lx0 - lxRef), lx0, duDlx, slot.m_MaterialIndex,
+                            TemplateVDensity(positions, uvs, indices, begin, end, false, false), name));
+                    }
+                }
+                if (candidates.Count == 0) return result;
+
+                float bestScore = float.MaxValue;
+                bool flip = false;
+                for (int f = 0; f < 2; f++)
+                {
+                    var a3 = f == 1 ? right : left; var b3 = f == 1 ? left : right;
+                    float score = 0f;
+                    foreach (var c in candidates)
+                    {
+                        var e0 = math.lerp(a3, b3, c.lxMin / width + 0.5f).xz;
+                        var e1 = math.lerp(a3, b3, c.lxMax / width + 0.5f).xz;
+                        float d = float.MaxValue;
+                        foreach (var anchor in anchors) d = math.min(d, math.min(math.distance(anchor, e0), math.distance(anchor, e1)));
+                        score += math.min(d, 5f);
+                    }
+                    if (score < bestScore - 0.01f) { bestScore = score; flip = f == 1; }
+                }
+
+                var from = flip ? right : left; var to = flip ? left : right;
+                var span = (to - from).xz;
+                float spanLength = math.length(span);
+                var lateral = span / spanLength;
+                float det = lateral.x * along.y - along.x * lateral.y;
+                if (math.abs(det) < 0.2f) return result;
+                float2 total = edgeGeometry.m_Start.m_Length + edgeGeometry.m_End.m_Length;
+                var roadSpan = (right - left).xz;
+                foreach (var c in candidates)
+                {
+                    float density = sumZ.TryGetValue(c.material, out float z) && z > 0.000001f && sumV[c.material] > 0.000001f
+                        ? sumV[c.material] / z : c.pieceDensity;
+                    if (float.IsNaN(density)) density = math.abs(c.duDlx) * 0.5f;
+                    var origin = math.lerp(from, to, c.lx0 / width + 0.5f).xz;
+                    float uPerMetre = c.duDlx * width / spanLength;
+                    float v0 = 0f;
+                    if (!start)
+                    {
+                        float lateralPosition = math.saturate(math.dot(origin - left.xz, roadSpan) / math.max(0.0001f, math.lengthsq(roadSpan)));
+                        v0 = density * math.lerp(total.x, total.y, lateralPosition);
+                        v0 -= math.floor(v0);
+                    }
+                    result.Add(new ParkingStrip
+                    {
+                        A = math.lerp(from, to, c.lxMin / width + 0.5f).xz,
+                        B = math.lerp(from, to, c.lxMax / width + 0.5f).xz,
+                        Info = c.name + " " + (c.lxMax - c.lxMin).ToString("0.0") + " m, V/m " + density.ToString("0.0000") +
+                            " (piece " + c.pieceDensity.ToString("0.0000") + ")",
+                        Frame = new Frame
+                        {
+                            Origin = origin,
+                            Uv = new float2(c.u0, v0),
+                            UvX = new float2(uPerMetre * along.y / det, density * -lateral.y / det),
+                            UvZ = new float2(uPerMetre * -along.x / det, density * lateral.x / det)
+                        }
+                    });
+                }
+                return result;
+            }
+            finally
+            {
+                if (log != null)
+                {
+                    m_ParkingLogged++;
+                    var text = new System.Text.StringBuilder("Parking road corner: ").Append(result.Count).Append(" straight strips");
+                    foreach (var strip in result) text.Append("; ").Append(strip.Info);
+                    text.Append("; straight road pieces [").Append(log).Append("].");
+                    Mod.LogLater(text.ToString());
+                }
+            }
+        }
+
         private Entity FindMesh(Runtime runtime)
         {
             foreach (var entity in runtime.Created)
@@ -888,6 +1317,7 @@ namespace Advanced_Graphics
             var tangents = EntityManager.GetBuffer<MeshTangent>(source, true).ToNativeArray(Allocator.Temp).ToArray();
             var uvs = EntityManager.GetBuffer<MeshUV0>(source, true).ToNativeArray(Allocator.Temp).ToArray();
             ApplyReshapeAttributes(source, normals, tangents, uvs);
+            if (s_UntaperWalk) UntaperWalk(EntityManager.GetBuffer<MeshVertex>(source, true).ToNativeArray(Allocator.Temp).ToArray(), positions, uvs);
             var indices = EntityManager.GetBuffer<MeshIndex>(source, true).ToNativeArray(Allocator.Temp).ToArray();
             var slots = EntityManager.GetBuffer<MeshMaterial>(source, true).ToNativeArray(Allocator.Temp).ToArray();
             ApplyRampDrop(source, ref indices, ref slots);
@@ -910,18 +1340,55 @@ namespace Advanced_Graphics
             return CreatePiece(prefabData, meshData, p, n, t, u, index, new List<MeshMaterial>(slots));
         }
 
+        private static bool s_UntaperWalk;
+
+        private static void UntaperWalk(MeshVertex[] template, MeshVertex[] positions, MeshUV0[] uvs)
+        {
+            if (template.Length != uvs.Length || positions.Length != uvs.Length) return;
+            var seam = new List<float2>();
+            for (int i = 0; i < template.Length; i++)
+            {
+                var t = template[i].m_Vertex;
+                float u = uvs[i].m_Uv.x;
+                if (math.abs(t.z) > 0.01f || u < LeftUv - UvEpsilon || u > RightUv + UvEpsilon) continue;
+                seam.Add(new float2(t.x, u));
+            }
+            if (seam.Count < 2) return;
+            seam.Sort((a, b) => a.x.CompareTo(b.x));
+            if (seam[seam.Count - 1].x - seam[0].x < 0.05f) return;
+            for (int i = 0; i < uvs.Length; i++)
+            {
+                float u = uvs[i].m_Uv.x;
+                if (u < LeftUv - UvEpsilon || u > RightUv + UvEpsilon || template[i].m_Vertex.z < -0.01f) continue;
+                float x = positions[i].m_Vertex.x;
+                float mapped;
+                if (x <= seam[0].x) mapped = seam[0].y;
+                else if (x >= seam[seam.Count - 1].x) mapped = seam[seam.Count - 1].y;
+                else
+                {
+                    int k = 1;
+                    while (k < seam.Count - 1 && seam[k].x < x) k++;
+                    var a = seam[k - 1]; var b = seam[k];
+                    mapped = b.x - a.x > 0.0001f ? math.lerp(a.y, b.y, (x - a.x) / (b.x - a.x)) : a.y;
+                }
+                uvs[i] = new MeshUV0 { m_Uv = new float2(mapped, uvs[i].m_Uv.y) };
+            }
+        }
+
         private void ReleaseCreated(Runtime runtime)
         {
             foreach (var entity in runtime.Created)
             {
                 s_RuntimeMeshes.Remove(entity);
                 s_CornerMeshes.Remove(entity);
+                s_ParkingCornerMeshes.Remove(entity);
                 if (EntityManager.Exists(entity)) EntityManager.DestroyEntity(entity);
             }
             runtime.Created.Clear();
             runtime.Composition = Entity.Null;
         }
 
+        // Splits a piece into rest and sidewalk part; the sidewalk part gets UVs from a straight frame in world space.
         private bool TrySplit(NetCompositionPiece piece, NetCompositionMeshData data, EdgeNodeGeometry geometry,
             NetCompositionData compositionData, EdgeGeometry edgeGeometry, bool start, List<Entity> created,
             List<SourceFrame> external, List<SourceFrame> framesOut, bool nameFilter,
@@ -930,11 +1397,11 @@ namespace Advanced_Graphics
             rest = walk = piece;
             hasRest = false;
             var source = piece.m_Piece;
-            if ((piece.m_PieceFlags & (NetPieceFlags.PreserveShape | NetPieceFlags.DisableTiling)) != 0 ||
+            var skipFlags = s_ParkingMode ? NetPieceFlags.PreserveShape : NetPieceFlags.PreserveShape | NetPieceFlags.DisableTiling;
+            if ((piece.m_PieceFlags & skipFlags) != 0 ||
                 (piece.m_SectionFlags & NetSectionFlags.Median) != 0) return false;
             if (!m_Prefabs.TryGetPrefab<PrefabBase>(source, out var prefab) || prefab == null) return false;
-            // Side roads: piece names vary (Alley/Gravel ... To Sidewalk); the material check below decides.
-            if (nameFilter && !IsRoadAtlasPiece(prefab.name)) return false;
+            if (nameFilter && !(s_ParkingMode ? IsParkingAtlasPiece(prefab.name) : IsRoadAtlasPiece(prefab.name))) return false;
             if (!EntityManager.HasBuffer<MeshVertex>(source) || !EntityManager.HasBuffer<MeshNormal>(source) ||
                 !EntityManager.HasBuffer<MeshTangent>(source) || !EntityManager.HasBuffer<MeshUV0>(source) ||
                 !EntityManager.HasBuffer<MeshIndex>(source) || !EntityManager.HasBuffer<MeshMaterial>(source) ||
@@ -955,6 +1422,13 @@ namespace Advanced_Graphics
             var prefabData = EntityManager.GetComponentData<PrefabData>(source);
             int count = positions.Length;
             bool reshapedPiece = m_Reshaped != null && m_Reshaped.ContainsKey(source);
+            bool keepDensity = false;
+            var sunkPositions = new List<float3>();
+            var sunkNormals = new List<float3>();
+            var sunkTangents = new List<float4>();
+            var sunkUvs = new List<float2>();
+            var sunkIndices = new List<int>();
+            var sunkSlots = new List<MeshMaterial>();
             if (normals.Length != count || tangents.Length != count || uvs.Length != count) return false;
 
             bool keepPositive = ((data.m_Flags.m_General & CompositionFlags.General.Node) != 0 &&
@@ -981,10 +1455,13 @@ namespace Advanced_Graphics
                 int walkIndexBegin = walkIndices.Count, walkVertexBegin = walkPositions.Count;
                 float density = TemplateVDensity(positions, uvs, indices, begin, end, keepPositive, keepNegative);
                 Frame frame = null;
-                // Side roads: only the slot drawn with the main road's sidewalk material.
-                if (external != null)
+                bool slotBorrowed = false;
+                if (s_ParkingMode)
                 {
-                    // Borrowed frame: nearest main-road corner, only for the main road's sidewalk material.
+                    frame = PickParkingStrip(positions, uvs, indices, begin, end, piece, data, geometry, compositionData);
+                }
+                else if (external != null)
+                {
                     if (MaterialAllowed(external, slot.m_MaterialIndex))
                     {
                         frame = NearestFrame(external, SlotCenter(positions, uvs, indices, begin, end, piece, data, geometry, compositionData));
@@ -1007,8 +1484,18 @@ namespace Advanced_Graphics
                         if (frame == null) m_NoFrame++;
                         break;
                     }
+                    if (frame != null && m_BorrowFrames != null)
+                    {
+                        var center = SlotCenter(positions, uvs, indices, begin, end, piece, data, geometry, compositionData);
+                        var borrowed = NearestBorrowed(m_BorrowFrames, center, out float distance);
+                        LogBorrow(center, distance, borrowed != null);
+                        if (borrowed != null) { frame = borrowed; slotBorrowed = true; m_BorrowedSlots++; }
+                    }
                 }
                 var remap = new Dictionary<int, int>();
+                var asphalt = new List<int>();
+                var sunkRemap = new Dictionary<int, int>();
+                int sunkIndexBegin = sunkIndices.Count, sunkVertexBegin = sunkPositions.Count;
                 for (int i = begin; i + 2 < end; i += 3)
                 {
                     int a = indices[i].m_Index, b = indices[i + 1].m_Index, c = indices[i + 2].m_Index;
@@ -1021,7 +1508,7 @@ namespace Advanced_Graphics
                     {
                         var pa = positions[a].m_Vertex; var pb = positions[b].m_Vertex; var pc = positions[c].m_Vertex;
                         if (IsSidewalkTop(pa, pb, pc, uvs[a].m_Uv, uvs[b].m_Uv, uvs[c].m_Uv)) move = true;
-                        else if (!reshapedPiece && IsStretchedCurbTop(pa, pb, pc, uvs[a].m_Uv, uvs[b].m_Uv, uvs[c].m_Uv, piece, data, geometry, compositionData))
+                        else if (!s_ParkingMode && !reshapedPiece && IsStretchedCurbTop(pa, pb, pc, uvs[a].m_Uv, uvs[b].m_Uv, uvs[c].m_Uv, piece, data, geometry, compositionData))
                         {
                             move = true;
                             m_CurbTriangles++;
@@ -1038,6 +1525,29 @@ namespace Advanced_Graphics
                         walkIndices.Add(Remap(b, remap, positions, normals, tangents, walkPositions, walkNormals, walkTangents, walkUvs));
                         walkIndices.Add(Remap(c, remap, positions, normals, tangents, walkPositions, walkNormals, walkTangents, walkUvs));
                         moved++;
+                        if (keepDensity)
+                        {
+                            foreach (int v in new[] { a, b, c })
+                            {
+                                if (!sunkRemap.TryGetValue(v, out int mapped))
+                                {
+                                    mapped = sunkPositions.Count;
+                                    sunkRemap.Add(v, mapped);
+                                    sunkPositions.Add(positions[v].m_Vertex - new float3(0f, 0.5f, 0f));
+                                    sunkNormals.Add(normals[v].m_Normal);
+                                    sunkTangents.Add(tangents[v].m_Tangent);
+                                    sunkUvs.Add(uvs[v].m_Uv);
+                                }
+                                sunkIndices.Add(mapped);
+                            }
+                            m_DensityStandIns++;
+                        }
+                        continue;
+                    }
+                    if (frame != null && valid && s_ParkingMode &&
+                        IsParkingAsphaltTop(positions[a].m_Vertex, positions[b].m_Vertex, positions[c].m_Vertex, uvs[a].m_Uv, uvs[b].m_Uv, uvs[c].m_Uv))
+                    {
+                        asphalt.Add(a); asphalt.Add(b); asphalt.Add(c);
                         continue;
                     }
                     restIndices.Add(indices[i].m_Index);
@@ -1045,17 +1555,52 @@ namespace Advanced_Graphics
                     restIndices.Add(indices[i + 2].m_Index);
                 }
                 restSlots.Add(new MeshMaterial(restBegin, restIndices.Count - restBegin, slot.m_StartVertex, slot.m_VertexCount, slot.m_MaterialIndex));
+                if (sunkIndices.Count > sunkIndexBegin)
+                    sunkSlots.Add(new MeshMaterial(sunkIndexBegin, sunkIndices.Count - sunkIndexBegin,
+                        sunkVertexBegin, sunkPositions.Count - sunkVertexBegin, slot.m_MaterialIndex));
                 if (walkIndices.Count > walkIndexBegin)
                 {
-                    // Absolute UVs for this slot's moved vertices.
+                    List<bool> miterSide = null;
+                    Frame miterFrame = null;
+                    Func<float3, float> miterTest = null;
+                    bool sideRoadMiter = !s_ParkingMode && slotBorrowed;
+                    if ((s_ParkingMode || sideRoadMiter) && m_MiterJunction != Entity.Null && walkPositions.Count > walkVertexBegin)
+                    {
+                        float2 centroid = 0f;
+                        for (int v = walkVertexBegin; v < walkPositions.Count; v++)
+                            centroid += ProjectToWorld(walkPositions[v], piece, data, geometry, compositionData).xz;
+                        centroid /= walkPositions.Count - walkVertexBegin;
+                        if (TryMiter(frame, centroid, edgeGeometry, start, sideRoadMiter, out var miterPoint, out var miterDirection, out float miterSign, out miterFrame))
+                        {
+                            if (sideRoadMiter)
+                            {
+                                miterFrame = ReflectFrame(frame, miterPoint, miterDirection);
+                                miterSign = -miterSign;
+                            }
+                            var pieceCopy = piece;
+                            float2 testPoint = miterPoint, testDirection = miterDirection;
+                            float testSign = miterSign;
+                            miterTest = t =>
+                            {
+                                var w = ProjectToWorld(t, pieceCopy, data, geometry, compositionData).xz - testPoint;
+                                return (testDirection.x * w.y - testDirection.y * w.x) * testSign;
+                            };
+                            miterSide = SplitWalkAtLine(walkIndexBegin, walkVertexBegin, walkPositions, walkNormals, walkTangents, walkUvs, walkIndices,
+                                miterTest);
+                            m_MiterParts++;
+                            int turned = 0;
+                            foreach (bool side in miterSide) if (side) turned++;
+                            LogMiter("split: " + turned + " of " + miterSide.Count + " vertices turned", centroid, miterPoint, miterDirection);
+                        }
+                    }
                     for (int v = walkVertexBegin; v < walkPositions.Count; v++)
                     {
                         var world = ProjectToWorld(walkPositions[v], piece, data, geometry, compositionData);
-                        var atlas = frame.Sample(world);
-                        if (atlas.x < LeftUv + 0.0005f || atlas.x > RightUv - 0.0005f)
+                        var atlas = (miterSide != null && miterSide[v - walkVertexBegin] ? miterFrame : frame).Sample(world);
+                        if (atlas.x < s_WalkLeft + 0.0005f || atlas.x > s_WalkRight - 0.0005f)
                         {
                             m_Clamped++;
-                            m_ClampExcess = math.max(m_ClampExcess, math.max(LeftUv - atlas.x, atlas.x - RightUv) * 1024f);
+                            m_ClampExcess = math.max(m_ClampExcess, math.max(s_WalkLeft - atlas.x, atlas.x - s_WalkRight) * 1024f);
                         }
                         if (s_SyncBlendMode == 6) atlas = new float2(0.95f, 0.5f);
                         walkUvs[v] = atlas;
@@ -1086,17 +1631,57 @@ namespace Advanced_Graphics
                     if (s_SyncBlendMode != 6)
                     {
                         if (s_RecomputeTangents) RecomputeTangents(walkIndexBegin, walkVertexBegin, walkPositions, walkNormals, walkTangents, walkUvs, walkIndices, walkDirections);
-                        WrapStrip(walkIndexBegin, walkVertexBegin, walkPositions, walkNormals, walkTangents, walkUvs, walkIndices);
-                        if (capInfo != null)
+                        var exactPiece = piece;
+                        var exactFrame = frame;
+                        var exactMiter = miterFrame;
+                        var exactTest = miterTest;
+                        s_ExactUv = cutPoint => (exactTest != null && exactMiter != null && exactTest(cutPoint) > 0f ? exactMiter : exactFrame)
+                            .Sample(ProjectToWorld(cutPoint, exactPiece, data, geometry, compositionData));
+                        try
+                        {
+                            WrapStrip(walkIndexBegin, walkVertexBegin, walkPositions, walkNormals, walkTangents, walkUvs, walkIndices);
                             WrapCapV(walkIndexBegin, walkVertexBegin, walkPositions, walkNormals, walkTangents, walkUvs, walkIndices);
+                        }
+                        finally { s_ExactUv = null; }
                     }
                     walkSlots.Add(new MeshMaterial(walkIndexBegin, walkIndices.Count - walkIndexBegin,
                         walkVertexBegin, walkPositions.Count - walkVertexBegin, slot.m_MaterialIndex));
                 }
+                if (asphalt.Count > 0)
+                {
+                    int asphaltIndexBegin = walkIndices.Count, asphaltVertexBegin = walkPositions.Count;
+                    var asphaltRemap = new Dictionary<int, int>();
+                    foreach (int v in asphalt)
+                        walkIndices.Add(Remap(v, asphaltRemap, positions, normals, tangents, walkPositions, walkNormals, walkTangents, walkUvs));
+                    for (int v = asphaltVertexBegin; v < walkPositions.Count; v++)
+                    {
+                        var world = ProjectToWorld(walkPositions[v], piece, data, geometry, compositionData);
+                        walkUvs[v] = s_SyncBlendMode == 6 ? new float2(0.1f, 0.5f) : frame.Sample(world);
+                    }
+                    if (s_SyncBlendMode != 6)
+                    {
+                        float keepLeft = s_WalkLeft, keepRight = s_WalkRight;
+                        var asphaltPiece = piece;
+                        var asphaltFrame = frame;
+                        s_ExactUv = cutPoint => asphaltFrame.Sample(ProjectToWorld(cutPoint, asphaltPiece, data, geometry, compositionData));
+                        s_WalkLeft = 0f;
+                        s_WalkRight = ParkingAsphaltRightUv;
+                        try
+                        {
+                            WrapStrip(asphaltIndexBegin, asphaltVertexBegin, walkPositions, walkNormals, walkTangents, walkUvs, walkIndices);
+                            WrapCapV(asphaltIndexBegin, asphaltVertexBegin, walkPositions, walkNormals, walkTangents, walkUvs, walkIndices);
+                        }
+                        finally { s_WalkLeft = keepLeft; s_WalkRight = keepRight; s_ExactUv = null; }
+                    }
+                    walkSlots.Add(new MeshMaterial(asphaltIndexBegin, walkIndices.Count - asphaltIndexBegin,
+                        asphaltVertexBegin, walkPositions.Count - asphaltVertexBegin, slot.m_MaterialIndex));
+                    moved += asphalt.Count / 3;
+                    m_AsphaltTriangles += asphalt.Count / 3;
+                }
             }
             if (moved == 0) return false;
 
-            if (capInfo == null)
+            if (capInfo == null && s_SyncBlendMode == 6)
             {
                 foreach (var slot in walkSlots)
                 {
@@ -1117,6 +1702,15 @@ namespace Advanced_Graphics
                         walkUvs[v] = new float2(walkUvs[v].x, walkUvs[v].y - shift);
                 }
 
+            }
+
+            if (sunkIndices.Count > 0 && m_ExtraPieces != null)
+            {
+                var sunkEntity = CreatePiece(prefabData, meshData, sunkPositions, sunkNormals, sunkTangents, sunkUvs, sunkIndices, sunkSlots);
+                created.Add(sunkEntity);
+                var sunk = piece;
+                sunk.m_Piece = sunkEntity;
+                m_ExtraPieces.Add(sunk);
             }
 
             var walkEntity = CreatePiece(prefabData, meshData, walkPositions, walkNormals, walkTangents, walkUvs, walkIndices, walkSlots);
@@ -1175,8 +1769,6 @@ namespace Advanced_Graphics
             for (int k = 0; k < count; k++)
             {
                 var n = math.normalizesafe(normals[vertexBegin + k], new float3(0f, 1f, 0f));
-                // Direction: the world tangent expressed in the curve frame the shader rotates with.
-                // Handedness (w): from the triangles (unchanged by the deformation).
                 var direction = directions.TryGetValue(vertexBegin + k, out var d) && math.lengthsq(d) > 0.5f ? d : accumulatedT[k];
                 var t = direction - n * math.dot(n, direction);
                 if (math.lengthsq(t) < 1e-12f) continue;
@@ -1209,6 +1801,255 @@ namespace Advanced_Graphics
             return math.normalizesafe(new float3(tx, 0f, tz));
         }
 
+        private const bool UseMiter = false;
+        private Entity m_MiterJunction, m_MiterRoad;
+
+        private List<SourceFrame> m_BorrowFrames;
+        private int m_BorrowedSlots, m_BorrowLogged;
+        private const float BorrowRadius = 10f;
+        private const float StraightDot = 0.85f;
+
+        private static Frame NearestBorrowed(List<SourceFrame> frames, float2 center, out float distance)
+        {
+            distance = float.MaxValue;
+            Frame best = null;
+            if (frames == null || math.any(math.isnan(center))) return null;
+            foreach (var item in frames)
+            {
+                float d = math.distance(item.Centroid, center);
+                if (d < distance) { distance = d; best = item.Frame; }
+            }
+            return distance <= BorrowRadius ? best : null;
+        }
+
+        private void LogBorrow(float2 center, float distance, bool used)
+        {
+            if (!Mod.DebugBackendEnabled || m_BorrowLogged >= 40) return;
+            m_BorrowLogged++;
+            Mod.LogLater("Parking side road: " + (used ? "borrowed" : "kept own") + " frame | " + m_DumpLabel +
+                " | slot centre " + center + " | nearest parking corner " + (distance < float.MaxValue ? distance.ToString("0.0") + " m" : "none"));
+        }
+
+        private bool EdgeDirection(Entity edge, bool start, out float2 direction)
+        {
+            direction = default;
+            if (!EntityManager.HasComponent<Game.Net.Curve>(edge)) return false;
+            var bezier = EntityManager.GetComponentData<Game.Net.Curve>(edge).m_Bezier;
+            float2 d = start ? (bezier.b - bezier.a).xz : (bezier.c - bezier.d).xz;
+            if (math.lengthsq(d) < 1e-6f) d = start ? (bezier.d - bezier.a).xz : (bezier.a - bezier.d).xz;
+            if (math.lengthsq(d) < 1e-6f) return false;
+            direction = math.normalize(d);
+            return true;
+        }
+
+        // Side road at a T junction with a parking road running through: borrows its straight frames (L joint).
+        private List<SourceFrame> BorrowParkingFrames(Entity road, bool start, Entity junction, out int signature)
+        {
+            signature = 0;
+            if (!EntityManager.HasBuffer<ConnectedEdge>(junction) || !EdgeDirection(road, start, out var own)) return null;
+            var edges = EntityManager.GetBuffer<ConnectedEdge>(junction, true).ToNativeArray(Allocator.Temp).ToArray();
+            var parking = new List<(Runtime, float2)>();
+            foreach (var item in edges)
+            {
+                var other = item.m_Edge;
+                if (other == road || !EntityManager.HasComponent<Edge>(other)) continue;
+                bool otherStart = EntityManager.GetComponentData<Edge>(other).m_Start == junction;
+                if (!EdgeDirection(other, otherStart, out var direction)) continue;
+                if (math.dot(own, direction) < -StraightDot) return null;
+                if (m_Runtimes.TryGetValue((other, otherStart), out var runtime) && runtime.Parking && runtime.Frames.Count > 0)
+                    parking.Add((runtime, direction));
+            }
+            bool through = false;
+            for (int i = 0; i < parking.Count && !through; i++)
+                for (int j = i + 1; j < parking.Count; j++)
+                    if (math.dot(parking[i].Item2, parking[j].Item2) < -StraightDot) { through = true; break; }
+            if (!through) return null;
+            var list = new List<SourceFrame>();
+            foreach (var pair in parking)
+            {
+                foreach (var item in pair.Item1.Frames)
+                {
+                    var frame = item.Frame != null ? ToRoadFrame(item.Frame) : null;
+                    if (frame == null) continue;
+                    list.Add(new SourceFrame { Frame = frame, Centroid = item.Centroid, MaterialIndex = AnyMaterial, MaxU = RightUv });
+                }
+                signature = signature * 31 + pair.Item1.Signature;
+            }
+            return list.Count > 0 ? list : null;
+        }
+        private int m_MiterParts;
+
+        private static float Cross2(float2 a, float2 b) => a.x * b.y - a.y * b.x;
+
+        // Frame mirrored at a line through point (unit direction): equal UVs on the line itself.
+        private static Frame ReflectFrame(Frame frame, float2 point, float2 direction)
+        {
+            float m00 = 2f * direction.x * direction.x - 1f, m01 = 2f * direction.x * direction.y, m11 = 2f * direction.y * direction.y - 1f;
+            return new Frame
+            {
+                Origin = point,
+                Uv = frame.Sample(new float3(point.x, 0f, point.y)),
+                UvX = frame.UvX * m00 + frame.UvZ * m01,
+                UvZ = frame.UvX * m01 + frame.UvZ * m11
+            };
+        }
+
+        private static int PatternSignature()
+        {
+            unchecked
+            {
+                int hash = SidewalkRoadAtlasSystem.RoadPatternValid ? 0x45d9f3b : 0x119de1f3;
+                hash = hash * 31 + SidewalkRoadAtlasSystem.RoadPatternRepeatsV.GetHashCode();
+                hash = hash * 31 + SidewalkRoadAtlasSystem.RoadPatternShiftU.GetHashCode();
+                hash = hash * 31 + SidewalkRoadAtlasSystem.RoadPatternShiftV.GetHashCode();
+                hash = hash * 31 + ParkingRoadAtlasSystem.SidewalkPatternRepeatsU.GetHashCode();
+                hash = hash * 31 + ParkingRoadAtlasSystem.SidewalkRepeatShiftRight.GetHashCode();
+                hash = hash * 31 + ParkingRoadAtlasSystem.SidewalkRepeatShiftLeft.GetHashCode();
+                return hash * 31 + ParkingRoadAtlasSystem.SidewalkPatternRepeatsV.GetHashCode();
+            }
+        }
+        private int m_MiterLogged;
+
+        private void LogMiter(string what, float2 centroid, float2 own, float2 neighbour)
+        {
+            if (!Mod.DebugBackendEnabled || m_MiterLogged >= 40) return;
+            m_MiterLogged++;
+            string node = EntityManager.HasComponent<Game.Net.Node>(m_MiterJunction)
+                ? EntityManager.GetComponentData<Game.Net.Node>(m_MiterJunction).m_Position.xz.ToString() : "?";
+            Mod.LogLater("Parking corner miter: " + what + " | node " + node + " | slot centre " + centroid + " | own edge end " + own + " | neighbour edge end " + neighbour);
+        }
+
+        // Miter line through the crossing of both outer sidewalk edges, bisecting the corner.
+        private bool TryMiter(Frame frame, float2 centroid, EdgeGeometry edgeGeometry, bool start, bool neighbourParking,
+            out float2 point, out float2 direction, out float sign, out Frame rotated)
+        {
+            point = direction = default;
+            sign = 0f;
+            rotated = null;
+            if (frame == null || frame.Seam != null || !EntityManager.HasBuffer<ConnectedEdge>(m_MiterJunction)) { LogMiter("no plain frame", centroid, default, default); return false; }
+            var segment = start ? edgeGeometry.m_Start : edgeGeometry.m_End;
+            float2 left = (start ? segment.m_Left.a : segment.m_Left.d).xz, right = (start ? segment.m_Right.a : segment.m_Right.d).xz;
+            bool ownLeft = math.distancesq(left, centroid) <= math.distancesq(right, centroid);
+            var ownCurve = ownLeft ? segment.m_Left : segment.m_Right;
+            float2 a1 = ownLeft ? left : right;
+            float2 d1 = math.normalizesafe((start ? MathUtils.StartTangent(ownCurve) : MathUtils.EndTangent(ownCurve)).xz);
+            if (math.lengthsq(d1) < 0.5f) return false;
+            float2 n1 = new float2(-d1.y, d1.x);
+            if (math.dot(n1, (left + right) * 0.5f - a1) < 0f) n1 = -n1;
+
+            float2 c1 = (left + right) * 0.5f;
+            float best = 50f * 50f;
+            float2 a2 = default, d2 = default, c2 = default;
+            bool found = false;
+            var edges = EntityManager.GetBuffer<ConnectedEdge>(m_MiterJunction, true).ToNativeArray(Allocator.Temp).ToArray();
+            foreach (var item in edges)
+            {
+                var other = item.m_Edge;
+                if (other == m_MiterRoad || !EntityManager.HasComponent<EdgeGeometry>(other) || !EntityManager.HasComponent<Edge>(other) ||
+                    !EntityManager.HasComponent<PrefabRef>(other) || IsAlley(other)) continue;
+                bool otherParking = m_Prefabs.TryGetPrefab<PrefabBase>(EntityManager.GetComponentData<PrefabRef>(other).m_Prefab, out var prefab) &&
+                    prefab != null && IsParkingRoad(prefab.name) && !HasRoadSidewalk(other);
+                if (otherParking != neighbourParking) continue;
+                var geometry = EntityManager.GetComponentData<EdgeGeometry>(other);
+                bool otherStart = EntityManager.GetComponentData<Edge>(other).m_Start == m_MiterJunction;
+                var otherSegment = otherStart ? geometry.m_Start : geometry.m_End;
+                float2 l2 = (otherStart ? otherSegment.m_Left.a : otherSegment.m_Left.d).xz;
+                float2 r2 = (otherStart ? otherSegment.m_Right.a : otherSegment.m_Right.d).xz;
+                for (int side = 0; side < 2; side++)
+                {
+                    var curve = side == 0 ? otherSegment.m_Left : otherSegment.m_Right;
+                    float2 a = side == 0 ? l2 : r2;
+                    float2 d = math.normalizesafe((otherStart ? MathUtils.StartTangent(curve) : MathUtils.EndTangent(curve)).xz);
+                    if (math.lengthsq(d) < 0.5f || math.abs(Cross2(d1, d)) < 0.5f) continue;
+                    if (math.dot(a - c1, a1 - c1) <= 0f) continue;
+                    float distance = math.distancesq(a, a1);
+                    if (distance >= best) continue;
+                    best = distance;
+                    a2 = a; d2 = d; c2 = (l2 + r2) * 0.5f;
+                    found = true;
+                }
+            }
+            if (!found) { LogMiter("no neighbour side", centroid, a1, default); return false; }
+            point = a1 + d1 * (Cross2(a2 - a1, d2) / Cross2(d1, d2));
+            LogMiter("corner " + point + " normals " + n1 + " / " + new float2(-d2.y, d2.x), centroid, a1, a2);
+            if (math.distancesq(point, centroid) > 40f * 40f) { LogMiter("corner point too far", centroid, a1, a2); return false; }
+            float2 n2 = new float2(-d2.y, d2.x);
+            if (math.dot(n2, c2 - a2) < 0f) n2 = -n2;
+            direction = math.normalizesafe(n1 + n2);
+            if (math.lengthsq(direction) < 0.5f) { LogMiter("opposite edge normals", centroid, a1, a2); return false; }
+            sign = math.sign(Cross2(direction, a2 + n2 - point));
+            if (sign == 0f) { LogMiter("no side", centroid, a1, a2); return false; }
+            float theta = math.atan2(Cross2(n1, n2), math.dot(n1, n2));
+            float c = math.cos(theta), s = math.sin(theta);
+            rotated = new Frame
+            {
+                Origin = point,
+                Uv = frame.Sample(new float3(point.x, 0f, point.y)),
+                UvX = frame.UvX * c - frame.UvZ * s,
+                UvZ = frame.UvX * s + frame.UvZ * c
+            };
+            return true;
+        }
+
+        // Clips the walk triangles of one slot at a line; returns per vertex whether it lies on the positive side.
+        private static List<bool> SplitWalkAtLine(int indexBegin, int vertexBegin, List<float3> positions, List<float3> normals,
+            List<float4> tangents, List<float2> uvs, List<int> indices, Func<float3, float> signedDistance)
+        {
+            var triangles = new List<WalkVertex[]>();
+            for (int i = indexBegin; i + 2 < indices.Count; i += 3)
+            {
+                var tri = new WalkVertex[3];
+                for (int k = 0; k < 3; k++)
+                {
+                    int v = indices[i + k];
+                    tri[k] = new WalkVertex { Position = positions[v], Normal = normals[v], Tangent = tangents[v], Uv = uvs[v] };
+                }
+                triangles.Add(tri);
+            }
+            positions.RemoveRange(vertexBegin, positions.Count - vertexBegin);
+            normals.RemoveRange(vertexBegin, normals.Count - vertexBegin);
+            tangents.RemoveRange(vertexBegin, tangents.Count - vertexBegin);
+            uvs.RemoveRange(vertexBegin, uvs.Count - vertexBegin);
+            indices.RemoveRange(indexBegin, indices.Count - indexBegin);
+            var sides = new List<bool>();
+            foreach (var tri in triangles)
+            {
+                var distances = new float[3];
+                for (int k = 0; k < 3; k++) distances[k] = signedDistance(tri[k].Position);
+                for (int pass = 0; pass < 2; pass++)
+                {
+                    bool positive = pass == 1;
+                    var polygon = new List<WalkVertex>(5);
+                    for (int k = 0; k < 3; k++)
+                    {
+                        var a = tri[k]; var b = tri[(k + 1) % 3];
+                        float da = positive ? distances[k] : -distances[k];
+                        float db = positive ? distances[(k + 1) % 3] : -distances[(k + 1) % 3];
+                        if (da >= 0f) polygon.Add(a);
+                        if ((da >= 0f) != (db >= 0f))
+                            polygon.Add(WalkVertex.Lerp(a, b, ExactCut(a.Position, b.Position, da / (da - db), signedDistance)));
+                    }
+                    if (polygon.Count < 3) continue;
+                    int first = positions.Count;
+                    foreach (var vertex in polygon)
+                    {
+                        positions.Add(vertex.Position);
+                        normals.Add(vertex.Normal);
+                        tangents.Add(vertex.Tangent);
+                        uvs.Add(vertex.Uv);
+                        sides.Add(positive);
+                    }
+                    for (int n = 1; n + 1 < polygon.Count; n++)
+                    {
+                        if (math.lengthsq(math.cross(polygon[n].Position - polygon[0].Position,
+                            polygon[n + 1].Position - polygon[0].Position)) < 1e-12f) continue;
+                        indices.Add(first); indices.Add(first + n); indices.Add(first + n + 1);
+                    }
+                }
+            }
+            return sides;
+        }
+
         private struct WalkVertex
         {
             public float3 Position, Normal;
@@ -1223,13 +2064,20 @@ namespace Advanced_Graphics
             };
         }
 
+        // Keeps U inside the atlas strip: repeat (RoadEU), shifted repeat or mirror (parking).
         private void WrapStrip(int indexBegin, int vertexBegin, List<float3> positions, List<float3> normals,
             List<float4> tangents, List<float2> uvs, List<int> indices)
         {
-            float width = RightUv - LeftUv;
+            float left = s_WalkLeft, right = s_WalkRight;
+            float width = right - left;
+            bool mirror = s_ParkingMode;
+            float shiftRight = ParkingRoadAtlasSystem.SidewalkRepeatShiftRight, shiftLeft = ParkingRoadAtlasSystem.SidewalkRepeatShiftLeft;
+            bool shifted = s_ParkingMode && math.abs(left - ParkingLeftUv) < 1e-5f && math.abs(right - ParkingRightUv) < 1e-5f &&
+                shiftRight > 0.001f && shiftLeft > 0.001f && shiftRight < width && shiftLeft < width;
+            if (shifted) mirror = false;
             bool outside = false;
             for (int v = vertexBegin; v < uvs.Count; v++)
-                if (uvs[v].x < LeftUv || uvs[v].x > RightUv) { outside = true; break; }
+                if (uvs[v].x < left || uvs[v].x > right) { outside = true; break; }
             if (!outside) return;
 
             var triangles = new List<WalkVertex[]>();
@@ -1253,12 +2101,19 @@ namespace Advanced_Graphics
             {
                 float u0 = math.min(tri[0].Uv.x, math.min(tri[1].Uv.x, tri[2].Uv.x));
                 float u1 = math.max(tri[0].Uv.x, math.max(tri[1].Uv.x, tri[2].Uv.x));
-                int k0 = (int)math.floor((u0 - LeftUv) / width);
-                int k1 = (int)math.floor((u1 - LeftUv) / width);
-                if (k1 - k0 > 8) k1 = k0 + 8; // degenerate input; never seen
+                int k0 = shifted ? ShiftedCell(u0, left, right, shiftLeft, shiftRight) : (int)math.floor((u0 - left) / width);
+                int k1 = shifted ? ShiftedCell(u1, left, right, shiftLeft, shiftRight) : (int)math.floor((u1 - left) / width);
+                if (k1 - k0 > 8) k1 = k0 + 8;
                 for (int k = k0; k <= k1; k++)
                 {
-                    float lo = LeftUv + k * width, hi = lo + width;
+                    float lo = left + k * width, hi = lo + width, move = -k * width;
+                    if (shifted)
+                    {
+                        if (k == 0) { lo = left; hi = right; move = 0f; }
+                        else if (k > 0) { lo = right + (k - 1) * shiftRight; hi = lo + shiftRight; move = -k * shiftRight; }
+                        else { hi = left + (-k - 1) * -shiftLeft; lo = hi - shiftLeft; move = -k * shiftLeft; }
+                    }
+                    bool flip = mirror && (k & 1) != 0;
                     var polygon = new List<WalkVertex>(tri);
                     polygon = ClipU(polygon, lo, true);
                     polygon = ClipU(polygon, hi, false);
@@ -1268,8 +2123,9 @@ namespace Advanced_Graphics
                     {
                         positions.Add(vertex.Position);
                         normals.Add(vertex.Normal);
-                        tangents.Add(vertex.Tangent);
-                        float u = math.clamp(vertex.Uv.x - k * width, LeftUv + 0.0005f, RightUv - 0.0005f);
+                        tangents.Add(flip ? -vertex.Tangent : vertex.Tangent);
+                        float local = vertex.Uv.x - lo;
+                        float u = math.clamp(shifted ? vertex.Uv.x + move : left + (flip ? width - local : local), left + 0.0005f, right - 0.0005f);
                         uvs.Add(new float2(u, vertex.Uv.y));
                     }
                     for (int n = 1; n + 1 < polygon.Count; n++)
@@ -1283,6 +2139,15 @@ namespace Advanced_Graphics
             }
         }
 
+        // Cell of the shifted repeat: 0 = inside the strip, k > 0 = k-th repeat beyond the right end
+        private static int ShiftedCell(float u, float left, float right, float shiftLeft, float shiftRight)
+        {
+            if (u > right) return (int)math.ceil((u - right) / shiftRight);
+            if (u < left) return -(int)math.ceil((left - u) / shiftLeft);
+            return 0;
+        }
+
+        // Cuts at whole V and stores each part in [-1, 0) (the game shifts DisableTiling V by ceil(max V)).
         private void WrapCapV(int indexBegin, int vertexBegin, List<float3> positions, List<float3> normals,
             List<float4> tangents, List<float2> uvs, List<int> indices)
         {
@@ -1309,10 +2174,11 @@ namespace Advanced_Graphics
                 if (!math.isfinite(min) || !math.isfinite(max) || max - min > 64f)
                     throw new InvalidOperationException("Invalid sidewalk cap V range.");
                 int firstTile = (int)math.floor(min), lastTile = (int)math.floor(max);
+                var fold = UFold(tri);
                 for (int tile = firstTile; tile <= lastTile; tile++)
                 {
-                    var polygon = ClipV(new List<WalkVertex>(tri), tile, true);
-                    polygon = ClipV(polygon, tile + 1f, false);
+                    var polygon = ClipV(new List<WalkVertex>(tri), tile, true, fold);
+                    polygon = ClipV(polygon, tile + 1f, false, fold);
                     if (polygon.Count < 3) continue;
                     int first = positions.Count;
                     foreach (var vertex in polygon)
@@ -1333,7 +2199,7 @@ namespace Advanced_Graphics
             }
         }
 
-        private static List<WalkVertex> ClipV(List<WalkVertex> polygon, float edge, bool keepAbove)
+        private static List<WalkVertex> ClipV(List<WalkVertex> polygon, float edge, bool keepAbove, float2 fold)
         {
             var result = new List<WalkVertex>(polygon.Count + 2);
             for (int i = 0; i < polygon.Count; i++)
@@ -1342,12 +2208,70 @@ namespace Advanced_Graphics
                 float da = keepAbove ? a.Uv.y - edge : edge - a.Uv.y;
                 float db = keepAbove ? b.Uv.y - edge : edge - b.Uv.y;
                 if (da >= 0f) result.Add(a);
-                if ((da >= 0f) != (db >= 0f)) result.Add(WalkVertex.Lerp(a, b, da / (da - db)));
+                if ((da >= 0f) != (db >= 0f)) result.Add(ExactSplit(a, b, da / (da - db), 1, edge, fold));
             }
             return result;
         }
 
-        // Sutherland-Hodgman against u >= edge (keepAbove) or u <= edge.
+        // Cut points at the projected position: the game bends node pieces per vertex, linear cuts would be off.
+        private static Func<float3, float2> s_ExactUv;
+
+        private static float ExactCut(float3 a, float3 b, float linear, Func<float3, float> value)
+        {
+            if (value == null) return linear;
+            float va = value(a), vb = value(b);
+            if (!math.isfinite(va) || !math.isfinite(vb) || (va >= 0f) == (vb >= 0f)) return linear;
+            float lo = 0f, hi = 1f;
+            for (int i = 0; i < 24; i++)
+            {
+                float mid = (lo + hi) * 0.5f;
+                float vm = value(math.lerp(a, b, mid));
+                if (!math.isfinite(vm)) return linear;
+                if ((vm >= 0f) == (va >= 0f)) lo = mid; else hi = mid;
+            }
+            return (lo + hi) * 0.5f;
+        }
+
+        private static WalkVertex ExactSplit(WalkVertex a, WalkVertex b, float linear, int axis, float edge, float2 fold)
+        {
+            var exact = s_ExactUv;
+            if (exact == null) return WalkVertex.Lerp(a, b, linear);
+            float t = ExactCut(a.Position, b.Position, linear, p => exact(p)[axis] - edge);
+            var vertex = WalkVertex.Lerp(a, b, t);
+            var uv = exact(vertex.Position);
+            if (!math.all(math.isfinite(uv))) return WalkVertex.Lerp(a, b, linear);
+            float u = fold.x * uv.x + fold.y;
+            if (axis == 0) u = edge;
+            else u = math.clamp(u, math.min(a.Uv.x, b.Uv.x) - 0.002f, math.max(a.Uv.x, b.Uv.x) + 0.002f);
+            vertex.Uv = new float2(u, axis == 1 ? edge : uv.y);
+            return vertex;
+        }
+
+        // How a triangle's displayed U relates to its real U after WrapStrip (repeat: +1, mirror: -1, plus an offset).
+        private static float2 UFold(WalkVertex[] tri)
+        {
+            var exact = s_ExactUv;
+            if (exact == null) return new float2(1f, 0f);
+            var real = new float[3];
+            for (int k = 0; k < 3; k++)
+            {
+                real[k] = exact(tri[k].Position).x;
+                if (!math.isfinite(real[k])) return new float2(1f, 0f);
+            }
+            float alpha = 1f, spread = 0f;
+            for (int i = 0; i < 3; i++)
+                for (int j = i + 1; j < 3; j++)
+                {
+                    float d = real[i] - real[j];
+                    if (math.abs(d) <= spread) continue;
+                    spread = math.abs(d);
+                    alpha = (tri[i].Uv.x - tri[j].Uv.x) / d < 0f ? -1f : 1f;
+                }
+            float beta = 0f;
+            for (int k = 0; k < 3; k++) beta += tri[k].Uv.x - alpha * real[k];
+            return new float2(alpha, beta / 3f);
+        }
+
         private static List<WalkVertex> ClipU(List<WalkVertex> polygon, float edge, bool keepAbove)
         {
             var result = new List<WalkVertex>(polygon.Count + 2);
@@ -1359,15 +2283,11 @@ namespace Advanced_Graphics
                 float db = keepAbove ? b.Uv.x - edge : edge - b.Uv.x;
                 if (da >= 0f) result.Add(a);
                 if ((da >= 0f) != (db >= 0f))
-                {
-                    float t = da / (da - db);
-                    result.Add(WalkVertex.Lerp(a, b, t));
-                }
+                    result.Add(ExactSplit(a, b, da / (da - db), 0, edge, new float2(1f, 0f)));
             }
             return result;
         }
 
-        // World XZ centre of the sidewalk-top triangles of one slot.
         private static float2 SlotCenter(MeshVertex[] positions, MeshUV0[] uvs, MeshIndex[] indices, int begin, int end,
             NetCompositionPiece piece, NetCompositionMeshData data, EdgeNodeGeometry geometry, NetCompositionData compositionData)
         {
@@ -1384,7 +2304,6 @@ namespace Advanced_Graphics
                 n++;
             }
             if (n > 0) return sum / n;
-            // No sidewalk top in this slot (curb piece): centre of all its triangles.
             for (int i = begin; i + 2 < end; i += 3)
             {
                 int a = indices[i].m_Index, b = indices[i + 1].m_Index, c = indices[i + 2].m_Index;
@@ -1399,7 +2318,7 @@ namespace Advanced_Graphics
         private void LogCurb(string name, int material, bool hasFrame, float3 a, float3 b, float3 c, float2 ua, float2 ub, float2 uc,
             NetCompositionPiece piece, NetCompositionMeshData data, EdgeNodeGeometry geometry, NetCompositionData compositionData)
         {
-            if (m_CurbLogged >= 0) return; // enough data collected; the game's logger choked on 400 lines per scan
+            if (m_CurbLogged >= 0) return;
             float u0 = math.min(ua.x, math.min(ub.x, uc.x));
             float u1 = math.max(ua.x, math.max(ub.x, uc.x));
             if (u1 < CurbLeftUv - UvEpsilon || u0 > LeftUv - UvEpsilon) return;
@@ -1414,7 +2333,6 @@ namespace Advanced_Graphics
             bool side = name.StartsWith("side ", StringComparison.Ordinal);
             if (wy < 0.3f && !side) return;
             float templateWidth = Thickness(a.xz, b.xz, c.xz), worldWidth = Thickness(wa.xz, wb.xz, wc.xz);
-            // Regular 0.2 m curb strip, unchanged: not interesting.
             if (!side && ty >= 0.65f && u1 <= LeftUv + UvEpsilon && worldWidth <= 0.22f && worldWidth <= templateWidth * 1.1f) return;
             m_CurbLogged++;
             Mod.log.Info("Junction curb: " + name + " mat " + material + (hasFrame ? " frame" : " NO frame") +
@@ -1426,7 +2344,6 @@ namespace Advanced_Graphics
                 ", moved " + (hasFrame && IsStretchedCurbTop(a, b, c, ua, ub, uc, piece, data, geometry, compositionData)));
         }
 
-        // The alley's sidewalk transition belongs to the main road corner right next to it.
         private static Frame NearestFrame(List<SourceFrame> frames, float2 center)
         {
             if (frames == null || math.any(math.isnan(center))) return null;
@@ -1459,7 +2376,6 @@ namespace Advanced_Graphics
             var entity = EntityManager.CreateEntity(ComponentType.ReadWrite<MeshData>(), ComponentType.ReadWrite<MeshVertex>(),
                 ComponentType.ReadWrite<MeshNormal>(), ComponentType.ReadWrite<MeshTangent>(), ComponentType.ReadWrite<MeshUV0>(),
                 ComponentType.ReadWrite<MeshIndex>(), ComponentType.ReadWrite<MeshMaterial>());
-            // Same as DrivewayEntries: a disabled PrefabData copy, no batches of its own.
             EntityManager.AddComponentData(entity, prefabData);
             EntityManager.SetComponentEnabled<PrefabData>(entity, false);
             var data = meshData;
@@ -1489,15 +2405,13 @@ namespace Advanced_Graphics
 
         private static bool MaterialAllowed(List<SourceFrame> frames, int materialIndex)
         {
-            foreach (var item in frames) if (item.MaterialIndex == materialIndex) return true;
+            foreach (var item in frames) if (item.MaterialIndex == materialIndex || item.MaterialIndex == AnyMaterial) return true;
             return false;
         }
 
         private const float CurbLeftUv = 273f / 1024f;
         private const float CurbStripWidth = 0.3f;
 
-        // A face that touches the sidewalk strip (some vertex inside 318..759 px) but also reaches
-        // outside it, and lies flat in the world.
         private static bool IsMixedWalkTop(float3 a, float3 b, float3 c, float2 ua, float2 ub, float2 uc,
             NetCompositionPiece piece, NetCompositionMeshData data, EdgeNodeGeometry geometry, NetCompositionData compositionData)
         {
@@ -1531,8 +2445,6 @@ namespace Advanced_Graphics
             float templateLength = math.length(templateNormal);
             bool templateTop = templateLength > 0.000001f && math.abs(templateNormal.y) / templateLength >= 0.65f;
             if (!templateTop) return true;
-            // Regular curb strips stay at or below their template width (main road corners measured
-            // 0.11..0.20 m for a 0.20 m template); the side road transition widens them to 0.26..0.33 m.
             return worldWidth > Thickness(a.xz, b.xz, c.xz) * 1.15f + 0.01f;
         }
 
@@ -1563,7 +2475,6 @@ namespace Advanced_Graphics
                 for (int i = 0; i < newU.Length && i < uvs.Length; i++)
                     if (!float.IsNaN(newU[i])) uvs[i] = new MeshUV0 { m_Uv = new float2(newU[i], uvs[i].m_Uv.y) };
         }
-
 
         private void DumpRamp(NetCompositionPiece piece, NetCompositionMeshData data, EdgeNodeGeometry geometry,
             NetCompositionData compositionData, MeshVertex[] shaped, int[] map, float cut, bool start)
@@ -1632,16 +2543,62 @@ namespace Advanced_Graphics
             return sumZ > 0.0001f ? sumV / sumZ : 0.03125f;
         }
 
-        private int m_WorldDumps;
+        private int m_WorldDumps, m_ParkingDumps;
+        private bool m_DumpNeighbour, m_DumpAlleyEnd;
+        private int m_AlleyEndDumps;
+        private readonly HashSet<Entity> m_ParkingSidewalkEnds = new HashSet<Entity>();
+        private readonly Dictionary<Entity, (Entity, bool)> m_ParkingEndCorners = new Dictionary<Entity, (Entity, bool)>();
+        private const int AnyMaterial = int.MinValue;
+        private const float RoadUPerMetre = 64f / 1024f;
+        private const float RoadVPerMetre = 0.0313f;
+
+        // Parking frame converted to the RoadEU atlas with the same slab pattern.
+        private static Frame ToRoadFrame(Frame parking)
+        {
+            float repeatsU = ParkingRoadAtlasSystem.SidewalkPatternRepeatsU, repeatsV = ParkingRoadAtlasSystem.SidewalkPatternRepeatsV;
+            float roadRepeatsV = SidewalkRoadAtlasSystem.RoadPatternRepeatsV;
+            if (SidewalkRoadAtlasSystem.RoadPatternValid && repeatsU > 0f && repeatsV > 0f && roadRepeatsV > 0f)
+            {
+                const float strip = RightUv - LeftUv;
+                float ku = repeatsU * strip;
+                float au = LeftUv + (-ParkingLeftUv * repeatsU - SidewalkRoadAtlasSystem.RoadPatternShiftU) * strip;
+                float whole = math.floor(parking.Uv.y);
+                float kv = repeatsV / roadRepeatsV;
+                float av = (-repeatsV * whole - SidewalkRoadAtlasSystem.RoadPatternShiftV) / roadRepeatsV;
+                return new Frame
+                {
+                    Origin = parking.Origin,
+                    Uv = new float2(au + ku * parking.Uv.x, av + kv * parking.Uv.y),
+                    UvX = new float2(ku * parking.UvX.x, kv * parking.UvX.y),
+                    UvZ = new float2(ku * parking.UvZ.x, kv * parking.UvZ.y)
+                };
+            }
+            var gradientU = new float2(parking.UvX.x, parking.UvZ.x);
+            var gradientV = new float2(parking.UvX.y, parking.UvZ.y);
+            float lengthU = math.length(gradientU), lengthV = math.length(gradientV);
+            if (lengthU < 1e-6f || lengthV < 1e-6f) return null;
+            float scaleU = RoadUPerMetre / lengthU, scaleV = RoadVPerMetre / lengthV;
+            return new Frame
+            {
+                Origin = parking.Origin,
+                Uv = new float2(LeftUv + (parking.Uv.x - ParkingLeftUv) * scaleU, parking.Uv.y * scaleV),
+                UvX = new float2(parking.UvX.x * scaleU, parking.UvX.y * scaleV),
+                UvZ = new float2(parking.UvZ.x * scaleU, parking.UvZ.y * scaleV)
+            };
+        }
+        private string m_DumpLabel = "";
         private void DumpWorld(List<NetCompositionPiece> pieces, NetCompositionMeshData data, EdgeNodeGeometry geometry,
             NetCompositionData compositionData, List<SourceFrame> frames, bool side, bool start)
         {
-            if (m_WorldDumps >= 40) return;
+            bool parkingDump = ((s_ParkingMode || m_DumpNeighbour) && m_ParkingDumps < 60) || (m_DumpAlleyEnd && m_AlleyEndDumps < 8);
+            if (m_DumpAlleyEnd) m_AlleyEndDumps++;
+            if (m_WorldDumps >= 40 && !parkingDump) return;
             try
             {
                 var inv = System.Globalization.CultureInfo.InvariantCulture;
                 var text = new System.Text.StringBuilder();
-                text.AppendLine("MESH " + m_WorldDumps + " " + (side ? "side" : "main") + " " + (start ? "start" : "end") + " " + data.m_Flags.m_General);
+                text.AppendLine("MESH " + m_WorldDumps + " " + (side ? "side" : "main") + " " + (start ? "start" : "end") + " " + data.m_Flags.m_General +
+                    (parkingDump ? " || " + m_DumpLabel : ""));
                 if (frames != null)
                     foreach (var f in frames)
                         if (f.Frame != null)
@@ -1669,12 +2626,21 @@ namespace Advanced_Graphics
                             var tp = positions[v].m_Vertex;
                             text.Append(string.Format(inv, " {0:0.###} {1:0.###} {2:0.###} {3:0.#} {4:0.###} {5:0.##}",
                                 world[v].x, world[v].y, world[v].z, v < uvs.Length ? uvs[v].m_Uv.x * 1024f : -1f, tp.x, tp.z));
+                            if (parkingDump) text.Append(string.Format(inv, " v {0:0.####}", v < uvs.Length ? uvs[v].m_Uv.y : float.NaN));
                         }
                         text.AppendLine();
                     }
                 }
                 string folder = System.IO.Path.Combine(Application.persistentDataPath, "ModsData", "Enhanced_Graphics_and_Textures", "Diagnostics");
                 System.IO.Directory.CreateDirectory(folder);
+                if (parkingDump)
+                {
+                    string parkingFile = System.IO.Path.Combine(folder, "JunctionParking.txt");
+                    if (m_ParkingDumps == 0) System.IO.File.WriteAllText(parkingFile, text.ToString());
+                    else System.IO.File.AppendAllText(parkingFile, text.ToString());
+                    m_ParkingDumps++;
+                    return;
+                }
                 string file = System.IO.Path.Combine(folder, "JunctionWorld.txt");
                 if (m_WorldDumps == 0) System.IO.File.WriteAllText(file, text.ToString());
                 else System.IO.File.AppendAllText(file, text.ToString());
@@ -1716,11 +2682,12 @@ namespace Advanced_Graphics
                                 var positions = EntityManager.GetBuffer<MeshVertex>(piece.m_Piece, true).ToNativeArray(Allocator.Temp).ToArray();
                                 var uvs = EntityManager.GetBuffer<MeshUV0>(piece.m_Piece, true).ToNativeArray(Allocator.Temp).ToArray();
                                 var indices = EntityManager.GetBuffer<MeshIndex>(piece.m_Piece, true).ToNativeArray(Allocator.Temp).ToArray();
-                                var line = new System.Text.StringBuilder(string.Format(inv, "  {0} | {1} | {2:0.##} | {3:0.##}", name, piece.m_SectionFlags, piece.m_Offset.x, piece.m_Size.x));
+                                var line = new System.Text.StringBuilder(string.Format(inv, "  {0} | {1} | {2:0.##} | {3:0.##} | piece {4} | size.z {5:0.##}", name, piece.m_SectionFlags, piece.m_Offset.x, piece.m_Size.x, piece.m_PieceFlags, piece.m_Size.z));
                                 foreach (var slot in EntityManager.GetBuffer<MeshMaterial>(piece.m_Piece, true).ToNativeArray(Allocator.Temp))
                                 {
                                     int top = 0;
                                     float u0 = float.MaxValue, u1 = float.MinValue, x0 = float.MaxValue, x1 = float.MinValue, sumV = 0f, sumZ = 0f;
+                                    float vMin = float.MaxValue, vMax = float.MinValue; int negativeTop = 0;
                                     for (int i = slot.m_StartIndex; i + 2 < slot.m_StartIndex + slot.m_IndexCount && i + 2 < indices.Length; i += 3)
                                     {
                                         int a = indices[i].m_Index, b = indices[i + 1].m_Index, c = indices[i + 2].m_Index;
@@ -1729,9 +2696,11 @@ namespace Advanced_Graphics
                                         float l = math.length(n);
                                         if (l < 1e-6f || math.abs(n.y) / l < 0.65f) continue;
                                         top++;
+                                        if (uvs[a].m_Uv.y < 0f || uvs[b].m_Uv.y < 0f || uvs[c].m_Uv.y < 0f) negativeTop++;
                                         foreach (int v in new[] { a, b, c })
                                         {
                                             u0 = math.min(u0, uvs[v].m_Uv.x); u1 = math.max(u1, uvs[v].m_Uv.x);
+                                            vMin = math.min(vMin, uvs[v].m_Uv.y); vMax = math.max(vMax, uvs[v].m_Uv.y);
                                             x0 = math.min(x0, positions[v].m_Vertex.x); x1 = math.max(x1, positions[v].m_Vertex.x);
                                         }
                                         foreach (var (p, q) in new[] { (a, b), (b, c), (c, a) })
@@ -1744,6 +2713,8 @@ namespace Advanced_Graphics
                                     if (top > 0)
                                         line.Append(string.Format(inv, ", u {0:0}..{1:0} px, x {2:0.##}..{3:0.##} m, {4:0.###} m/100px, V/m {5:0.####}",
                                             u0 * 1024f, u1 * 1024f, x0, x1, u1 > u0 ? (x1 - x0) / ((u1 - u0) * 1024f) * 100f : 0f, sumZ > 0f ? sumV / sumZ : 0f));
+                                    if (top > 0)
+                                        line.Append(string.Format(inv, ", V {0:0.####}..{1:0.####}, {2} top with V<0", vMin, vMax, negativeTop));
                                 }
                                 text.AppendLine(line.ToString());
                             }
@@ -1751,6 +2722,7 @@ namespace Advanced_Graphics
                     }
                 }
                 finally { roads.Dispose(); }
+                AppendParkingEdgeLengths(text, inv);
                 string folder = System.IO.Path.Combine(Application.persistentDataPath, "ModsData", "Enhanced_Graphics_and_Textures", "Diagnostics");
                 System.IO.Directory.CreateDirectory(folder);
                 string file = System.IO.Path.Combine(folder, "SidewalkScale.txt");
@@ -1760,7 +2732,44 @@ namespace Advanced_Graphics
             catch (Exception ex) { Mod.log.Warn("Sidewalk scale report failed: " + ex.Message); }
         }
 
-        // Rows of a ramp piece along template z (rounded to 1 cm).
+        private void AppendParkingEdgeLengths(System.Text.StringBuilder text, IFormatProvider inv)
+        {
+            text.AppendLine();
+            text.AppendLine("== Parking road edges: entity | edge length L/R m | start node length L/R m, radius | end node length L/R m, radius | edge mesh | start mesh | end mesh | start/end connections");
+            var roads = m_Roads.ToEntityArray(Allocator.Temp);
+            try
+            {
+                foreach (var road in roads)
+                {
+                    var prefabEntity = EntityManager.GetComponentData<PrefabRef>(road).m_Prefab;
+                    if (!m_Prefabs.TryGetPrefab<PrefabBase>(prefabEntity, out var prefab) || prefab == null || !IsParkingRoad(prefab.name)) continue;
+                    if (!EntityManager.HasComponent<EdgeGeometry>(road)) continue;
+                    var edgeGeometry = EntityManager.GetComponentData<EdgeGeometry>(road);
+                    float2 edgeLength = edgeGeometry.m_Start.m_Length + edgeGeometry.m_End.m_Length;
+                    var composition = EntityManager.GetComponentData<Composition>(road);
+                    var edge = EntityManager.GetComponentData<Edge>(road);
+                    string NodePart(bool start)
+                    {
+                        bool has = start ? EntityManager.HasComponent<StartNodeGeometry>(road) : EntityManager.HasComponent<EndNodeGeometry>(road);
+                        if (!has) return "none";
+                        var g = start ? EntityManager.GetComponentData<StartNodeGeometry>(road).m_Geometry
+                            : EntityManager.GetComponentData<EndNodeGeometry>(road).m_Geometry;
+                        float2 l = g.m_Left.m_Length + g.m_Right.m_Length;
+                        return string.Format(inv, "{0:0.0}/{1:0.0}, r {2:0.0}", l.x, l.y, g.m_MiddleRadius);
+                    }
+                    string MeshId(Entity c) => c != Entity.Null && EntityManager.HasComponent<NetCompositionMeshRef>(c)
+                        ? EntityManager.GetComponentData<NetCompositionMeshRef>(c).m_Mesh.Index.ToString(inv) : "-";
+                    int Connections(Entity node) => node != Entity.Null && EntityManager.HasBuffer<ConnectedEdge>(node)
+                        ? EntityManager.GetBuffer<ConnectedEdge>(node, true).Length : 0;
+                    text.AppendLine(string.Format(inv, "  {0} {1} | {2:0.0}/{3:0.0} | {4} | {5} | {6} | {7} | {8} | {9}/{10}",
+                        prefab.name, road.Index, edgeLength.x, edgeLength.y, NodePart(true), NodePart(false),
+                        MeshId(composition.m_Edge), MeshId(composition.m_StartNode), MeshId(composition.m_EndNode),
+                        Connections(edge.m_Start), Connections(edge.m_End)));
+                }
+            }
+            finally { roads.Dispose(); }
+        }
+
         private static SortedDictionary<float, List<int>> RampRows(MeshVertex[] positions)
         {
             var rows = new SortedDictionary<float, List<int>>();
@@ -1772,7 +2781,6 @@ namespace Advanced_Graphics
             }
             return rows;
         }
-
 
         private static float RampCut(MeshVertex[] positions)
         {
@@ -1788,7 +2796,6 @@ namespace Advanced_Graphics
             }
             return cut;
         }
-
 
         private static MeshVertex[] ShortenCurbRamp(MeshVertex[] positions, MeshUV0[] uvs, MeshIndex[] indices, float cut,
             out int[] map, out float[] newU, out CurbEndResult extra, Func<float3, float3> toWorld, Func<float3, float> frameU,
@@ -1807,7 +2814,6 @@ namespace Advanced_Graphics
                 if (c == 0) c = positions[x].m_Vertex.x.CompareTo(positions[y].m_Vertex.x);
                 return c;
             };
-            // Row 0 holds the seam of both template halves twice; keep one vertex per position/column.
             var reference = new List<int>();
             foreach (int i in zero)
             {
@@ -1893,7 +2899,7 @@ namespace Advanced_Graphics
             }
             float curbWidth = math.abs(xr - xi), walkWidth = math.abs(xo - xi);
             if (float.IsNaN(uWalkInner) || float.IsNaN(uWalkOuter) || curbWidth < 0.02f || walkWidth < 0.05f) return false;
-            float density = (uWalkOuter - uWalkInner) / walkWidth; // atlas U per template metre, signed
+            float density = (uWalkOuter - uWalkInner) / walkWidth;
             bool changed = false;
             lateral = new RampLateral { Valid = true, Xi = xi, Xr = xr, Xo = xo };
             foreach (int i in reference)
@@ -1942,7 +2948,6 @@ namespace Advanced_Graphics
                 {
                     int fromO = sourceOf[o] >= 0 ? sourceOf[o] : o;
                     if (math.abs(uvs[fromO].m_Uv.x - uWalkInner) < 0.0005f) continue;
-                    // Inner partner: same height, inner sidewalk column.
                     int partner = -1;
                     float best = float.MaxValue;
                     foreach (int i in walk)
@@ -1976,7 +2981,6 @@ namespace Advanced_Graphics
             public float ClampZ;
         }
 
-        // U of the nearest main road sidewalk frame at a world point (its straight continuation).
         private static Func<float3, float> PieceFrameU(List<SourceFrame> frames, NetCompositionPiece piece,
             NetCompositionMeshData data, EdgeNodeGeometry geometry, NetCompositionData compositionData)
         {
@@ -2005,7 +3009,6 @@ namespace Advanced_Graphics
             return t;
         }
 
-        // z on template column x where frame U reaches target (bisection in [z0, z1]); NaN if no crossing.
         private static float CrossZ(Func<float3, float3> toWorld, Func<float3, float> frameU, float x, float z0, float z1, float target)
         {
             float g0 = frameU(toWorld(new float3(x, 0f, z0))) - target;
@@ -2046,7 +3049,6 @@ namespace Advanced_Graphics
             Func<float, float, float2> W = (x, z) => toWorld(new float3(x, 0f, z)).xz;
             Func<float2, float> U = w => frameU(new float3(w.x, 0f, w.y));
 
-            // Main road outer sidewalk edge: U = edge, the edge value beyond which U leaves the sidewalk.
             float u0 = U(W(xr, 0f)), uc = U(W(xr, cut));
             float uEdge = uc > u0 ? RightUv : LeftUv;
             float zc = CrossZ(toWorld, frameU, xr, 0f, cut, uEdge);
@@ -2075,7 +3077,6 @@ namespace Advanced_Graphics
             float2 T1 = C + r1 * d, T2 = C + r2 * d;
             float2 O = C + math.normalizesafe(r1 + r2) * (radius / math.sin(theta * 0.5f));
 
-            // Road edge path (arc + edge to the outer side) and inner edge (0.2 m inside).
             const int segments = 6;
             var road = new List<float2>();
             var inner = new List<float2>();
@@ -2097,7 +3098,6 @@ namespace Advanced_Graphics
             if (float.IsNaN(zEoIn)) { s_CurbEndWhy = "inner edge not crossed"; return false; }
             inner.Add(W(xo, zEoIn));
 
-            // Back to the template. Path starts exactly on the game's curb columns.
             float zT1 = InverseTemplate(toWorld, T1, new float2(xr, zc - d)).y;
             var tRoad = new List<float2>();
             var tInner = new List<float2>();
@@ -2115,7 +3115,6 @@ namespace Advanced_Graphics
             foreach (var t in tInner) if (!math.all(math.isfinite(t))) { s_CurbEndWhy = "inverse failed"; return false; }
             var tCenter = InverseTemplate(toWorld, O, new float2((xr + xo) * 0.5f, zT1));
 
-            // Clamp the game's sidewalk/curb rows to the new end.
             float xb = innerX(zT1);
             for (int i = 0; i < result.Length; i++)
             {
@@ -2160,7 +3159,6 @@ namespace Advanced_Graphics
                 }
             };
 
-            // Curb top and face along the path; V follows the path length in the world.
             float s = 0f;
             for (int k = 0; k + 1 < tRoad.Count; k++)
             {
@@ -2181,7 +3179,6 @@ namespace Advanced_Graphics
                 add(fill, P3(tInner[0], 0f), new float2(uWalk, 0f), P3(tInner[k], 0f), new float2(uWalk, 0f),
                     P3(tInner[k + 1], 0f), new float2(uWalk, 0f), true);
 
-            // Asphalt from the curb's road edge to the side road's own surface.
             float uRoad = float.NaN;
             var closing = new List<float2>();
             var endRoad = new List<int>();
@@ -2209,7 +3206,6 @@ namespace Advanced_Graphics
             return true;
         }
 
-
         private static bool BuildStraightEnd(MeshVertex[] positions, MeshUV0[] uvs, SortedDictionary<float, List<int>> rows,
             int[] sourceOf, float cut, float endRow, RampLateral lateral, MeshVertex[] result, float density,
             Func<float3, float3> toWorld, out CurbEndResult end)
@@ -2223,7 +3219,6 @@ namespace Advanced_Graphics
             yRoad = math.max(yRoad, -0.2f);
             if (yRoad > -0.05f) return false;
 
-            // Top edge of the end: distinct x of the full-height vertices of the cut row.
             var xs = new List<float>();
             foreach (int i in cutRow)
             {
@@ -2234,7 +3229,6 @@ namespace Advanced_Graphics
             if (xs.Count < 2) return false;
             xs.Sort((a, b) => math.abs(a - xr).CompareTo(math.abs(b - xr)));
 
-            // Road surface of the end row moves onto the cut row (fills the old ramp area).
             foreach (int i in endList)
             {
                 var q = result[i].m_Vertex;
@@ -2352,7 +3346,6 @@ namespace Advanced_Graphics
             if (zEoIn <= 0.01f || zEoIn >= cut) return false;
             var tCenter = InverseTemplate(toWorld, O, new float2((xr + xo) * 0.5f, zT1));
 
-            // Road surface of the end row onto the cut row (fills the old ramp area).
             float lo = math.min(xr, xo) - 0.002f, hi = math.max(xr, xo) + 0.002f;
             foreach (int i in endList)
             {
@@ -2360,7 +3353,6 @@ namespace Advanced_Graphics
                 if (uvs[i].m_Uv.x < CurbLeftUv - UvEpsilon && q.x > lo && q.x < hi && math.abs(q.x - xr) > 0.002f)
                     result[i] = new MeshVertex { m_Vertex = new float3(q.x, q.y, cut) };
             }
-            // The game's sidewalk/curb rows end at the new curb.
             float xb = innerX(zT1);
             for (int i = 0; i < result.Length; i++)
             {
@@ -2418,12 +3410,10 @@ namespace Advanced_Graphics
                 s = s1;
             }
 
-            // Sidewalk between the clamped rows and the curb's inner edge (planar UVs later).
             float uWalk = LeftUv + 0.05f;
             for (int k = 1; k + 1 < tInner.Count; k++)
                 add(fill, P3(tInner[0], 0f), new float2(uWalk, 0f), P3(tInner[k], 0f), new float2(uWalk, 0f),
                     P3(tInner[k + 1], 0f), new float2(uWalk, 0f), true);
-            // Asphalt in the rounded-off corner (between the arc and the old corner).
             float uRoad = float.NaN;
             foreach (int i in endList) if (uvs[i].m_Uv.x < CurbLeftUv - UvEpsilon) { uRoad = uvs[i].m_Uv.x; break; }
             if (float.IsNaN(uRoad)) uRoad = 0.05f;
@@ -2506,7 +3496,6 @@ namespace Advanced_Graphics
                 t[count + i] = new MeshTangent { m_Tangent = extra.Tangents[i] };
                 u[count + i] = new MeshUV0 { m_Uv = extra.Uvs[i] };
             }
-            // Appended to the last slot (one material per ramp piece).
             var list = new List<MeshIndex>(indices);
             var last = slots[slots.Length - 1];
             int insertAt = math.min(last.m_StartIndex + last.m_IndexCount, list.Count);
@@ -2565,7 +3554,6 @@ namespace Advanced_Graphics
             slots = newSlots;
         }
 
-        // Curb faces added at the end of the ramp, as their own DisableTiling piece.
         private void AddCurbEndPieces(NetCompositionPiece[] pieces, List<NetCompositionPiece> result, Runtime runtime)
         {
             if (m_ReshapeExtra == null) return;
@@ -2597,7 +3585,6 @@ namespace Advanced_Graphics
             }
         }
 
-        // Height of a triangle over its longest side (its "width" for a long, thin strip).
         private static float Thickness(float2 a, float2 b, float2 c)
         {
             float2 ab = b - a, ac = c - a, bc = c - b;
@@ -2610,7 +3597,15 @@ namespace Advanced_Graphics
         {
             float u0 = math.min(ua.x, math.min(ub.x, uc.x));
             float u1 = math.max(ua.x, math.max(ub.x, uc.x));
-            if (u0 < LeftUv - UvEpsilon || u1 > RightUv + UvEpsilon) return false;
+            if (u0 < s_WalkLeft - UvEpsilon || u1 > s_WalkRight + UvEpsilon) return false;
+            var n = math.cross(b - a, c - a);
+            float length = math.length(n);
+            return length > 0.000001f && math.abs(n.y) / length >= 0.65f;
+        }
+
+        private static bool IsParkingAsphaltTop(float3 a, float3 b, float3 c, float2 ua, float2 ub, float2 uc)
+        {
+            if (math.max(ua.x, math.max(ub.x, uc.x)) > ParkingAsphaltRightUv + UvEpsilon) return false;
             var n = math.cross(b - a, c - a);
             float length = math.length(n);
             return length > 0.000001f && math.abs(n.y) / length >= 0.65f;
@@ -2665,7 +3660,6 @@ namespace Advanced_Graphics
             float direction = (flags & 0x100) != 0 ? 1f : -1f;
             bool half = (flags & 0x4000) != 0;
             var origin = (pa + pb + pc) / 3f;
-            // Template z of the straight seam (node t = 0).
             origin.z = (-piece.m_Size.z * 0.5f - piece.m_Offset.z - (half ? piece.m_Size.z * 0.5f : 0f)) /
                 (direction * (half ? 2f : 1f));
             var world = ProjectToWorld(origin, piece, data, geometry, compositionData);
@@ -2701,7 +3695,7 @@ namespace Advanced_Graphics
                     v0 -= math.floor(v0);
                 }
             }
-            else vPerMetre = math.abs(uPerMetre) * 0.5f; // square texels in the 1:2 atlas
+            else vPerMetre = math.abs(uPerMetre) * 0.5f;
             var gradientU = lateral * uPerMetre;
             var gradientV = (along - lateral * (math.dot(wx, along) / wxLateral)) * vPerMetre;
             return new Frame
@@ -2731,7 +3725,6 @@ namespace Advanced_Graphics
             if (float.IsNaN(radius) || radius < 0.5f) return seam;
             var lateral = new float2(-cap.Axis.y, cap.Axis.x);
             float side = math.dot(seam.Origin - cap.Center, lateral) >= 0f ? 1f : -1f;
-            // V per metre forwards (into the road end) of the straight road.
             float vPerMetre = math.dot(new float2(seam.UvX.y, seam.UvZ.y), cap.Axis);
             return new Frame
             {
@@ -2746,7 +3739,6 @@ namespace Advanced_Graphics
             };
         }
 
-        // Mean distance of the slot's sidewalk-top vertices from the road end centre (its centre line).
         private static float SlotRadius(MeshVertex[] positions, MeshUV0[] uvs, MeshIndex[] indices, int begin, int end,
             NetCompositionPiece piece, NetCompositionMeshData data, EdgeNodeGeometry geometry, NetCompositionData compositionData, float2 center)
         {
@@ -2767,6 +3759,7 @@ namespace Advanced_Graphics
             return max >= min ? (min + max) * 0.5f : float.NaN;
         }
 
+        // Approximates the game's node deformation: template position -> world position.
         private static float3 ProjectToWorld(float3 position, NetCompositionPiece piece, NetCompositionMeshData data,
             EdgeNodeGeometry geometry, NetCompositionData compositionData)
         {
@@ -2831,9 +3824,11 @@ namespace Advanced_Graphics
             return math.saturate(math.lerp(across, mapped, SyncWeight(math.saturate(t))));
         }
 
+        // Blend of the node sync targets along the node: t² for parking corners, 1-(1-t)² at the alley bend, else t.
         private static float SyncWeight(float t)
         {
-            switch (s_SyncBlendMode)
+            int mode = s_SyncBlendMode != 0 ? s_SyncBlendMode : s_BendSync ? 3 : s_SquareSync ? 2 : 0;
+            switch (mode)
             {
                 case 1: return t * t * (3f - 2f * t);
                 case 2: return t * t;
@@ -2858,4 +3853,3 @@ namespace Advanced_Graphics
         protected override void OnUpdate() => m_Meshes.EndRendering();
     }
 }
-

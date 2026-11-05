@@ -403,19 +403,24 @@ namespace Advanced_Graphics
             string[] cracks;
             switch (m_Language)
             {
-                case "de": cracks = new[] { "Rissanzahl", "0 = keine zusätzlichen Risse. Bis zu 1200 Risse bei allen Asphaltstufen. Kachelung erhöht die Verteilung auf maximal 2400 Risse; mehr Risse verlängern die Neuberechnung.",
+                case "de":
+                    cracks = new[] { "Rissanzahl", "0 = keine zusätzlichen Risse. Bis zu 1200 Risse bei allen Asphaltstufen. Kachelung erhöht die Verteilung auf maximal 2400 Risse; mehr Risse verlängern die Neuberechnung.",
                     "Rissgröße", "Länge zusätzlicher Risse: 25 % = fein, 100 % = normal, bis 1800 % = sehr groß. Unabhängig von der UV-Größe; bei allen Stufen mit Rissanzahl über 0.",
                     "Risszufall", "0 = gleichmäßig verteilte, ruhigere Risse; 100 = unregelmäßigere Positionen und Verläufe. Die Anordnung bleibt bei gleichen Einstellungen reproduzierbar." }; break;
-                case "es": cracks = new[] { "Cantidad de grietas", "0 = ninguna. Hasta 1200 en todos los niveles; la repetición aumenta la distribución hasta un máximo de 2400. Más grietas requieren más tiempo.",
+                case "es":
+                    cracks = new[] { "Cantidad de grietas", "0 = ninguna. Hasta 1200 en todos los niveles; la repetición aumenta la distribución hasta un máximo de 2400. Más grietas requieren más tiempo.",
                     "Tamaño de grietas", "Longitud: 25 % = finas, 100 % = normal, hasta 1800 % = muy grandes. Independiente del tamaño UV.",
                     "Aleatoriedad de grietas", "0 = distribución más regular; 100 = posiciones y formas más irregulares. Los mismos ajustes producen el mismo patrón." }; break;
-                case "fr": cracks = new[] { "Nombre de fissures", "0 = aucune. Jusqu’à 1200 à tous les niveaux ; la répétition augmente la répartition jusqu’à 2400. Plus de fissures augmentent le calcul.",
+                case "fr":
+                    cracks = new[] { "Nombre de fissures", "0 = aucune. Jusqu’à 1200 à tous les niveaux ; la répétition augmente la répartition jusqu’à 2400. Plus de fissures augmentent le calcul.",
                     "Taille des fissures", "Longueur : 25 % = fines, 100 % = normal, jusqu’à 1800 % = très grandes. Indépendante de la taille UV.",
                     "Aléa des fissures", "0 = répartition plus régulière ; 100 = positions et tracés plus irréguliers. Les mêmes réglages reproduisent le même motif." }; break;
-                case "it": cracks = new[] { "Numero di crepe", "0 = nessuna. Fino a 1200 su tutti i livelli; la ripetizione aumenta la distribuzione fino a 2400. Più crepe richiedono più calcolo.",
+                case "it":
+                    cracks = new[] { "Numero di crepe", "0 = nessuna. Fino a 1200 su tutti i livelli; la ripetizione aumenta la distribuzione fino a 2400. Più crepe richiedono più calcolo.",
                     "Dimensione crepe", "Lunghezza: 25% = sottili, 100% = normale, fino a 1800% = molto grandi. Indipendente dalla dimensione UV.",
                     "Casualità crepe", "0 = distribuzione più regolare; 100 = posizioni e tracciati più irregolari. Le stesse impostazioni riproducono lo stesso motivo." }; break;
-                default: cracks = new[] { "Crack count", "0 = no extra cracks. Up to 1200 on every asphalt level. Tiling increases distribution up to 2400 cracks; more cracks take longer to rebuild.",
+                default:
+                    cracks = new[] { "Crack count", "0 = no extra cracks. Up to 1200 on every asphalt level. Tiling increases distribution up to 2400 cracks; more cracks take longer to rebuild.",
                     "Crack size", "Length: 25% = fine, 100% = normal, up to 1800% = very large. Independent of UV size; works on all levels when count is above 0.",
                     "Crack randomness", "0 = more regular placement and calmer paths; 100 = more irregular positions and paths. Identical settings reproduce the same pattern." }; break;
             }
@@ -574,27 +579,32 @@ namespace Advanced_Graphics
             string[] sidewalk;
             switch (m_Language)
             {
-                case "de": sidewalk = new[] { "Gehweg", "Straßengehweg", "Straßengehwege anpassen", "Ändert nur die Gehwegfläche der RoadEU-Straßen. Eigenständige Fußwege behalten ihre Textur. Aus stellt die Straßenfläche wieder her, ohne deine Werte zu löschen.",
+                case "de":
+                    sidewalk = new[] { "Gehweg", "Straßengehweg", "Straßengehwege anpassen", "Ändert nur die Gehwegfläche der RoadEU-Straßen. Eigenständige Fußwege behalten ihre Textur. Aus stellt die Straßenfläche wieder her, ohne deine Werte zu löschen.",
                     "Gehwegstruktur", "0 = Original; 1 = generierte Oberfläche; 2 = eigene Sidewalk_BaseColor.png. Alle Regler wirken bei aktivierter Anpassung.",
                     "Texturordner öffnen", "Öffnet den lokalen Ordner für Sidewalk_BaseColor.png. Die PNG wird nicht mit der Mod veröffentlicht.",
                     "Eigene Gehwegtextur neu laden", "Lädt Sidewalk_BaseColor.png nach dem Kopieren erneut. Struktur muss auf 2 stehen.",
                     "UV-Größe und Tiefenwirkung", "Risse und Kachelung", "Sidewalk_BaseColor.png in den Gehweg-Texturordner kopieren und in den Optionen neu laden.", "Stellt die ursprüngliche Gehwegtextur und alle Gehwegregler wieder her." }; break;
-                case "es": sidewalk = new[] { "Acera", "Acera de carretera", "Ajustar aceras de carretera", "Solo cambia la acera de las carreteras RoadEU. Los senderos independientes conservan su textura. Al desactivar se restaura la original.",
+                case "es":
+                    sidewalk = new[] { "Acera", "Acera de carretera", "Ajustar aceras de carretera", "Solo cambia la acera de las carreteras RoadEU. Los senderos independientes conservan su textura. Al desactivar se restaura la original.",
                     "Textura de acera", "0 = original; 1 = generada; 2 = Sidewalk_BaseColor.png propia. Los ajustes funcionan cuando están activados.",
                     "Abrir carpeta de texturas", "Abre la carpeta local de Sidewalk_BaseColor.png. La PNG no se publica con el mod.",
                     "Recargar textura de acera", "Recarga Sidewalk_BaseColor.png. Selecciona el nivel 2.",
                     "Tamaño UV y relieve", "Grietas y repetición", "Copia Sidewalk_BaseColor.png en la carpeta de aceras y recárgala en las opciones.", "Restablece la textura y todos los ajustes de acera." }; break;
-                case "fr": sidewalk = new[] { "Trottoir", "Trottoir de route", "Modifier les trottoirs de route", "Modifie seulement le trottoir des routes RoadEU. Les chemins piétons indépendants gardent leur texture. Désactiver restaure l’original.",
+                case "fr":
+                    sidewalk = new[] { "Trottoir", "Trottoir de route", "Modifier les trottoirs de route", "Modifie seulement le trottoir des routes RoadEU. Les chemins piétons indépendants gardent leur texture. Désactiver restaure l’original.",
                     "Texture du trottoir", "0 = origine ; 1 = générée ; 2 = votre Sidewalk_BaseColor.png. Les réglages agissent une fois activés.",
                     "Ouvrir le dossier des textures", "Ouvre le dossier local de Sidewalk_BaseColor.png. Le fichier PNG n’est pas publié avec le mod.",
                     "Recharger la texture du trottoir", "Recharge Sidewalk_BaseColor.png. Choisissez le niveau 2.",
                     "Taille UV et relief", "Fissures et répétition", "Copiez Sidewalk_BaseColor.png dans le dossier du trottoir puis rechargez-la dans les options.", "Restaure la texture et les réglages du trottoir." }; break;
-                case "it": sidewalk = new[] { "Marciapiede", "Marciapiede stradale", "Regola marciapiedi stradali", "Cambia solo i marciapiedi delle strade RoadEU. I percorsi pedonali separati mantengono la loro texture. Disattivando si ripristina l’originale.",
+                case "it":
+                    sidewalk = new[] { "Marciapiede", "Marciapiede stradale", "Regola marciapiedi stradali", "Cambia solo i marciapiedi delle strade RoadEU. I percorsi pedonali separati mantengono la loro texture. Disattivando si ripristina l’originale.",
                     "Texture marciapiede", "0 = originale; 1 = generata; 2 = Sidewalk_BaseColor.png personale. Le regolazioni agiscono quando attive.",
                     "Apri cartella texture", "Apre la cartella locale di Sidewalk_BaseColor.png. La PNG non viene pubblicata con la mod.",
                     "Ricarica texture marciapiede", "Ricarica Sidewalk_BaseColor.png. Seleziona il livello 2.",
                     "Dimensione UV e rilievo", "Crepe e ripetizione", "Copia Sidewalk_BaseColor.png nella cartella marciapiede e ricaricala nelle opzioni.", "Ripristina texture e regolazioni del marciapiede." }; break;
-                default: sidewalk = new[] { "Sidewalk", "Street sidewalk", "Adjust street sidewalks", "Changes only the sidewalk region of RoadEU streets. Standalone footpaths retain their texture. Turning this off restores the street surface without deleting your values.",
+                default:
+                    sidewalk = new[] { "Sidewalk", "Street sidewalk", "Adjust street sidewalks", "Changes only the sidewalk region of RoadEU streets. Standalone footpaths retain their texture. Turning this off restores the street surface without deleting your values.",
                     "Sidewalk detail", "0 = original; 1 = generated surface; 2 = your Sidewalk_BaseColor.png. Controls work when adjustments are enabled.",
                     "Open texture folder", "Opens the local folder for Sidewalk_BaseColor.png. The PNG is not distributed with the mod.",
                     "Reload custom sidewalk texture", "Reloads Sidewalk_BaseColor.png after copying it. Select detail level 2.",
@@ -899,16 +909,21 @@ namespace Advanced_Graphics
             string label, hint;
             switch (m_Language)
             {
-                case "de": label = "Gerade Gehwegplatten an Gasseneinmündungen (Test)";
-                    hint = "Standard aus. Ersetzt an Einmündungen von Gassen ohne Gehweg die gestreckte Gehwegtextur der Bordsteinrundung durch ein gerades Plattenraster. Das Spiel zeichnet dafür eine angepasste Kopie des Kreuzungsmeshes; Geometrie, Licht und Wetter bleiben original. Spielstände werden nicht verändert."; break;
-                case "es": label = "Losas rectas en cruces con callejones (prueba)";
-                    hint = "Desactivado por defecto. En cruces con callejones sin acera, sustituye la textura estirada de la esquina por una cuadrícula recta. El juego dibuja una copia ajustada de la malla del cruce; geometría, luz y clima no cambian. No modifica las partidas."; break;
-                case "fr": label = "Dalles droites aux entrées de ruelles (test)";
-                    hint = "Désactivé par défaut. Aux entrées de ruelles sans trottoir, remplace la texture étirée de l'arrondi par une grille droite. Le jeu dessine une copie ajustée du maillage du carrefour ; géométrie, lumière et météo restent d'origine. Les sauvegardes ne sont pas modifiées."; break;
-                case "it": label = "Lastre dritte agli incroci con vicoli (test)";
-                    hint = "Disattivato per default. Agli incroci con vicoli senza marciapiede sostituisce la texture stirata della curva con una griglia dritta. Il gioco disegna una copia adattata della mesh dell'incrocio; geometria, luce e meteo restano originali. I salvataggi non vengono modificati."; break;
-                default: label = "Straight sidewalk slabs at alley junctions (test)";
-                    hint = "Off by default. At junctions with sidewalk-free alleys, replaces the stretched sidewalk texture of the curb rounding with a straight slab grid. The game draws an adjusted copy of the junction mesh; geometry, lighting and weather stay vanilla. Saves are not modified."; break;
+                case "de":
+                    label = "Gerade Gehwegplatten an Einmündungen";
+                    hint = "Standard an. Ersetzt an Einmündungen von Gassen ohne Gehweg die gestreckte Gehwegtextur der Bordsteinrundung durch ein gerades Plattenraster. An Kreuzungen von Parkstraßen läuft die Parkstraßen-Gehwegtextur gerade durch die Rundung, statt ihr zu folgen. Das Spiel zeichnet dafür eine angepasste Kopie des Kreuzungsmeshes; Geometrie, Licht und Wetter bleiben original. Spielstände werden nicht verändert."; break;
+                case "es":
+                    label = "Losas rectas en cruces";
+                    hint = "Activado por defecto. En cruces con callejones sin acera, sustituye la textura estirada de la esquina por una cuadrícula recta. En cruces de calles con aparcamiento, la acera continúa recta a través de la curva. El juego dibuja una copia ajustada de la malla del cruce; geometría, luz y clima no cambian. No modifica las partidas."; break;
+                case "fr":
+                    label = "Dalles droites aux carrefours";
+                    hint = "Activé par défaut. Aux entrées de ruelles sans trottoir, remplace la texture étirée de l'arrondi par une grille droite. Aux carrefours des rues avec stationnement, le trottoir continue tout droit à travers l'arrondi. Le jeu dessine une copie ajustée du maillage du carrefour ; géométrie, lumière et météo restent d'origine. Les sauvegardes ne sont pas modifiées."; break;
+                case "it":
+                    label = "Lastre dritte agli incroci";
+                    hint = "Attivato per default. Agli incroci con vicoli senza marciapiede sostituisce la texture stirata della curva con una griglia dritta. Agli incroci delle strade con parcheggio il marciapiede prosegue dritto attraverso la curva. Il gioco disegna una copia adattata della mesh dell'incrocio; geometria, luce e meteo restano originali. I salvataggi non vengono modificati."; break;
+                default:
+                    label = "Straight sidewalk slabs at junctions";
+                    hint = "On by default. At junctions with sidewalk-free alleys, replaces the stretched sidewalk texture of the curb rounding with a straight slab grid. At junctions of parking roads, the parking road sidewalk runs straight through the curb rounding instead of following it. The game draws an adjusted copy of the junction mesh; geometry, lighting and weather stay vanilla. Saves are not modified."; break;
             }
             entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.SidewalkJunctionOverlay))] = label;
             entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.SidewalkJunctionOverlay))] = hint;
@@ -1764,11 +1779,3 @@ namespace Advanced_Graphics
         }
     }
 }
-
-
-
-
-
-
-
-

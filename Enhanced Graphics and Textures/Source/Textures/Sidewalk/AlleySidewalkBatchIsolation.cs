@@ -26,6 +26,11 @@ namespace Advanced_Graphics
 
         protected virtual string IsolatedSurfaceLabel => "Alley";
 
+        protected IEnumerable<Material> IsolatedMaterialCopies => m_AlleyMaterialCopies.Values;
+
+        protected Material IsolatedCopyOf(Material original) =>
+            original != null && m_AlleyMaterialCopies.TryGetValue(original, out var copy) ? copy : null;
+
         protected virtual bool IsTargetRoad(string name) => name != null && (IsAlleyAtlas
             ? name.StartsWith("Alley", StringComparison.Ordinal) && name.IndexOf("Parking", StringComparison.OrdinalIgnoreCase) < 0
             : !name.StartsWith("Alley", StringComparison.Ordinal) && (name.IndexOf("Parking", StringComparison.OrdinalIgnoreCase) < 0 ||
@@ -40,7 +45,6 @@ namespace Advanced_Graphics
         {
             foreach (var pair in m_AlleyMaterialCopies)
                 CopyWorldspaceBindings(pair.Key, pair.Value);
-            // Endcaps inherit from the isolated copies, so update them second.
             foreach (var pair in m_EndcapMaterials)
                 CopyWorldspaceBindings(pair.Key.Item1, pair.Value);
         }
@@ -144,11 +148,16 @@ namespace Advanced_Graphics
             }
             finally { roads.Dispose(); }
 
-            // One mesh can be shared at a junction.
             int shared = 0;
             foreach (var mesh in targetMeshes) if (otherMeshes.Contains(mesh)) shared++;
             targetMeshes.ExceptWith(otherMeshes);
             if (IsAlleyAtlas) targetMeshes.RemoveWhere(SidewalkJunctionMeshSystem.IsRuntimeMesh);
+            if (this is ParkingRoadAtlasSystem)
+                foreach (var mesh in SidewalkJunctionMeshSystem.ParkingCornerMeshes)
+                {
+                    targetMeshes.Add(mesh);
+                    edgeMeshes.Add(mesh);
+                }
 
             var groups = batchManager.GetNativeBatchGroups(readOnly: false, out var dependencies);
             dependencies.Complete();
@@ -164,7 +173,6 @@ namespace Advanced_Graphics
                 if (nodesOnly && !node) continue;
                 bool deadEnd = node && IsDeadEndMesh(group.m_Mesh);
                 bool largeRoad = node && UsesLargeRoadTiling && IsLargeRoadMesh(group.m_Mesh);
-                // Only "Round road ends" set: leave every other node mesh exactly as before (no swap).
                 if (nodesOnly && !deadEnd && (!(largeRoad ? LargeEndcapActive : NormalEndcapActive) || roadEndOnlyMeshes.Contains(group.m_Mesh))) continue;
                 for (int batchIndex = 0; batchIndex < groups.GetBatchCount(groupIndex); batchIndex++)
                 {
@@ -174,8 +182,7 @@ namespace Advanced_Graphics
                     if (batch == null || batch.loadedMaterial == null ||
                         !m_AlleyCurrentMaterialSources.Contains(batch.loadedMaterial) ||
                         !m_AlleyMaterialCopies.TryGetValue(batch.loadedMaterial, out var copy)) continue;
-                    if (node) copy = GetEndcapMaterial(copy, deadEnd, largeRoad);
-                    // Respect loading placeholders and replacements owned by another mod.
+                    if (node && (deadEnd || !(this is ParkingRoadAtlasSystem))) copy = GetEndcapMaterial(copy, deadEnd, largeRoad);
                     if (batch.material != batch.loadedMaterial && batch.material != copy) continue;
                     if (!m_AlleyBatchBindings.TryGetValue(batch, out var binding))
                     {
@@ -196,7 +203,6 @@ namespace Advanced_Graphics
             {
                 if (active.Contains(entry.Key)) continue;
                 var binding = entry.Value;
-                // Managed indices can be recycled as roads are demolished or rebuilt.
                 if (binding.Index >= 0 && binding.Index < batches.BatchCount &&
                     ReferenceEquals(batches.GetBatch(binding.Index), entry.Key) &&
                     entry.Key.material == binding.Copy && binding.Original != null)
@@ -207,7 +213,6 @@ namespace Advanced_Graphics
 
             if (applied != m_LastIsolatedBatches || shared != m_LastSharedAlleyMeshes)
             {
-                // Keep change tracking independent of optional diagnostic logging.
                 m_LastIsolatedBatches = applied;
                 m_LastSharedAlleyMeshes = shared;
                 if (Mod.DebugBackendEnabled)
@@ -263,8 +268,3 @@ namespace Advanced_Graphics
         }
     }
 }
-
-
-
-
-

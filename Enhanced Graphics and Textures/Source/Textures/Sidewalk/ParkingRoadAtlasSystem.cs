@@ -7,12 +7,16 @@ using UnityEngine;
 
 namespace Advanced_Graphics
 {
+    // Parking roads (ParkingLane7 atlas): asphalt and sidewalk strips filled with the selected textures.
     public sealed partial class ParkingRoadAtlasSystem : SidewalkRoadAtlasSystem
     {
         private const string ParkingColorPrefix = "ParkingLane7_BaseColor_";
         private const string ParkingNormalPrefix = "ParkingLane7_Normal_";
         private const string ParkingColorSlot = "_BaseColorMap";
         private const string ParkingNormalSlot = "_NormalMap";
+        private const string ParkingMaskSlot = "_MaskMap";
+        private readonly Dictionary<Texture, Texture2D> m_RepeatMasks = new Dictionary<Texture, Texture2D>();
+        private bool m_RepeatMaskFailed;
         private const int ReferenceWidth = 2048;
         private const int ParkingEnd = 482;
         private const int SidewalkStart = 516;
@@ -25,6 +29,10 @@ namespace Advanced_Graphics
         private const float SidewalkRepeatsV = 1f / (SidewalkTileMetres * ParkingVPerMetre);
         private float m_SidewalkScaleU = 1f, m_SidewalkScaleV = 1f;
         private bool m_SidewalkCustom;
+        // Slab pattern of the parking sidewalk strip (repeats per atlas U and V), used by the junction meshes.
+        internal static float SidewalkPatternRepeatsU, SidewalkPatternRepeatsV;
+        // Pattern repeat shift at both ends of the sidewalk strip (atlas U), used instead of mirroring in corners.
+        internal static float SidewalkRepeatShiftRight, SidewalkRepeatShiftLeft;
 
         private sealed class ParkingMaterial
         {
@@ -39,11 +47,13 @@ namespace Advanced_Graphics
         private readonly Dictionary<(Texture, Texture), Texture2D> m_ParkingNormals = new Dictionary<(Texture, Texture), Texture2D>();
         private Texture2D m_AsphaltColor, m_AsphaltNormal, m_SidewalkColor, m_SidewalkNormal;
         private int m_ParkingFrames;
+        private int m_CornerVersion = -1;
         private float m_ParkingScaleFactor = 1f, m_ParkingDepthFactor = 1f;
 
         protected override string IsolatedSurfaceLabel => "Parking road";
         protected override bool IsTargetRoad(string name) => name != null &&
-            (name.StartsWith("Alley", StringComparison.Ordinal) || name.StartsWith("Small Road", StringComparison.Ordinal)) &&
+            (name.StartsWith("Alley", StringComparison.Ordinal) || name.StartsWith("Small Road", StringComparison.Ordinal) ||
+             name.StartsWith("Medium Road", StringComparison.Ordinal)) &&
             name.IndexOf(" - ", StringComparison.Ordinal) >= 0 &&
             name.IndexOf("Parking", StringComparison.OrdinalIgnoreCase) >= 0;
 
@@ -80,6 +90,12 @@ namespace Advanced_Graphics
                 m_SidewalkColor != sidewalkColor || m_SidewalkNormal != sidewalkNormal ||
                 (asphaltColor != null && (!Mathf.Approximately(m_ParkingScaleFactor, parkingScaleFactor) ||
                     !Mathf.Approximately(m_ParkingDepthFactor, parkingDepthFactor)));
+            int cornerVersion = SidewalkJunctionMeshSystem.ParkingCornerVersion;
+            if (cornerVersion != m_CornerVersion)
+            {
+                m_CornerVersion = cornerVersion;
+                m_ParkingFrames = Mathf.Max(m_ParkingFrames, 110);
+            }
             if (!changed && !scaleChanged && ++m_ParkingFrames < 120) return;
             m_ParkingFrames = 0;
             if (scaleChanged && !changed) RestoreIsolatedAlleyBatches();
@@ -126,7 +142,6 @@ namespace Advanced_Graphics
                         m_ParkingMaterials.Add(material, original);
                         added++;
                     }
-                    // Never overwrite texture bindings changed by another owner.
                     if (material.GetTexture(ParkingColorSlot) != original.Color ||
                         (original.Normal != null && material.GetTexture(ParkingNormalSlot) != original.Normal)) continue;
                     if (!m_ParkingColors.TryGetValue(original.Color, out var colorCopy))
@@ -141,6 +156,12 @@ namespace Advanced_Graphics
                         m_ParkingNormals.Add((original.Normal, original.Color), normalCopy);
                     }
                     PrepareIsolatedAlleyMaterial(material, colorCopy, normalCopy, original.VirtualTexturing);
+                    var isolated = IsolatedCopyOf(material);
+                    if (isolated != null && isolated.HasProperty(ParkingMaskSlot))
+                    {
+                        var repeatMask = RepeatingMask(isolated.GetTexture(ParkingMaskSlot));
+                        if (repeatMask != null) isolated.SetTexture(ParkingMaskSlot, repeatMask);
+                    }
                 }
                 int applied = ApplyIsolatedAlleyBatches();
                 if (added > 0)
@@ -150,9 +171,41 @@ namespace Advanced_Graphics
             }
             catch (Exception ex)
             {
-                // Unbind copies before discarding partially built textures.
                 RestoreParkingNow();
                 Mod.log.Error(ex, "Parking road atlas could not be applied.");
+            }
+        }
+
+        // GPU copy of the mask atlas with V repeat (tiled parking edges run past V 1).
+        private Texture RepeatingMask(Texture mask)
+        {
+            if (mask == null || mask.wrapModeV == TextureWrapMode.Repeat || m_RepeatMaskFailed) return null;
+            if (m_RepeatMasks.TryGetValue(mask, out var cached) && cached != null) return cached;
+            if (!(mask is Texture2D source)) return null;
+            Texture2D copy = null;
+            try
+            {
+                copy = new Texture2D(source.width, source.height, source.graphicsFormat, source.mipmapCount,
+                    source.mipmapCount > 1 ? UnityEngine.Experimental.Rendering.TextureCreationFlags.MipChain
+                        : UnityEngine.Experimental.Rendering.TextureCreationFlags.None)
+                {
+                    name = "Enhanced Graphics and Textures Parking road Mask",
+                    hideFlags = HideFlags.HideAndDontSave,
+                    filterMode = source.filterMode,
+                    anisoLevel = source.anisoLevel,
+                    wrapModeU = source.wrapModeU,
+                    wrapModeV = TextureWrapMode.Repeat
+                };
+                UnityEngine.Graphics.CopyTexture(source, copy);
+                m_RepeatMasks[mask] = copy;
+                return copy;
+            }
+            catch (Exception ex)
+            {
+                if (copy != null) UnityEngine.Object.Destroy(copy);
+                m_RepeatMaskFailed = true;
+                Mod.log.Warn("Parking road mask could not be copied (" + ex.Message + "); the original mask is kept.");
+                return null;
             }
         }
 
@@ -176,7 +229,6 @@ namespace Advanced_Graphics
                 {
                     if (!direct)
                     {
-                        // Never write into the cached readback.
                         copy = PixelBuffer.Allocate(pixels.Length);
                         target = copy.Pixels;
                     }
@@ -184,14 +236,19 @@ namespace Advanced_Graphics
                     float referenceAspect = (referenceColor ?? source).height / (float)(referenceColor ?? source).width;
                     if (m_AsphaltColor != null)
                         FillParkingStrip(target, cached.width, cached.height, 0, ParkingEnd,
-                            linear ? m_AsphaltNormal : m_AsphaltColor, linear, AsphaltRepeatsPerAtlas * m_ParkingScaleFactor, referenceAspect, m_ParkingDepthFactor);
+                            linear ? m_AsphaltNormal : m_AsphaltColor, linear, AsphaltRepeatsPerAtlas * m_ParkingScaleFactor, referenceAspect, m_ParkingDepthFactor,
+                            AsphaltRepeatsPerAtlas * m_ParkingScaleFactor * ParkingUPerMetre / ParkingVPerMetre);
+                    if (m_SidewalkColor == null) SidewalkPatternRepeatsU = SidewalkPatternRepeatsV = 0f;
                     if (m_SidewalkColor != null)
                     {
                         float repeatsV = m_SidewalkCustom ? 1f / ((32f / 5f) * ParkingVPerMetre) : SidewalkRepeatsV;
+                        SidewalkPatternRepeatsU = SidewalkRepeatsU * m_SidewalkScaleU;
+                        SidewalkPatternRepeatsV = repeatsV * m_SidewalkScaleV;
                         FillParkingStrip(target, cached.width, cached.height, SidewalkStart, SidewalkEnd,
                             linear ? m_SidewalkNormal : m_SidewalkColor, linear, SidewalkRepeatsU * m_SidewalkScaleU, 1f, 1f, repeatsV * m_SidewalkScaleV);
+                        if (!linear) MeasureRepeatShifts(target, cached.width, cached.height);
                     }
-                    // Fallback: an owned copy must be written back.
+                    else SidewalkRepeatShiftRight = SidewalkRepeatShiftLeft = 0f;
                     if (!direct) result.SetPixels32(target.ToArray());
                 }
                 finally
@@ -203,7 +260,8 @@ namespace Advanced_Graphics
                 TexturePerformance.ApplyWithMips(result, !KeepOwnAtlasReadable && !TexturePerformance.ReuseTextures, timer);
                 timer.Mark("upload");
                 result.name = "Enhanced Graphics and Textures Parking road " + (linear ? "Normal" : "Color");
-                result.wrapMode = source.wrapMode;
+                result.wrapModeU = source.wrapModeU;
+                result.wrapModeV = TextureWrapMode.Repeat;
                 SurfaceTextureSampling.Apply(result);
                 timer.Log(cached.width + "x" + cached.height);
                 return result;
@@ -211,11 +269,77 @@ namespace Advanced_Graphics
             catch { UnityEngine.Object.Destroy(result); throw; }
         }
 
+        // Measures the repeat shifts from the column profile of the filled sidewalk strip.
+        private static void MeasureRepeatShifts(Unity.Collections.NativeArray<Color32> pixels, int width, int height)
+        {
+            SidewalkRepeatShiftRight = SidewalkRepeatShiftLeft = 0f;
+            try
+            {
+                int left = Mathf.RoundToInt(width * SidewalkStart / (float)ReferenceWidth);
+                int right = Mathf.RoundToInt(width * SidewalkEnd / (float)ReferenceWidth);
+                int count = right - left;
+                if (count < 40 || height < 8 || pixels.Length < width * height) return;
+                var profile = new float[count];
+                int step = Mathf.Max(1, height / 512);
+                int rows = 0;
+                for (int y = 0; y < height; y += step)
+                {
+                    int row = y * width;
+                    for (int x = 0; x < count; x++)
+                    {
+                        var c = pixels[row + left + x];
+                        profile[x] += c.r * 0.299f + c.g * 0.587f + c.b * 0.114f;
+                    }
+                    rows++;
+                }
+                for (int x = 0; x < count; x++) profile[x] /= rows;
+                int margin = Mathf.Max(2, count / 100);
+                int window = Mathf.Max(16, count / 5);
+                int best = 0;
+                float bestScore = 0.5f;
+                for (int shift = window; shift <= count - window - 2 * margin; shift++)
+                {
+                    float score = Correlation(profile, count - margin - window, count - margin - window - shift, window);
+                    if (score > bestScore) { bestScore = score; best = shift; }
+                }
+                SidewalkRepeatShiftRight = best / (float)width;
+                best = 0;
+                bestScore = 0.5f;
+                for (int shift = window; shift <= count - window - 2 * margin; shift++)
+                {
+                    float score = Correlation(profile, margin, margin + shift, window);
+                    if (score > bestScore) { bestScore = score; best = shift; }
+                }
+                SidewalkRepeatShiftLeft = best / (float)width;
+                if (Mod.DebugBackendEnabled) Mod.LogLater("Parking sidewalk strip: repeat shift right " + (SidewalkRepeatShiftRight * width).ToString("0") +
+                    " px, left " + (SidewalkRepeatShiftLeft * width).ToString("0") + " px of " + count + " px (" + width + " px atlas).");
+            }
+            catch (Exception ex)
+            {
+                SidewalkRepeatShiftRight = SidewalkRepeatShiftLeft = 0f;
+                Mod.log.Warn("Parking sidewalk repeat shift could not be measured: " + ex.Message);
+            }
+        }
+
+        private static float Correlation(float[] profile, int a, int b, int length)
+        {
+            float meanA = 0f, meanB = 0f;
+            for (int i = 0; i < length; i++) { meanA += profile[a + i]; meanB += profile[b + i]; }
+            meanA /= length;
+            meanB /= length;
+            float ab = 0f, aa = 0f, bb = 0f;
+            for (int i = 0; i < length; i++)
+            {
+                float da = profile[a + i] - meanA, db = profile[b + i] - meanB;
+                ab += da * db; aa += da * da; bb += db * db;
+            }
+            return aa > 1e-6f && bb > 1e-6f ? ab / Mathf.Sqrt(aa * bb) : 0f;
+        }
+
         private static void FillParkingStrip(Unity.Collections.NativeArray<Color32> pixels, int width, int height,
             int referenceLeft, int referenceRight, Texture2D tile, bool linear, float repeatsPerAtlas, float referenceAspect, float normalStrength = 1f,
             float repeatsPerV = float.NaN)
         {
-            // Only a non-readable tile is still read back from the GPU.
             Texture2D readable = tile;
             bool releaseTile = tile != null && !tile.isReadable;
             if (releaseTile) readable = ReadParkingTexture(tile, linear);
@@ -304,6 +428,75 @@ namespace Advanced_Graphics
                 SaveParkingDiagnostic(texture, Path.Combine(folder, "Parking_AppliedNormal_" + index++ + ".png"), true);
             report.AppendLine("Applied color atlases: " + m_ParkingColors.Count + "; normal atlases: " + m_ParkingNormals.Count);
             File.WriteAllText(Path.Combine(folder, "Parking_Normal_Report.txt"), report.ToString());
+            WriteMaterialProperties(folder);
+        }
+
+        private void WriteMaterialProperties(string folder)
+        {
+            var text = new StringBuilder();
+            text.AppendLine("Shader properties of parking road batch materials (original and isolated copy) and one RoadEU batch material");
+            var written = new HashSet<Material>();
+            foreach (var entry in m_ParkingMaterials)
+            {
+                if (entry.Key == null || !written.Add(entry.Key)) continue;
+                AppendMaterialProperties(text, "PARKING original", entry.Key);
+            }
+            foreach (var binding in IsolatedMaterialCopies)
+                if (binding != null && written.Add(binding)) AppendMaterialProperties(text, "PARKING isolated copy", binding);
+            foreach (var material in Resources.FindObjectsOfTypeAll<Material>())
+            {
+                if (material == null || material.shader == null || material.shader.name != "BH/NetCompositionMeshLitShader" ||
+                    material.name == null || !material.name.StartsWith("Batch (", StringComparison.Ordinal) ||
+                    !material.HasProperty(ParkingColorSlot)) continue;
+                var color = material.GetTexture(ParkingColorSlot);
+                if (color == null || color.name == null || !color.name.StartsWith("RoadEU_BaseColor", StringComparison.Ordinal)) continue;
+                AppendMaterialProperties(text, "ROADEU reference", material);
+                break;
+            }
+            string path = Path.Combine(folder, "Parking_Material_Properties.txt");
+            File.WriteAllText(path, text.ToString());
+            Mod.log.Info("Parking material properties written to " + path);
+        }
+
+        private static void AppendMaterialProperties(StringBuilder text, string label, Material material)
+        {
+            var inv = System.Globalization.CultureInfo.InvariantCulture;
+            var shader = material.shader;
+            text.AppendLine();
+            text.AppendLine("== " + label + ": " + material.name + " | shader " + (shader != null ? shader.name : "none") +
+                " | queue " + material.renderQueue);
+            text.AppendLine("  keywords: " + string.Join(" ", material.shaderKeywords ?? new string[0]));
+            if (shader == null) return;
+            int count = shader.GetPropertyCount();
+            for (int i = 0; i < count; i++)
+            {
+                string name = shader.GetPropertyName(i);
+                var type = shader.GetPropertyType(i);
+                string value;
+                try
+                {
+                    switch (type)
+                    {
+                        case UnityEngine.Rendering.ShaderPropertyType.Float:
+                        case UnityEngine.Rendering.ShaderPropertyType.Range:
+                            value = material.GetFloat(name).ToString("0.######", inv); break;
+                        case UnityEngine.Rendering.ShaderPropertyType.Int:
+                            value = material.GetInteger(name).ToString(inv); break;
+                        case UnityEngine.Rendering.ShaderPropertyType.Vector:
+                            value = material.GetVector(name).ToString("0.######"); break;
+                        case UnityEngine.Rendering.ShaderPropertyType.Color:
+                            value = material.GetColor(name).ToString("0.######"); break;
+                        case UnityEngine.Rendering.ShaderPropertyType.Texture:
+                            var texture = material.GetTexture(name);
+                            value = (texture != null ? texture.name + " (" + texture.width + "x" + texture.height + ")" : "none") +
+                                " scale " + material.GetTextureScale(name).ToString("0.####") + " offset " + material.GetTextureOffset(name).ToString("0.####");
+                            break;
+                        default: value = "?"; break;
+                    }
+                }
+                catch (Exception ex) { value = "error " + ex.GetType().Name; }
+                text.AppendLine("  " + type + " " + name + " = " + value);
+            }
         }
 
         private static string DescribeAtlas(Texture texture) => texture == null ? "none" :
@@ -324,6 +517,8 @@ namespace Advanced_Graphics
             foreach (var copy in m_ParkingNormals.Values) TexturePool.Release(copy, true);
             m_ParkingColors.Clear();
             m_ParkingNormals.Clear();
+            foreach (var mask in m_RepeatMasks.Values) if (mask != null) UnityEngine.Object.Destroy(mask);
+            m_RepeatMasks.Clear();
             m_AsphaltColor = m_AsphaltNormal = m_SidewalkColor = m_SidewalkNormal = null;
             if (releaseSources)
             {
@@ -340,7 +535,3 @@ namespace Advanced_Graphics
         }
     }
 }
-
-
-
-

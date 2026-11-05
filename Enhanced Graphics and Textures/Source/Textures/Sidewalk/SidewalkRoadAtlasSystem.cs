@@ -17,6 +17,8 @@ namespace Advanced_Graphics
         private const string AlleyColorPrefix = "ParkingLane7_BaseColor_";
         private const string AlleyNormalPrefix = "ParkingLane7_Normal_";
         private const int X0 = 318, X1 = 759, Y0 = 0, Y1 = 2048;
+        internal static bool RoadPatternValid;
+        internal static float RoadPatternRepeatsV, RoadPatternShiftU, RoadPatternShiftV;
         protected virtual SidewalkSurfaceSystem Surface => Mod.Sidewalk;
         protected virtual bool IsAlleyAtlas => false;
         private string SurfaceLabel => IsAlleyAtlas ? "Alley sidewalk" : "RoadEU sidewalk";
@@ -36,13 +38,11 @@ namespace Advanced_Graphics
         private Texture2D m_SourceColor, m_SourceNormal;
         private bool m_Enabled, m_Diagnostic, m_BuiltDiagnostic, m_BuiltCustom, m_Dirty;
         private bool m_LoggedMissing;
-        // Normal sidewalk pattern shift (percent of one tile across / along), not for Alley/parking atlases.
         private int m_BuiltShiftU, m_BuiltShiftV;
         private bool UsesSidewalkShift => !IsAlleyAtlas && !(this is ParkingRoadAtlasSystem);
         private int CurrentShiftU => UsesSidewalkShift ? Mod.ActiveSetting?.SidewalkShiftU ?? 0 : 0;
         private int CurrentShiftV => UsesSidewalkShift ? Mod.ActiveSetting?.SidewalkShiftV ?? 0 : 0;
         private int m_Frames;
-        // Set by the RoadEU atlas so the Alley atlas rebuilds without waiting for its poll.
         private bool m_RoadEuAtlasChanged;
 
         internal bool IsEnabled => m_Enabled;
@@ -160,7 +160,6 @@ namespace Advanced_Graphics
                     if (material == null || material.shader == null || material.shader.name != ShaderName ||
                         !material.HasProperty(ColorSlot)) continue;
                     if (material.name.StartsWith("Enhanced Graphics and Textures", StringComparison.Ordinal)) continue;
-                    // The regular sidewalk system can rebuild its shared RoadEU atlas.
                     if (IsAlleyAtlas && m_Materials.TryGetValue(material, out var previous) &&
                         (material.GetTexture(ColorSlot) != previous.Color ||
                          (material.HasProperty(NormalSlot) && material.GetTexture(NormalSlot) != previous.Normal)))
@@ -248,7 +247,6 @@ namespace Advanced_Graphics
                 throw new InvalidOperationException("RoadEU atlas exceeds 4096 pixels per side.");
 
             var timer = TexturePerformance.StartTimer(SurfaceLabel + " atlas " + (linear ? "normal" : "color"));
-            // A readable source belongs to another system: read directly, never cached or destroyed.
             Texture2D cached;
             if (IsDirectlyReadable(source)) cached = (Texture2D)source;
             else if (!m_Readbacks.TryGetValue(source, out cached))
@@ -280,6 +278,13 @@ namespace Advanced_Graphics
                 float verticalRepeats = referenceAspect / stripFraction;
                 if (customTexture && !diagnostic)
                     verticalRepeats = Mathf.Max(1, Mathf.RoundToInt(verticalRepeats));
+                if (UsesSidewalkShift && !alleyShoulder && !linear)
+                {
+                    RoadPatternValid = !diagnostic;
+                    RoadPatternRepeatsV = verticalRepeats;
+                    RoadPatternShiftU = m_BuiltShiftU / 100f;
+                    RoadPatternShiftV = m_BuiltShiftV / 100f;
+                }
                 var atlas = PixelBuffer.Read(cached);
                 var tile = detail != null ? PixelBuffer.Read(detail) : PixelBuffer.Allocate(1);
                 var copy = default(PixelBuffer);
@@ -451,7 +456,3 @@ namespace Advanced_Graphics
         }
     }
 }
-
-
-
-

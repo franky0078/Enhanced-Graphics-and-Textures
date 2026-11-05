@@ -54,7 +54,7 @@ namespace Advanced_Graphics
 
 
         [SettingsUISection(SidewalkSection, SidewalkGroup)]
-        public bool SidewalkJunctionOverlay { get; set; } = false;
+        public bool SidewalkJunctionOverlay { get; set; } = true;
 
         public const string AboutGroup = "About";
         public const string LauncherGroup = "Interface";
@@ -841,7 +841,7 @@ namespace Advanced_Graphics
             set
             {
                 if (!value) return;
-                SidewalkJunctionOverlay = false;
+                SidewalkJunctionOverlay = true;
             SetSidewalkDefaults();
                 ApplyAndSave();
             }
@@ -1051,7 +1051,7 @@ namespace Advanced_Graphics
             ParkingTextureScaleFactor = 1f;
             ParkingDepthStrengthFactor = 1f;
             RoadUvOffsetX = RoadUvOffsetY = RoadUvRotation = 0;
-            SidewalkJunctionOverlay = false;
+            SidewalkJunctionOverlay = true;
             SetSidewalkDefaults();
             SetGrassDefaults();
             SetFootpathDefaults();

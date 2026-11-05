@@ -30,7 +30,6 @@ namespace Advanced_Graphics
 
         protected override void EncodeNormalPixels(Color32[] pixels)
         {
-            // Keep RGB for the atlas builders, with the same extreme-depth guard as asphalt.
             for (int i = 0; i < pixels.Length; i++)
                 pixels[i] = RoadNormalEncoding.Stabilize(pixels[i]);
         }
@@ -154,6 +153,3 @@ namespace Advanced_Graphics
         }
     }
 }
-
-
-

@@ -44,7 +44,6 @@ namespace Advanced_Graphics
         {
             roadEnd &= UsesRoadEndTiling;
             largeRoad &= UsesLargeRoadTiling;
-            // Large roads own their node/end values; the other categories retain their existing values.
             float scaleU = largeRoad ? m_LargeEndcapU : roadEnd ? m_RoadEndU : m_EndcapU;
             float scaleV = largeRoad ? m_LargeEndcapV : roadEnd ? m_RoadEndV : m_EndcapV;
             if (Mathf.Approximately(scaleU, 1f) && Mathf.Approximately(scaleV, 1f)) return source;
@@ -70,7 +69,6 @@ namespace Advanced_Graphics
             var key = (source, linear, parking, scaleU, scaleV);
             if (m_EndcapTextures.TryGetValue(key, out var result)) return result;
             var timer = TexturePerformance.StartTimer(TimingLabel + " endcap atlas " + (linear ? "normal" : "color"));
-            // No GPU readback when the pixels are already on the CPU.
             Texture2D readable;
             bool release = false;
             string origin;
@@ -175,5 +173,3 @@ namespace Advanced_Graphics
         }
     }
 }
-
-
