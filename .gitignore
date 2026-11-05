@@ -361,3 +361,5 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+# Unity-Build: Laufzeitdateien (ilpp.pid wechselt bei jedem Bauen)
+**/Library/

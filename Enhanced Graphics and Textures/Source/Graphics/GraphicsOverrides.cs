@@ -15,7 +15,6 @@ namespace Advanced_Graphics
         private int m_BaseTessellation;
         private int m_BasePatchSize;
         private int m_BaseShadowResolution;
-        private int m_DefaultShadowResolution;
         private float m_BaseShadowCullingHeight, m_BaseShadowCullingVolume;
         private bool m_Captured;
         private bool m_TouchedDetail, m_TouchedCache, m_TouchedTessellation,
@@ -35,18 +34,22 @@ namespace Advanced_Graphics
         private VolumeProfile m_ShadowProfile;
         private HDShadowSettings m_ShadowSettings;
         private int m_LastShadowDistance;
+        private int m_LastTessellation, m_LastPatch, m_LastShadowResolution;
+        private bool m_Disabled;
 
         public string BaseDetail => m_Captured ? m_BaseDetail.ToString("0.00") : "?";
         public string BaseCache => m_Captured ? m_BaseCache.ToString() : "?";
         public string BaseTessellation => m_Captured ? m_BaseTessellation.ToString() : "?";
         public string BasePatchSize => m_Captured ? m_BasePatchSize.ToString() : "?";
         public string BaseShadowResolution => m_Captured ? m_BaseShadowResolution.ToString() : "?";
+        public string GameTerrain => m_Captured ? m_BaseTessellation + " / " + m_BasePatchSize : "?";
         public string BaseShadowCulling => m_Captured ?
             $"{m_BaseShadowCullingHeight:0.##} / {m_BaseShadowCullingVolume:0.##}" : "?";
         public int? DefaultCache => m_Captured ? m_BaseCache : (int?)null;
         public int? DefaultTessellation => m_Captured ? m_BaseTessellation : (int?)null;
         public int? DefaultPatchSize => m_Captured ? m_BasePatchSize : (int?)null;
-        public int? DefaultShadowResolution => m_Captured ? m_DefaultShadowResolution : (int?)null;
+        // The game's current shadow resolution (0 in the mod = keep this value).
+        public int? DefaultShadowResolution => m_Captured ? m_BaseShadowResolution : (int?)null;
 
         public void Capture()
         {
@@ -61,7 +64,6 @@ namespace Advanced_Graphics
             m_BaseTessellation = terrain.finalTessellation;
             m_BasePatchSize = terrain.targetPatchSize;
             m_BaseShadowResolution = shadows.directionalShadowResolution;
-            m_DefaultShadowResolution = GetDefaultShadowResolution(shadows);
             m_BaseShadowCullingHeight = shadows.shadowCullingThresholdHeight;
             m_BaseShadowCullingVolume = shadows.shadowCullingThresholdVolume;
             m_Captured = true;
@@ -70,8 +72,23 @@ namespace Advanced_Graphics
                 $"terrain {m_BaseTessellation}/{m_BasePatchSize}, shadow resolution {m_BaseShadowResolution}");
         }
 
+        // Graphics module switched off: restore everything the mod changed and leave the game's values alone afterwards.
+        public void Disable()
+        {
+            if (m_Disabled) return;
+            Restore();
+            m_TouchedDetail = m_TouchedCache = m_TouchedTessellation = m_TouchedPatch = m_TouchedShadowResolution = m_TouchedShadowCulling = false;
+            m_LastShadowDistance = 0;
+            if (m_Captured) ObserveGameValues();
+            m_Disabled = true;
+            Mod.log.Info("Graphics module off: game graphics settings restored and left unchanged.");
+        }
+
         public void Apply(Setting options)
         {
+            if (options == null) return;
+            if (!options.GraphicsEnabled) { Disable(); return; }
+            m_Disabled = false;
             m_Lighting.ApplyVolume(options);
             Capture();
             if (!m_Captured) return;
@@ -133,11 +150,18 @@ namespace Advanced_Graphics
                 }
             }
 
+            // Terrain: 0 keeps the game's value; only a value set in the mod is applied (and restored when set back to 0).
             var terrain = graphics.GetQualitySetting<TerrainQualitySettings>();
             if (terrain != null)
             {
-                var tessellation = Math.Max(1, Math.Min(16, options.TerrainTessellationLevel));
-                var patch = Math.Max(4, Math.Min(128, options.TerrainPatchSizeUnits));
+                if (m_TouchedTessellation && terrain.finalTessellation != m_LastTessellation) m_TouchedTessellation = false;
+                if (!m_TouchedTessellation) m_BaseTessellation = terrain.finalTessellation;
+                if (m_TouchedPatch && terrain.targetPatchSize != m_LastPatch) m_TouchedPatch = false;
+                if (!m_TouchedPatch) m_BasePatchSize = terrain.targetPatchSize;
+                var tessellation = options.TerrainTessellationLevel <= 0 ? m_BaseTessellation :
+                    Math.Max(1, Math.Min(16, options.TerrainTessellationLevel));
+                var patch = options.TerrainPatchSizeUnits <= 0 ? m_BasePatchSize :
+                    Math.Max(4, Math.Min(128, options.TerrainPatchSizeUnits));
                 if (terrain.finalTessellation != tessellation || terrain.targetPatchSize != patch)
                 {
                     terrain.finalTessellation = tessellation;
@@ -145,8 +169,10 @@ namespace Advanced_Graphics
                     terrain.Apply();
                     Mod.log.Info($"Graphics terrain tessellation {tessellation}, patch size {patch}");
                 }
-                m_TouchedTessellation |= tessellation != m_BaseTessellation;
-                m_TouchedPatch |= patch != m_BasePatchSize;
+                m_LastTessellation = tessellation;
+                m_LastPatch = patch;
+                m_TouchedTessellation = options.TerrainTessellationLevel > 0;
+                m_TouchedPatch = options.TerrainPatchSizeUnits > 0;
             }
 
             var shadows = graphics.GetQualitySetting<ShadowsQualitySettings>();
@@ -164,7 +190,10 @@ namespace Advanced_Graphics
                     Mod.log.Info($"Graphics shadow caster culling height {height:0.##}, volume {volume:0.##}");
                 }
                 m_TouchedShadowCulling |= threshold > 0;
-                var resolution = options.ShadowResolution == 0 ? m_DefaultShadowResolution :
+                // 0 keeps the game's (possibly custom) resolution instead of the quality preset's default.
+                if (m_TouchedShadowResolution && shadows.directionalShadowResolution != m_LastShadowResolution) m_TouchedShadowResolution = false;
+                if (!m_TouchedShadowResolution) m_BaseShadowResolution = shadows.directionalShadowResolution;
+                var resolution = options.ShadowResolution <= 0 ? m_BaseShadowResolution :
                     Math.Max(512, Math.Min(8192, options.ShadowResolution));
                 if (shadows.directionalShadowResolution != resolution)
                 {
@@ -180,7 +209,8 @@ namespace Advanced_Graphics
                     }
                     Mod.log.Info($"Graphics shadow resolution {resolution}");
                 }
-                m_TouchedShadowResolution |= resolution != m_BaseShadowResolution;
+                m_LastShadowResolution = resolution;
+                m_TouchedShadowResolution = options.ShadowResolution > 0;
             }
 
             ApplyShadowDistance(options.ShadowDistanceMeters);
@@ -214,23 +244,26 @@ namespace Advanced_Graphics
                 options.GeometryCacheSizeMB = lod.meshMemoryBudget;
                 changed = true;
             }
+            // Changed in the game's menu: the mod follows the game again (0 = game value).
             if (terrain.finalTessellation != m_ObservedTessellation)
             {
                 m_BaseTessellation = terrain.finalTessellation;
-                options.TerrainTessellationLevel = terrain.finalTessellation;
+                m_TouchedTessellation = false;
+                options.TerrainTessellationLevel = 0;
                 changed = true;
             }
             if (terrain.targetPatchSize != m_ObservedPatch)
             {
                 m_BasePatchSize = terrain.targetPatchSize;
-                options.TerrainPatchSizeUnits = terrain.targetPatchSize;
+                m_TouchedPatch = false;
+                options.TerrainPatchSizeUnits = 0;
                 changed = true;
             }
             if (shadows.directionalShadowResolution != m_ObservedShadowResolution)
             {
                 m_BaseShadowResolution = shadows.directionalShadowResolution;
-                m_DefaultShadowResolution = GetDefaultShadowResolution(shadows);
-                options.ShadowResolution = shadows.directionalShadowResolution;
+                m_TouchedShadowResolution = false;
+                options.ShadowResolution = 0;
                 changed = true;
             }
             if (changed)

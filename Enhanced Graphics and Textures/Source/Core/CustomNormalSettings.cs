@@ -5,27 +5,35 @@ namespace Advanced_Graphics
     public sealed partial class Setting
     {
         [SettingsUISection(RoadSection, RoadGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         public bool UseRoadNormalMap { get; set; } = false;
 
         [SettingsUISection(SidewalkSection, SidewalkGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         public bool UseSidewalkNormalMap { get; set; } = false;
 
         [SettingsUISection(AlleySidewalkSection, AlleySidewalkGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         public bool UseAlleySidewalkNormalMap { get; set; } = false;
 
         [SettingsUISection(GravelSection, GravelGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         public bool UseRoadGravelNormalMap { get; set; } = false;
 
         [SettingsUISection(GravelSidewalkSection, ShoulderGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         public bool UseGravelShoulderNormalMap { get; set; } = false;
 
         [SettingsUISection(RailSection, RailGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         public bool UseRailNormalMap { get; set; } = false;
 
         [SettingsUISection(GrassSection, GrassGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         public bool UseGrassNormalMap { get; set; } = false;
 
         [SettingsUISection(FootpathSection, FootpathGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         public bool UseFootpathNormalMap { get; set; } = false;
 
         internal bool GetCustomNormalEnabled(string surface)

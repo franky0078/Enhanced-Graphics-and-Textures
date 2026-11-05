@@ -88,8 +88,8 @@ namespace Advanced_Graphics
                 {
                     case "TreeLodDistance": s.TreeLodDistance = ClampInt(value, 10, 500); break;
                     case "GlobalDetailScalePercent": s.GlobalDetailScalePercent = ClampInt(value, 10, 500); break;
-                    case "TerrainTessellationLevel": s.TerrainTessellationLevel = ClampInt(value, 1, 16); break;
-                    case "TerrainPatchSizeUnits": s.TerrainPatchSizeUnits = ClampInt(value, 4, 128); break;
+                    case "TerrainTessellationLevel": s.TerrainTessellationLevel = value < 0.5f ? 0 : ClampInt(value, 1, 16); break;
+                    case "TerrainPatchSizeUnits": s.TerrainPatchSizeUnits = value < 0.5f ? 0 : ClampInt(value, 4, 128); break;
                     case "ShadowResolution": s.ShadowResolution = ClampInt(value, 0, 8192); break;
                     case "ShadowDistanceMeters": s.ShadowDistanceMeters = ClampInt(value, 0, 2000); break;
                     case "SmallShadowCasterThreshold": s.SmallShadowCasterThreshold = ClampInt(value, 0, 10); break;
@@ -151,7 +151,7 @@ namespace Advanced_Graphics
         private static string BuildState(Setting s)
         {
             if (s == null) return "{}";
-            var json = new StringBuilder("{\"show\":").Append(s.ShowGraphicsAppButton ? "true" : "false");
+            var json = new StringBuilder("{\"show\":").Append(s.ShowGraphicsAppButton && s.GraphicsEnabled ? "true" : "false");
             Add(json, "x", s.GraphicsWindowX);
             Add(json, "y", s.GraphicsWindowY);
             Add(json, "TreeLodDistance", s.TreeLodDistance);
@@ -165,6 +165,8 @@ namespace Advanced_Graphics
             Add(json, "TaaStabilityEnabled", s.TaaStabilityEnabled ? 1 : 0);
             Add(json, "TaaStabilityStrength", s.TaaStabilityStrength);
             Add(json, "DefaultShadowResolution", Mod.Graphics?.DefaultShadowResolution ?? 0);
+            Add(json, "GameTessellation", Mod.Graphics?.DefaultTessellation ?? 0);
+            Add(json, "GamePatchSize", Mod.Graphics?.DefaultPatchSize ?? 0);
             Add(json, "BloomMode", (int)s.BloomMode);
             Add(json, "BloomIntensity", s.BloomIntensity);
             Add(json, "SunBloomStrength", s.SunBloomStrength);

@@ -18,7 +18,7 @@ namespace Advanced_Graphics
         protected override void OnUpdate()
         {
             var settings = Mod.ActiveSetting;
-            if (settings?.HasPendingApply == true) return;
+            if (settings == null || settings.HasPendingApply || !settings.GraphicsEnabled) return;
             Mod.Graphics?.ApplyCamera(settings);
             var sun = m_PlanetarySystem.SunLight;
             Mod.Graphics?.ApplyLighting(Mod.ActiveSetting, sun.isValid ? sun.additionalData : null);

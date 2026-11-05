@@ -21,8 +21,22 @@ namespace Advanced_Graphics
         {
             if (ModLog.Enabled && !string.IsNullOrEmpty(message) && s_DeferredLog.Count < 256) s_DeferredLog.Enqueue(message);
         }
+        // Errors from render systems: the game's logger breaks when called there, so they are written later as well.
+        private static readonly System.Collections.Concurrent.ConcurrentQueue<(System.Exception, string)> s_DeferredErrors =
+            new System.Collections.Concurrent.ConcurrentQueue<(System.Exception, string)>();
+        internal static void ErrorLater(System.Exception exception, string message)
+        {
+            if (s_DeferredErrors.Count < 32) s_DeferredErrors.Enqueue((exception, message));
+        }
         internal static void FlushDeferredLog()
         {
+            // Writing while a save loads broke the game's logger (NullReferenceException in its own load message).
+            if (GameManager.instance != null && GameManager.instance.isGameLoading) return;
+            if (s_DeferredErrors.TryDequeue(out var error))
+            {
+                try { log.Error(error.Item1, error.Item2); } catch (System.Exception) { }
+                return;
+            }
             if (!s_DeferredLog.TryDequeue(out var message)) return;
             try { log.Info(message); } catch (System.Exception) { }
         }
@@ -48,6 +62,7 @@ namespace Advanced_Graphics
 
         public void OnLoad(UpdateSystem updateSystem)
         {
+            ModLog.Initialize(UnityEngine.Application.persistentDataPath);
             log.Info("Enhanced Graphics and Textures loading");
             TextureStorage.EnsureDirectories();
 
@@ -131,6 +146,15 @@ namespace Advanced_Graphics
             if (m_Setting.AlleySidewalkSettingsVersion < 2)
             {
                 m_Setting.MigrateAlleySidewalkSettings();
+                _ = AssetDatabase.global.SaveSettings();
+            }
+            if (m_Setting.GraphicsSettingsVersion < 1)
+            {
+                // Earlier versions always applied terrain 5 / 64 (the old defaults) and overwrote the game's terrain quality.
+                // Those values now mean "keep the game's value"; deliberately changed values stay.
+                if (m_Setting.TerrainTessellationLevel == 5) m_Setting.TerrainTessellationLevel = 0;
+                if (m_Setting.TerrainPatchSizeUnits == 64) m_Setting.TerrainPatchSizeUnits = 0;
+                m_Setting.GraphicsSettingsVersion = 1;
                 _ = AssetDatabase.global.SaveSettings();
             }
             m_Setting.AsphaltSource = Setting.RoadTextureSource.Generated;

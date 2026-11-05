@@ -76,7 +76,7 @@ namespace Advanced_Graphics
             var asphaltNormal = asphaltColor != null ? Mod.RoadAsphalt?.ActiveNormalTexture : null;
             float parkingScaleFactor = settings?.ParkingTextureScaleFactor ?? 1f;
             float parkingDepthFactor = settings?.ParkingDepthStrengthFactor ?? 1f;
-            bool sidewalkOverride = settings != null && settings.SidewalkEnabled &&
+            bool sidewalkOverride = settings != null && settings.TexturesEnabled && settings.SidewalkEnabled &&
                 (settings.SidewalkDetail != 0 || settings.SidewalkUvSizePercent != 100 ||
                  settings.SidewalkDepthStrengthPercent != 0 || settings.SidewalkUvOffsetX != 0 ||
                  settings.SidewalkUvOffsetY != 0 || settings.SidewalkUvRotation != 0 || settings.SidewalkCrackCount != 0 || TextureColorFilter.IsActive(settings.SidewalkFilterColor, settings.SidewalkFilterOpacityPercent));
@@ -272,7 +272,6 @@ namespace Advanced_Graphics
         // Measures the repeat shifts from the column profile of the filled sidewalk strip.
         private static void MeasureRepeatShifts(Unity.Collections.NativeArray<Color32> pixels, int width, int height)
         {
-            SidewalkRepeatShiftRight = SidewalkRepeatShiftLeft = 0f;
             try
             {
                 int left = Mathf.RoundToInt(width * SidewalkStart / (float)ReferenceWidth);
@@ -302,7 +301,7 @@ namespace Advanced_Graphics
                     float score = Correlation(profile, count - margin - window, count - margin - window - shift, window);
                     if (score > bestScore) { bestScore = score; best = shift; }
                 }
-                SidewalkRepeatShiftRight = best / (float)width;
+                float measuredRight = best / (float)width;
                 best = 0;
                 bestScore = 0.5f;
                 for (int shift = window; shift <= count - window - 2 * margin; shift++)
@@ -310,7 +309,10 @@ namespace Advanced_Graphics
                     float score = Correlation(profile, margin, margin + shift, window);
                     if (score > bestScore) { bestScore = score; best = shift; }
                 }
-                SidewalkRepeatShiftLeft = best / (float)width;
+                float measuredLeft = best / (float)width;
+                // Every parking material builds its own atlas: keep the value unless it really changed (corners rebuild on change).
+                SidewalkRepeatShiftRight = StableShift(SidewalkRepeatShiftRight, measuredRight);
+                SidewalkRepeatShiftLeft = StableShift(SidewalkRepeatShiftLeft, measuredLeft);
                 if (Mod.DebugBackendEnabled) Mod.LogLater("Parking sidewalk strip: repeat shift right " + (SidewalkRepeatShiftRight * width).ToString("0") +
                     " px, left " + (SidewalkRepeatShiftLeft * width).ToString("0") + " px of " + count + " px (" + width + " px atlas).");
             }
@@ -319,6 +321,12 @@ namespace Advanced_Graphics
                 SidewalkRepeatShiftRight = SidewalkRepeatShiftLeft = 0f;
                 Mod.log.Warn("Parking sidewalk repeat shift could not be measured: " + ex.Message);
             }
+        }
+
+        private static float StableShift(float current, float measured)
+        {
+            float snapped = Mathf.Round(measured * ReferenceWidth) / ReferenceWidth;
+            return current > 0f && snapped > 0f && Mathf.Abs(current - snapped) <= 2f / ReferenceWidth ? current : snapped;
         }
 
         private static float Correlation(float[] profile, int a, int b, int length)

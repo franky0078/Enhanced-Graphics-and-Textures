@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Colossal.Mathematics;
 using Game;
@@ -26,20 +27,58 @@ namespace Advanced_Graphics
 
         private static int TiledSignature => s_SyncBlendMode == 6 ? 2 : 1;
 
-        private void ScanParkingEdges()
+        // Road types in the city that carry parking but are not handled as parking roads, once per type (log output option).
+        private readonly HashSet<string> m_UnhandledLogged = new HashSet<string>();
+
+        private void LogUnhandledRoad(PrefabBase prefab)
         {
-            m_TiledParkingEdges.Clear();
-            m_ParkingNodeRoads.Clear();
+            string name = prefab.name;
+            if (string.IsNullOrEmpty(name) || m_UnhandledLogged.Count >= 400 || !m_UnhandledLogged.Add(name)) return;
+            bool roadBuilder, parking;
+            try
+            {
+                roadBuilder = RoadBuilderSurfaceCompatibility.IsRoadBuilderRoad(prefab);
+                parking = name.IndexOf("Parking", StringComparison.OrdinalIgnoreCase) >= 0 &&
+                    name.IndexOf("No Parking", StringComparison.OrdinalIgnoreCase) < 0;
+            }
+            catch (Exception) { return; }
+            if (!parking) return;
+            Mod.LogLater("Parking road type not handled: " + name + (roadBuilder ? " (Road Builder road)" : " (name rule)"));
+        }
+
+        // roads: all roads (full scan) or the roads at the scanned nodes (incremental: unused compositions are released by the next full scan).
+        private void ScanParkingEdges(Entity[] roads)
+        {
+            if (!s_ParkingOn)
+            {
+                if (m_ParkingEdgeRuntimes.Count > 0 || m_ParkingNodeRuntimes.Count > 0) DropParkingEdges();
+                return;
+            }
+            bool full = m_ScanNodes == null;
+            if (full)
+            {
+                m_TiledParkingEdges.Clear();
+                m_ParkingNodeRoads.Clear();
+            }
+            else
+            {
+                var scanned = new HashSet<Entity>(roads);
+                Predicate<Entity> drop = e => scanned.Contains(e) || !EntityManager.Exists(e) || EntityManager.HasComponent<Deleted>(e);
+                m_TiledParkingEdges.RemoveAll(drop);
+                m_ParkingNodeRoads.RemoveAll(drop);
+            }
             var used = new HashSet<Entity>();
             var usedNodes = new HashSet<Entity>();
-            var roads = m_Roads.ToEntityArray(Allocator.Temp);
-            try
             {
                 foreach (var road in roads)
                 {
                     var prefabEntity = EntityManager.GetComponentData<PrefabRef>(road).m_Prefab;
-                    if (!m_Prefabs.TryGetPrefab<PrefabBase>(prefabEntity, out var prefab) || prefab == null ||
-                        !IsParkingRoad(prefab.name) || RoadBuilderSurfaceCompatibility.IsRoadBuilderRoad(prefab)) continue;
+                    if (!m_Prefabs.TryGetPrefab<PrefabBase>(prefabEntity, out var prefab) || prefab == null) continue;
+                    if (!IsParkingPrefab(prefab))
+                    {
+                        LogUnhandledRoad(prefab);
+                        continue;
+                    }
                     var native = EntityManager.GetComponentData<Composition>(road);
                     bool nodes = false;
                     foreach (var node in new[] { native.m_StartNode, native.m_EndNode })
@@ -55,7 +94,7 @@ namespace Advanced_Graphics
                         if (!m_ParkingNodeRuntimes.TryGetValue(node, out var nodeRuntime))
                         {
                             nodeRuntime = BuildTiledParkingComposition(node, false);
-                            if (nodeRuntime == null) continue;
+                            if (nodeRuntime == null) { ScheduleRetryRoad(road); continue; }
                             m_ParkingNodeRuntimes.Add(node, nodeRuntime);
                         }
                         if (nodeRuntime.Composition != Entity.Null) nodes = true;
@@ -73,13 +112,13 @@ namespace Advanced_Graphics
                     if (!m_ParkingEdgeRuntimes.TryGetValue(source, out var runtime))
                     {
                         runtime = BuildTiledParkingComposition(source, true);
-                        if (runtime == null) continue;
+                        if (runtime == null) { ScheduleRetryRoad(road); continue; }
                         m_ParkingEdgeRuntimes.Add(source, runtime);
                     }
                     if (runtime.Composition != Entity.Null) m_TiledParkingEdges.Add(road);
                 }
             }
-            finally { roads.Dispose(); }
+            if (!full) { CountTiledCompositions(); return; }
 
             var remove = new List<Entity>();
             foreach (var pair in m_ParkingEdgeRuntimes) if (!used.Contains(pair.Key)) remove.Add(pair.Key);
@@ -97,6 +136,19 @@ namespace Advanced_Graphics
                 Retire(m_ParkingNodeRuntimes[key]);
                 m_ParkingNodeRuntimes.Remove(key);
             }
+            CountTiledCompositions();
+        }
+
+        private void ScheduleRetryRoad(Entity road)
+        {
+            if (!EntityManager.HasComponent<Edge>(road)) { ScheduleRetry(Entity.Null); return; }
+            var edge = EntityManager.GetComponentData<Edge>(road);
+            ScheduleRetry(edge.m_Start);
+            ScheduleRetry(edge.m_End);
+        }
+
+        private void CountTiledCompositions()
+        {
             m_TiledEdgeCompositions = 0;
             foreach (var runtime in m_ParkingEdgeRuntimes.Values) if (runtime.Composition != Entity.Null) m_TiledEdgeCompositions++;
             m_TiledNodeCompositions = 0;

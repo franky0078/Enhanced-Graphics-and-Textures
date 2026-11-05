@@ -23,6 +23,7 @@ namespace Advanced_Graphics
         public const int MaxRoadCrackOpacity = 600;
 
         [SettingsUISection(MainSection, TextureGeneralGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUIButton]
         public bool ReloadAllCustomTextures
         {
@@ -44,6 +45,7 @@ namespace Advanced_Graphics
 
         private float m_SurfaceTextureMipBias;
         [SettingsUISection(MainSection, TextureGeneralGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = -1f, max = 1f, step = 0.1f, scalarMultiplier = 1, unit = Unit.kFloatSingleFraction)]
         public float SurfaceTextureMipBias
         {
@@ -54,7 +56,12 @@ namespace Advanced_Graphics
 
 
         [SettingsUISection(SidewalkSection, SidewalkGroup)]
-        public bool SidewalkJunctionOverlay { get; set; } = true;
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
+        public bool SidewalkJunctionOverlay { get; set; } = false;
+
+        [SettingsUISection(SidewalkSection, SidewalkGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
+        public bool SidewalkJunctionParking { get; set; } = false;
 
         public const string AboutGroup = "About";
         public const string LauncherGroup = "Interface";
@@ -90,18 +97,38 @@ namespace Advanced_Graphics
         public const string RailUvGroup = "Rail gravel UV and depth";
         public const string ResetGroup = "Reset";
         public const int DefaultCacheMB = 4096;
-        public const int DefaultTerrainTessellation = 5;
-        public const int DefaultTerrainPatchSize = 64;
+        // 0 = keep the game's terrain value.
+        public const int DefaultTerrainTessellation = 0;
+        public const int DefaultTerrainPatchSize = 0;
 
         public enum RoadTextureSource { Generated, Custom }
 
         public Setting(IMod mod) : base(mod) { SetDefaults(); }
 
+        // Module switches: off leaves the game's graphics settings or the game's textures completely untouched.
+        [SettingsUISection(MainSection, LauncherGroup)]
+        public bool GraphicsEnabled { get; set; } = true;
+
+        [SettingsUISection(MainSection, LauncherGroup)]
+        public bool TexturesEnabled { get; set; } = true;
+
+        [SettingsUIHidden]
+        public bool GraphicsDisabled => !GraphicsEnabled;
+
+        [SettingsUIHidden]
+        public bool TexturesDisabled => !TexturesEnabled;
+
+        // 1: terrain 0 = game value (previously 5 / 64 were always applied); shadow resolution 0 = game value.
+        [SettingsUIHidden]
+        public int GraphicsSettingsVersion { get; set; }
+
         // A separate first group provides the native divider before graphics controls.
         [SettingsUISection(MainSection, LauncherGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         public bool ShowAppButton { get; set; } = true;
 
         [SettingsUISection(MainSection, LauncherGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(GraphicsDisabled))]
         public bool ShowGraphicsAppButton { get; set; } = true;
 
         // Debug tools live in their own in-game window; this is the only switch in the options.
@@ -152,43 +179,52 @@ namespace Advanced_Graphics
         public float GraphicsWindowY { get; set; } = -1f;
 
         [SettingsUISection(MainSection, TreeGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(GraphicsDisabled))]
         [SettingsUISlider(min = 10, max = 500, step = 10, scalarMultiplier = 1)]
         public int TreeLodDistance { get; set; }
 
         [SettingsUISection(MainSection, DetailGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(GraphicsDisabled))]
         [SettingsUISlider(min = 10, max = 500, step = 10, scalarMultiplier = 1)]
         public int GlobalDetailScalePercent { get; set; }
 
         // The game's own slider stops at 4096 MB. Values beyond it are experimental.
         [SettingsUISection(MainSection, CacheGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(GraphicsDisabled))]
         [SettingsUISlider(min = 128, max = 16384, step = 128, scalarMultiplier = 1)]
         public int GeometryCacheSizeMB { get; set; }
 
         // The game's terrain tessellation slider stops at 5.
         [SettingsUISection(MainSection, TerrainGroup)]
-        [SettingsUISlider(min = 1, max = 16, step = 1, scalarMultiplier = 1)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(GraphicsDisabled))]
+        [SettingsUISlider(min = 0, max = 16, step = 1, scalarMultiplier = 1)]
         public int TerrainTessellationLevel { get; set; }
 
         [SettingsUISection(MainSection, TerrainGroup)]
-        [SettingsUISlider(min = 4, max = 128, step = 1, scalarMultiplier = 1)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(GraphicsDisabled))]
+        [SettingsUISlider(min = 0, max = 128, step = 1, scalarMultiplier = 1)]
         public int TerrainPatchSizeUnits { get; set; }
 
         // Higher shadow resolution and a new distance control are separate from
         [SettingsUISection(MainSection, ShadowsGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(GraphicsDisabled))]
         [SettingsUISlider(min = 0, max = 8192, step = 512, scalarMultiplier = 1)]
         public int ShadowResolution { get; set; }
 
         [SettingsUISection(MainSection, ShadowsGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(GraphicsDisabled))]
         [SettingsUISlider(min = 0, max = 2000, step = 50, scalarMultiplier = 1)]
         public int ShadowDistanceMeters { get; set; }
 
         // Both thresholds are not exposed by the game's regular graphics sliders.
         [SettingsUISection(MainSection, ShadowsGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(GraphicsDisabled))]
         [SettingsUISlider(min = 0, max = 10, step = 1, scalarMultiplier = 1)]
         public int SmallShadowCasterThreshold { get; set; }
 
         // Actual HDRP camera strength. 0 restores the camera's original value.
         [SettingsUISection(MainSection, SharpnessGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(GraphicsDisabled))]
         // Game.UI.Unit formats the actual HDRP value with two decimal places.
         [SettingsUISlider(min = 0, max = 2, step = 0.05f,
             scalarMultiplier = 1, unit = Unit.kFloatTwoFractions)]
@@ -201,24 +237,29 @@ namespace Advanced_Graphics
         public TaaStabilityControl TaaStability { get; set; }
 
         [SettingsUISection(MainSection, SharpnessGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(GraphicsDisabled))]
         public bool TaaStabilityEnabled { get; set; }
 
         [SettingsUISection(MainSection, SharpnessGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(GraphicsDisabled))]
         [SettingsUISlider(min = 0, max = 1, step = 0.01f,
             scalarMultiplier = 1, unit = Unit.kFloatTwoFractions)]
         public float TaaStabilityStrength { get; set; } = 0.5f;
 
         [SettingsUISection(MainSection, SharpnessGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(GraphicsDisabled))]
         [SettingsUIButton]
         public bool ResetTaaStability { set { if (value) { TaaStabilityEnabled = false; TaaStabilityStrength = 0.5f; ApplyAndSave(); } } }
 
         public enum BloomControl { GameDefault, Enabled, Disabled }
 
         [SettingsUISection(MainSection, BloomGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(GraphicsDisabled))]
         public BloomControl BloomMode { get; set; }
 
         private float m_BloomIntensity = 0.2f;
         [SettingsUISection(MainSection, BloomGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(GraphicsDisabled))]
         [SettingsUISlider(min = 0, max = 1, step = 0.01f,
             scalarMultiplier = 1, unit = Unit.kFloatTwoFractions)]
         public float BloomIntensity
@@ -231,16 +272,19 @@ namespace Advanced_Graphics
 
         // A separate HDRP celestial halo, independent of the screen-wide Bloom.
         [SettingsUISection(MainSection, BloomGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(GraphicsDisabled))]
         [SettingsUISlider(min = 0, max = 5, step = 0.05f,
             scalarMultiplier = 1, unit = Unit.kFloatTwoFractions)]
         public float SunBloomStrength { get; set; } = 1f;
 
         [SettingsUISection(MainSection, SkyGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(GraphicsDisabled))]
         [SettingsUISlider(min = -5, max = 5, step = 0.05f,
             scalarMultiplier = 1, unit = Unit.kFloatTwoFractions)]
         public float SkyExposure { get; set; }
 
         [SettingsUISection(MainSection, BloomGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(GraphicsDisabled))]
         [SettingsUIButton]
         public bool ResetBloom
         {
@@ -248,6 +292,7 @@ namespace Advanced_Graphics
         }
 
         [SettingsUISection(MainSection, BloomGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(GraphicsDisabled))]
         [SettingsUIButton]
         public bool ResetSunBloom
         {
@@ -255,6 +300,7 @@ namespace Advanced_Graphics
         }
 
         [SettingsUISection(MainSection, SkyGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(GraphicsDisabled))]
         [SettingsUIButton]
         public bool ResetSkyExposure
         {
@@ -277,6 +323,7 @@ namespace Advanced_Graphics
 
         [SettingsUIHidden]
         [SettingsUISection(RoadSection, RoadGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUIButton]
         public bool InspectRoadMaterials
         {
@@ -285,6 +332,7 @@ namespace Advanced_Graphics
 
         [SettingsUIHidden]
         [SettingsUISection(RoadSection, RoadGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUIButton]
         public bool ExportGravelRoadMaterials
         {
@@ -293,6 +341,7 @@ namespace Advanced_Graphics
 
         [SettingsUIHidden]
         [SettingsUISection(GrassSection, GrassGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUIButton]
         public bool ExportGrassMaterials
         {
@@ -301,6 +350,7 @@ namespace Advanced_Graphics
 
         [SettingsUIHidden]
         [SettingsUISection(GrassSection, GrassGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUIButton]
         public bool OpenGrassDiagnosticFolder
         {
@@ -321,11 +371,13 @@ namespace Advanced_Graphics
         }
 
         [SettingsUISection(GravelSection, GravelGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         public bool RoadGravelEnabled { get; set; }
         [SettingsUIHidden]
         public bool ShowGravelPanelButton { get; set; } = true;
         private int m_RoadGravelDetail;
         [SettingsUISection(GravelSection, GravelGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = 2, step = 1, scalarMultiplier = 1)]
         public int RoadGravelDetail
         {
@@ -333,21 +385,27 @@ namespace Advanced_Graphics
             set => SwitchTextureMode(3, ref m_RoadGravelDetail, value);
         }
         [SettingsUISection(GravelSection, GravelGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 50, max = MaxTextureUvSize, step = 25, scalarMultiplier = 1)]
         public int RoadGravelUvSizePercent { get; set; } = 100;
         [SettingsUISection(GravelSection, GravelGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = MaxTextureDepthStrength, step = 25, scalarMultiplier = 1)]
         public int RoadGravelDepthStrengthPercent { get; set; }
         [SettingsUISection(GravelSection, GravelGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = MaxTextureUvOffset, step = 5, scalarMultiplier = 1)]
         public int RoadGravelUvOffsetX { get; set; }
         [SettingsUISection(GravelSection, GravelGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = MaxTextureUvOffset, step = 5, scalarMultiplier = 1)]
         public int RoadGravelUvOffsetY { get; set; }
         [SettingsUISection(GravelSection, GravelGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = 360, step = 1, scalarMultiplier = 1)]
         public int RoadGravelUvRotation { get; set; }
         [SettingsUISection(GravelSection, GravelGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUIButton]
         public bool OpenGravelTextureFolder
         {
@@ -363,22 +421,28 @@ namespace Advanced_Graphics
             }
         }
         [SettingsUISection(GravelSection, GravelGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUIButton]
         public bool ReloadGravelTexture { set { if (value) Mod.RoadGravel?.ReloadCustomTexture(); } }
         [SettingsUISection(GravelSection, GravelGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUIButton]
         public bool ResetRoadGravel { set { if (value) { ResetRoadGravelDefaults(); ApplyAndSave(); } } }
 
         [SettingsUISection(GravelSidewalkSection, ShoulderGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         public bool GravelShoulderEnabled { get; set; }
         [SettingsUISection(GravelSidewalkSection, ShoulderGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 50, max = MaxTextureUvSize, step = 25, scalarMultiplier = 1)]
         public int GravelShoulderUvSizePercent { get; set; } = 100;
         [SettingsUISection(GravelSidewalkSection, ShoulderGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = MaxTextureDepthStrength, step = 25, scalarMultiplier = 1)]
         public int GravelShoulderDepthStrengthPercent { get; set; }
         private int m_GravelShoulderDetail;
         [SettingsUISection(GravelSidewalkSection, ShoulderGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = 2, step = 1, scalarMultiplier = 1)]
         public int GravelShoulderDetail
         {
@@ -386,18 +450,23 @@ namespace Advanced_Graphics
             set => SwitchTextureMode(4, ref m_GravelShoulderDetail, value);
         }
         [SettingsUISection(GravelSidewalkSection, ShoulderGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = MaxTextureUvOffset, step = 5, scalarMultiplier = 1)]
         public int GravelShoulderUvOffsetX { get; set; }
         [SettingsUISection(GravelSidewalkSection, ShoulderGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = MaxTextureUvOffset, step = 5, scalarMultiplier = 1)]
         public int GravelShoulderUvOffsetY { get; set; }
         [SettingsUISection(GravelSidewalkSection, ShoulderGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = 360, step = 1, scalarMultiplier = 1)]
         public int GravelShoulderUvRotation { get; set; }
         [SettingsUISection(GravelSidewalkSection, ShoulderGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUIButton]
         public bool ReloadGravelShoulderTexture { set { if (value) Mod.GravelShoulderSurface?.ReloadCustomTexture(); } }
         [SettingsUISection(GravelSidewalkSection, ShoulderGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUIButton]
         public bool OpenGravelShoulderTextureFolder
         {
@@ -413,6 +482,7 @@ namespace Advanced_Graphics
             }
         }
         [SettingsUISection(GravelSidewalkSection, ShoulderGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUIButton]
         public bool ResetGravelShoulder
         {
@@ -439,6 +509,7 @@ namespace Advanced_Graphics
 
         private int m_RoadAsphaltDetail;
         [SettingsUISection(RoadSection, RoadGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = 2, step = 1, scalarMultiplier = 1)]
         public int RoadAsphaltDetail
         {
@@ -447,9 +518,11 @@ namespace Advanced_Graphics
         }
 
         [SettingsUISection(RoadSection, RoadGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         public bool RoadAsphaltEnabled { get; set; }
 
         [SettingsUISection(RoadSection, RoadGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUIButton]
         public bool OpenRoadTextureFolder
         {
@@ -470,15 +543,18 @@ namespace Advanced_Graphics
         }
 
         [SettingsUISection(RoadSection, RoadGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUIButton]
         public bool ReloadRoadTexture { set { if (value) Mod.RoadAsphalt?.ReloadCustomTexture(); } }
 
         [SettingsUISection(RoadSection, RoadUvGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 50, max = MaxTextureUvSize, step = 25, scalarMultiplier = 1)]
         public int RoadUvSizePercent { get; set; }
 
         private float m_ParkingTextureScaleFactor = 1f;
         [SettingsUISection(RoadSection, RoadUvGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0.1f, max = 8f, step = 0.1f, scalarMultiplier = 1, unit = Unit.kFloatSingleFraction)]
         public float ParkingTextureScaleFactor
         {
@@ -489,6 +565,7 @@ namespace Advanced_Graphics
 
         private float m_ParkingDepthStrengthFactor = 1f;
         [SettingsUISection(RoadSection, RoadUvGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = 8f, step = 0.1f, scalarMultiplier = 1, unit = Unit.kFloatSingleFraction)]
         public float ParkingDepthStrengthFactor
         {
@@ -498,26 +575,32 @@ namespace Advanced_Graphics
         }
 
         [SettingsUISection(RoadSection, RoadUvGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = MaxTextureDepthStrength, step = 25, scalarMultiplier = 1)]
         public int RoadDepthStrengthPercent { get; set; }
 
         [SettingsUISection(RoadSection, RoadUvGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = MaxTextureUvOffset, step = 5, scalarMultiplier = 1)]
         public int RoadUvOffsetX { get; set; }
 
         [SettingsUISection(RoadSection, RoadUvGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = MaxTextureUvOffset, step = 5, scalarMultiplier = 1)]
         public int RoadUvOffsetY { get; set; }
 
         [SettingsUISection(RoadSection, RoadUvGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = 360, step = 1, scalarMultiplier = 1)]
         public int RoadUvRotation { get; set; }
 
         [SettingsUISection(RoadSection, RoadCrackGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = MaxRoadCrackCount, step = 10, scalarMultiplier = 1)]
         public int RoadCrackCount { get; set; }
 
         [SettingsUISection(RoadSection, RoadCrackGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         public bool UseCustomRoadCracks
         {
             get => m_UseCustomRoadCracks;
@@ -525,6 +608,7 @@ namespace Advanced_Graphics
         }
 
         [SettingsUISection(RoadSection, RoadCrackGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUIButton]
         public bool OpenRoadCrackFolder
         {
@@ -541,46 +625,57 @@ namespace Advanced_Graphics
         }
 
         [SettingsUISection(RoadSection, RoadCrackGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUIButton]
         public bool ReloadRoadCracks { set { if (value) Mod.RoadAsphalt?.ReloadCustomTexture(); } }
 
         [SettingsUISection(RoadSection, RoadCrackGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 25, max = MaxRoadCrackSize, step = 25, scalarMultiplier = 1)]
         public int RoadCrackSizePercent { get; set; }
 
         [SettingsUISection(RoadSection, RoadCrackGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 25, max = MaxRoadCrackWidth, step = 25, scalarMultiplier = 1)]
         public int RoadCrackWidthPercent { get; set; }
 
         [SettingsUISection(RoadSection, RoadCrackGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = MaxTextureDepthStrength, step = 25, scalarMultiplier = 1)]
         public int RoadCrackDepthStrengthPercent { get; set; } = 100;
 
         [SettingsUISection(RoadSection, RoadCrackGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = 360, step = 1, scalarMultiplier = 1)]
         public int RoadCrackRotation { get; set; }
 
         [SettingsUISection(RoadSection, RoadCrackGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = MaxTextureUvOffset, step = 1, scalarMultiplier = 1)]
         public int RoadCrackOffsetX { get; set; }
 
         [SettingsUISection(RoadSection, RoadCrackGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = MaxTextureUvOffset, step = 1, scalarMultiplier = 1)]
         public int RoadCrackOffsetY { get; set; }
 
         [SettingsUISection(RoadSection, RoadCrackGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = MaxRoadCrackOpacity, step = 10, scalarMultiplier = 1)]
         public int RoadCrackOpacityPercent { get; set; }
 
         [SettingsUISection(RoadSection, RoadCrackGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = 100, step = 10, scalarMultiplier = 1)]
         public int RoadCrackRandomnessPercent { get; set; }
 
         [SettingsUISection(RoadSection, RoadCrackGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0.1f, max = 8, step = 0.05f, scalarMultiplier = 1, unit = Unit.kFloatSingleFraction)]
         public float RoadTextureTiling { get; set; }
 
         [SettingsUISection(RoadSection, RoadCrackGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUIButton]
         public bool ResetRoadAsphalt
         {
@@ -614,6 +709,7 @@ namespace Advanced_Graphics
         public bool ShowRoadPanelButton { get; set; }
 
         [SettingsUISection(SidewalkSection, SidewalkGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         public bool SidewalkEnabled { get; set; }
 
         [SettingsUIHidden]
@@ -624,11 +720,13 @@ namespace Advanced_Graphics
 
         [SettingsUIHidden]
         [SettingsUISection(SidewalkSection, SidewalkGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         public bool DiagnoseRoadEUAtlas { get; set; }
 
         // Debug only: sync blend used for junction sidewalk UVs. 0 linear, 1 smoothstep, 2 t², 3 1-(1-t)², 4 none, 5 full, 6 mark remapped piece.
         [SettingsUIHidden]
         [SettingsUISection(SidewalkSection, SidewalkGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = 6, step = 1, scalarMultiplier = 1)]
         public int JunctionSyncBlendMode { get; set; }
 
@@ -638,6 +736,7 @@ namespace Advanced_Graphics
 
         private int m_SidewalkDetail;
         [SettingsUISection(SidewalkSection, SidewalkGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = 2, step = 1, scalarMultiplier = 1)]
         public int SidewalkDetail
         {
@@ -646,6 +745,7 @@ namespace Advanced_Graphics
         }
 
         [SettingsUISection(SidewalkSection, SidewalkGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUIButton]
         public bool OpenSidewalkTextureFolder
         {
@@ -666,11 +766,13 @@ namespace Advanced_Graphics
         }
 
         [SettingsUISection(SidewalkSection, SidewalkGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUIButton]
         public bool ReloadSidewalkTexture { set { if (value) Mod.Sidewalk?.ReloadCustomTexture(); } }
 
         [SettingsUIHidden]
         [SettingsUISection(SidewalkSection, SidewalkGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUIButton]
         public bool ExportSidewalkAtlas
         {
@@ -679,6 +781,7 @@ namespace Advanced_Graphics
 
         [SettingsUIHidden]
         [SettingsUISection(RailSection, RailGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUIButton]
         public bool ExportRailMaterials
         {
@@ -687,6 +790,7 @@ namespace Advanced_Graphics
 
         [SettingsUIHidden]
         [SettingsUISection(RailSection, RailGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUIButton]
         public bool OpenRailDiagnosticFolder
         {
@@ -707,10 +811,12 @@ namespace Advanced_Graphics
         }
 
         [SettingsUISection(RailSection, RailGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         public bool RailGravelEnabled { get; set; }
 
         private int m_RailGravelDetail;
         [SettingsUISection(RailSection, RailGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = 2, step = 1, scalarMultiplier = 1)]
         public int RailGravelDetail
         {
@@ -719,6 +825,7 @@ namespace Advanced_Graphics
         }
 
         [SettingsUISection(RailSection, RailGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUIButton]
         public bool OpenRailTextureFolder
         {
@@ -739,30 +846,37 @@ namespace Advanced_Graphics
         }
 
         [SettingsUISection(RailSection, RailGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUIButton]
         public bool ReloadRailTexture { set { if (value) Mod.RailGravel?.ReloadCustomTexture(); } }
 
         [SettingsUISection(RailSection, RailUvGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 50, max = MaxTextureUvSize, step = 25, scalarMultiplier = 1)]
         public int RailGravelUvSizePercent { get; set; }
 
         [SettingsUISection(RailSection, RailUvGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = MaxTextureDepthStrength, step = 25, scalarMultiplier = 1)]
         public int RailGravelDepthStrengthPercent { get; set; }
 
         [SettingsUISection(RailSection, RailUvGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = MaxTextureUvOffset, step = 5, scalarMultiplier = 1)]
         public int RailGravelUvOffsetX { get; set; }
 
         [SettingsUISection(RailSection, RailUvGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = MaxTextureUvOffset, step = 5, scalarMultiplier = 1)]
         public int RailGravelUvOffsetY { get; set; }
 
         [SettingsUISection(RailSection, RailUvGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = 360, step = 1, scalarMultiplier = 1)]
         public int RailGravelUvRotation { get; set; }
 
         [SettingsUISection(RailSection, RailUvGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUIButton]
         public bool ResetRailGravel
         {
@@ -775,79 +889,97 @@ namespace Advanced_Graphics
         }
 
         [SettingsUISection(SidewalkSection, SidewalkUvGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 10, max = MaxTextureUvSize, step = 5, scalarMultiplier = 1)]
         public int SidewalkUvSizePercent { get; set; }
 
         [SettingsUISection(SidewalkSection, SidewalkUvGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = MaxTextureDepthStrength, step = 25, scalarMultiplier = 1)]
         public int SidewalkDepthStrengthPercent { get; set; }
 
         [SettingsUISection(SidewalkSection, SidewalkUvGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = MaxTextureUvOffset, step = 5, scalarMultiplier = 1)]
         public int SidewalkUvOffsetX { get; set; }
 
         [SettingsUISection(SidewalkSection, SidewalkUvGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = MaxTextureUvOffset, step = 5, scalarMultiplier = 1)]
         public int SidewalkUvOffsetY { get; set; }
 
         [SettingsUISection(SidewalkSection, SidewalkUvGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = 360, step = 1, scalarMultiplier = 1)]
         public int SidewalkUvRotation { get; set; }
 
         [SettingsUISection(SidewalkSection, SidewalkCrackGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = 400, step = 10, scalarMultiplier = 1)]
         public int SidewalkCrackCount { get; set; }
 
         [SettingsUISection(SidewalkSection, SidewalkCrackGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 25, max = 600, step = 25, scalarMultiplier = 1)]
         public int SidewalkCrackSizePercent { get; set; }
 
         [SettingsUISection(SidewalkSection, SidewalkCrackGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 25, max = 400, step = 25, scalarMultiplier = 1)]
         public int SidewalkCrackWidthPercent { get; set; }
 
         [SettingsUISection(SidewalkSection, SidewalkCrackGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = MaxTextureDepthStrength, step = 25, scalarMultiplier = 1)]
         public int SidewalkCrackDepthStrengthPercent { get; set; } = 100;
 
         [SettingsUISection(SidewalkSection, SidewalkCrackGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = 360, step = 1, scalarMultiplier = 1)]
         public int SidewalkCrackRotation { get; set; } = 0;
 
         [SettingsUISection(SidewalkSection, SidewalkCrackGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = MaxTextureUvOffset, step = 1, scalarMultiplier = 1)]
         public int SidewalkCrackOffsetX { get; set; } = 0;
 
         [SettingsUISection(SidewalkSection, SidewalkCrackGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = MaxTextureUvOffset, step = 1, scalarMultiplier = 1)]
         public int SidewalkCrackOffsetY { get; set; } = 0;
 
         [SettingsUISection(SidewalkSection, SidewalkCrackGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = 200, step = 10, scalarMultiplier = 1)]
         public int SidewalkCrackOpacityPercent { get; set; }
 
         [SettingsUISection(SidewalkSection, SidewalkCrackGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = 100, step = 10, scalarMultiplier = 1)]
         public int SidewalkCrackRandomnessPercent { get; set; }
 
         [SettingsUISection(SidewalkSection, SidewalkCrackGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0.1f, max = 8, step = 0.05f, scalarMultiplier = 1, unit = Unit.kFloatSingleFraction)]
         public float SidewalkTextureTiling { get; set; }
 
         [SettingsUISection(SidewalkSection, SidewalkCrackGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUIButton]
         public bool ResetSidewalk
         {
             set
             {
                 if (!value) return;
-                SidewalkJunctionOverlay = true;
+                SidewalkJunctionOverlay = false;
+                SidewalkJunctionParking = false;
             SetSidewalkDefaults();
                 ApplyAndSave();
             }
         }
 
         [SettingsUISection(AlleySidewalkSection, AlleySidewalkGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         public bool AlleySidewalkEnabled { get; set; }
 
         [SettingsUIHidden]
@@ -855,6 +987,7 @@ namespace Advanced_Graphics
 
         private int m_AlleySidewalkDetail;
         [SettingsUISection(AlleySidewalkSection, AlleySidewalkGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = 2, step = 1, scalarMultiplier = 1)]
         public int AlleySidewalkDetail
         {
@@ -863,6 +996,7 @@ namespace Advanced_Graphics
         }
 
         [SettingsUISection(AlleySidewalkSection, AlleySidewalkGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUIButton]
         public bool OpenAlleySidewalkTextureFolder
         {
@@ -883,70 +1017,87 @@ namespace Advanced_Graphics
         }
 
         [SettingsUISection(AlleySidewalkSection, AlleySidewalkGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUIButton]
         public bool ReloadAlleySidewalkTexture { set { if (value) Mod.AlleySidewalk?.ReloadCustomTexture(); } }
 
         [SettingsUISection(AlleySidewalkSection, AlleySidewalkUvGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 50, max = MaxTextureUvSize, step = 25, scalarMultiplier = 1)]
         public int AlleySidewalkUvSizePercent { get; set; }
 
         [SettingsUISection(AlleySidewalkSection, AlleySidewalkUvGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = MaxTextureDepthStrength, step = 25, scalarMultiplier = 1)]
         public int AlleySidewalkDepthStrengthPercent { get; set; }
 
         [SettingsUISection(AlleySidewalkSection, AlleySidewalkUvGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = MaxTextureUvOffset, step = 5, scalarMultiplier = 1)]
         public int AlleySidewalkUvOffsetX { get; set; }
 
         [SettingsUISection(AlleySidewalkSection, AlleySidewalkUvGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = MaxTextureUvOffset, step = 5, scalarMultiplier = 1)]
         public int AlleySidewalkUvOffsetY { get; set; }
 
         [SettingsUISection(AlleySidewalkSection, AlleySidewalkUvGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = 360, step = 1, scalarMultiplier = 1)]
         public int AlleySidewalkUvRotation { get; set; }
 
         [SettingsUISection(AlleySidewalkSection, AlleySidewalkCrackGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = 400, step = 10, scalarMultiplier = 1)]
         public int AlleySidewalkCrackCount { get; set; }
 
         [SettingsUISection(AlleySidewalkSection, AlleySidewalkCrackGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 25, max = 600, step = 25, scalarMultiplier = 1)]
         public int AlleySidewalkCrackSizePercent { get; set; }
 
         [SettingsUISection(AlleySidewalkSection, AlleySidewalkCrackGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 25, max = 400, step = 25, scalarMultiplier = 1)]
         public int AlleySidewalkCrackWidthPercent { get; set; }
 
         [SettingsUISection(AlleySidewalkSection, AlleySidewalkCrackGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = MaxTextureDepthStrength, step = 25, scalarMultiplier = 1)]
         public int AlleySidewalkCrackDepthStrengthPercent { get; set; } = 100;
 
         [SettingsUISection(AlleySidewalkSection, AlleySidewalkCrackGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = 360, step = 1, scalarMultiplier = 1)]
         public int AlleySidewalkCrackRotation { get; set; } = 0;
 
         [SettingsUISection(AlleySidewalkSection, AlleySidewalkCrackGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = MaxTextureUvOffset, step = 1, scalarMultiplier = 1)]
         public int AlleySidewalkCrackOffsetX { get; set; } = 0;
 
         [SettingsUISection(AlleySidewalkSection, AlleySidewalkCrackGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = MaxTextureUvOffset, step = 1, scalarMultiplier = 1)]
         public int AlleySidewalkCrackOffsetY { get; set; } = 0;
 
         [SettingsUISection(AlleySidewalkSection, AlleySidewalkCrackGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = 200, step = 10, scalarMultiplier = 1)]
         public int AlleySidewalkCrackOpacityPercent { get; set; }
 
         [SettingsUISection(AlleySidewalkSection, AlleySidewalkCrackGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = 100, step = 10, scalarMultiplier = 1)]
         public int AlleySidewalkCrackRandomnessPercent { get; set; }
 
         [SettingsUISection(AlleySidewalkSection, AlleySidewalkCrackGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0.1f, max = 8, step = 0.05f, scalarMultiplier = 1, unit = Unit.kFloatSingleFraction)]
         public float AlleySidewalkTextureTiling { get; set; }
 
         [SettingsUISection(AlleySidewalkSection, AlleySidewalkCrackGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUIButton]
         public bool ResetAlleySidewalk
         {
@@ -959,38 +1110,47 @@ namespace Advanced_Graphics
         }
 
         [SettingsUISection(MainSection, TreeGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(GraphicsDisabled))]
         [SettingsUIButton]
         public bool ResetTree { set { if (value) { TreeLodDistance = 100; ApplyAndSave(); } } }
 
         [SettingsUISection(MainSection, DetailGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(GraphicsDisabled))]
         [SettingsUIButton]
         public bool ResetDetail { set { if (value) { GlobalDetailScalePercent = 100; ApplyAndSave(); } } }
 
         [SettingsUISection(MainSection, CacheGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(GraphicsDisabled))]
         [SettingsUIButton]
         public bool ResetCache { set { if (value) { GeometryCacheSizeMB = DefaultCacheMB; ApplyAndSave(); } } }
 
         [SettingsUISection(MainSection, TerrainGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(GraphicsDisabled))]
         [SettingsUIButton]
         public bool ResetTessellation { set { if (value) { TerrainTessellationLevel = DefaultTerrainTessellation; ApplyAndSave(); } } }
 
         [SettingsUISection(MainSection, TerrainGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(GraphicsDisabled))]
         [SettingsUIButton]
         public bool ResetPatchSize { set { if (value) { TerrainPatchSizeUnits = DefaultTerrainPatchSize; ApplyAndSave(); } } }
 
         [SettingsUISection(MainSection, ShadowsGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(GraphicsDisabled))]
         [SettingsUIButton]
         public bool ResetShadowResolution { set { if (value) { ShadowResolution = 0; ApplyAndSave(); } } }
 
         [SettingsUISection(MainSection, ShadowsGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(GraphicsDisabled))]
         [SettingsUIButton]
         public bool ResetShadowDistance { set { if (value) { ShadowDistanceMeters = 0; ApplyAndSave(); } } }
 
         [SettingsUISection(MainSection, ShadowsGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(GraphicsDisabled))]
         [SettingsUIButton]
         public bool ResetSmallShadows { set { if (value) { SmallShadowCasterThreshold = 0; ApplyAndSave(); } } }
 
         [SettingsUISection(MainSection, SharpnessGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(GraphicsDisabled))]
         [SettingsUIButton]
         public bool ResetTaaSharpen { set { if (value) { TaaSharpenStrength = 0; ApplyAndSave(); } } }
 
@@ -1042,6 +1202,8 @@ namespace Advanced_Graphics
             RoadCrackRandomnessPercent = 50;
             ShowAppButton = true;
             ShowGraphicsAppButton = true;
+            GraphicsEnabled = true;
+            TexturesEnabled = true;
             LuminaNumberFix = false;
             ShowRoadPanelButton = true;
             ShowSidewalkPanelButton = true;
@@ -1051,7 +1213,8 @@ namespace Advanced_Graphics
             ParkingTextureScaleFactor = 1f;
             ParkingDepthStrengthFactor = 1f;
             RoadUvOffsetX = RoadUvOffsetY = RoadUvRotation = 0;
-            SidewalkJunctionOverlay = true;
+            SidewalkJunctionOverlay = false;
+            SidewalkJunctionParking = false;
             SetSidewalkDefaults();
             SetGrassDefaults();
             SetFootpathDefaults();
@@ -1186,10 +1349,60 @@ namespace Advanced_Graphics
             bool textures = m_TextureApplyPending;
             m_TextureApplyPending = false;
             if (textures) ApplyToSystemNow();
-            else
+            else ApplyGraphicsToSystem(true);
+        }
+
+        // Graphics are applied only when a graphics value (or the module switch) changed, never because of texture edits.
+        private int m_GraphicsSignature;
+        private static System.Reflection.PropertyInfo[] s_GraphicsProperties;
+        private static readonly string[] s_GraphicsGroups = { TreeGroup, DetailGroup, CacheGroup, TerrainGroup, ShadowsGroup, SharpnessGroup, BloomGroup, SkyGroup };
+
+        private int GraphicsSignature()
+        {
+            if (s_GraphicsProperties == null)
+            {
+                var list = new System.Collections.Generic.List<System.Reflection.PropertyInfo>();
+                foreach (var property in typeof(Setting).GetProperties(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public))
+                {
+                    if (!property.CanRead || property.GetIndexParameters().Length != 0) continue;
+                    foreach (var data in property.GetCustomAttributesData())
+                    {
+                        if (data.AttributeType.Name != "SettingsUISectionAttribute" || data.ConstructorArguments.Count < 2) continue;
+                        if (Array.IndexOf(s_GraphicsGroups, data.ConstructorArguments[data.ConstructorArguments.Count - 1].Value as string) >= 0 ||
+                            Array.IndexOf(s_GraphicsGroups, data.ConstructorArguments[1].Value as string) >= 0) list.Add(property);
+                        break;
+                    }
+                }
+                s_GraphicsProperties = list.ToArray();
+            }
+            unchecked
+            {
+                int hash = GraphicsEnabled ? 17 : 23;
+                foreach (var property in s_GraphicsProperties)
+                {
+                    object value;
+                    try { value = property.GetValue(this); }
+                    catch (Exception) { continue; }
+                    hash = hash * 31 + (value?.GetHashCode() ?? 0);
+                }
+                return hash;
+            }
+        }
+
+        internal void ApplyGraphicsToSystem(bool force = false)
+        {
+            int signature = GraphicsSignature();
+            if (!force && signature == m_GraphicsSignature) return;
+            m_GraphicsSignature = signature;
+            if (GraphicsEnabled)
             {
                 if (Mod.TreeLod != null) Mod.TreeLod.DistancePercent = TreeLodDistance;
                 Mod.Graphics?.Apply(this);
+            }
+            else
+            {
+                if (Mod.TreeLod != null) Mod.TreeLod.DistancePercent = 100;
+                Mod.Graphics?.Disable();
             }
         }
 
@@ -1197,44 +1410,44 @@ namespace Advanced_Graphics
         {
             RoadTextureTiling = Math.Max(0.1f, Math.Min(8f, (float)Math.Round(RoadTextureTiling, 2)));
             CaptureTextureModeProfiles();
-            if (Mod.TreeLod != null) Mod.TreeLod.DistancePercent = TreeLodDistance;
-            Mod.Graphics?.Apply(this);
-            Mod.RoadGravel?.Configure(RoadGravelEnabled && (RoadGravelDetail != 0 || RoadGravelUvSizePercent != 100 ||
+            ApplyGraphicsToSystem();
+            bool textures = TexturesEnabled;
+            Mod.RoadGravel?.Configure((textures && RoadGravelEnabled) && (RoadGravelDetail != 0 || RoadGravelUvSizePercent != 100 ||
                 RoadGravelDepthStrengthPercent != 0 || TextureColorFilter.IsActive(RoadGravelFilterColor, RoadGravelFilterOpacityPercent) || RoadGravelUvOffsetX != 0 || RoadGravelUvOffsetY != 0 || RoadGravelUvRotation != 0), RoadGravelDetail,
                 RoadGravelDetail == 2 ? RoadTextureSource.Custom : RoadTextureSource.Generated,
                 RoadGravelUvSizePercent, RoadGravelDepthStrengthPercent, 1f,
                 RoadGravelUvOffsetX, RoadGravelUvOffsetY, RoadGravelUvRotation, 0, 100, 100, 100, 50, RoadGravelFilterColor, RoadGravelFilterOpacityPercent);
-            Mod.GravelShoulderSurface?.Configure(GravelShoulderEnabled && GravelShoulderDetail != 0,
+            Mod.GravelShoulderSurface?.Configure((textures && GravelShoulderEnabled) && GravelShoulderDetail != 0,
                 GravelShoulderDetail, RoadTextureSource.Generated, 100, 100, 1f,
                 0, 0, 0, 0, 100, 100, 100, 50);
-            Mod.GravelShoulder?.Configure(GravelShoulderEnabled, GravelShoulderUvSizePercent, GravelShoulderDepthStrengthPercent,
+            Mod.GravelShoulder?.Configure((textures && GravelShoulderEnabled), GravelShoulderUvSizePercent, GravelShoulderDepthStrengthPercent,
                 GravelShoulderDetail, GravelShoulderUvOffsetX, GravelShoulderUvOffsetY, GravelShoulderUvRotation, GravelShoulderFilterColor, GravelShoulderFilterOpacityPercent);
-            Mod.RoadAsphalt?.Configure(RoadAsphaltEnabled, RoadAsphaltDetail, RoadAsphaltDetail == 2 ? RoadTextureSource.Custom : RoadTextureSource.Generated,
+            Mod.RoadAsphalt?.Configure((textures && RoadAsphaltEnabled), RoadAsphaltDetail, RoadAsphaltDetail == 2 ? RoadTextureSource.Custom : RoadTextureSource.Generated,
                 RoadUvSizePercent, RoadDepthStrengthPercent, RoadTextureTiling,
                 RoadUvOffsetX, RoadUvOffsetY, RoadUvRotation, RoadCrackCount, RoadCrackSizePercent,
                 RoadCrackWidthPercent, RoadCrackOpacityPercent, RoadCrackRandomnessPercent, RoadFilterColor, RoadFilterOpacityPercent, UseCustomRoadCracks, RoadCrackDepthStrengthPercent, RoadCrackRotation, RoadCrackOffsetX, RoadCrackOffsetY);
-            Mod.Sidewalk?.Configure(SidewalkEnabled, SidewalkDetail, SidewalkDetail == 2 ? RoadTextureSource.Custom : RoadTextureSource.Generated,
+            Mod.Sidewalk?.Configure((textures && SidewalkEnabled), SidewalkDetail, SidewalkDetail == 2 ? RoadTextureSource.Custom : RoadTextureSource.Generated,
                 SidewalkUvSizePercent, SidewalkDepthStrengthPercent, SidewalkTextureTiling,
                 SidewalkUvOffsetX, SidewalkUvOffsetY, SidewalkUvRotation, SidewalkCrackCount, SidewalkCrackSizePercent,
                 SidewalkCrackWidthPercent, SidewalkCrackOpacityPercent, SidewalkCrackRandomnessPercent, SidewalkFilterColor, SidewalkFilterOpacityPercent,
                 crackDepth: SidewalkCrackDepthStrengthPercent, crackRotation: SidewalkCrackRotation,
                 crackOffsetX: SidewalkCrackOffsetX, crackOffsetY: SidewalkCrackOffsetY);
-            Mod.AlleySidewalk?.Configure(AlleySidewalkEnabled, AlleySidewalkDetail, AlleySidewalkDetail == 2 ? RoadTextureSource.Custom : RoadTextureSource.Generated,
+            Mod.AlleySidewalk?.Configure((textures && AlleySidewalkEnabled), AlleySidewalkDetail, AlleySidewalkDetail == 2 ? RoadTextureSource.Custom : RoadTextureSource.Generated,
                 AlleySidewalkUvSizePercent, AlleySidewalkDepthStrengthPercent, AlleySidewalkTextureTiling,
                 AlleySidewalkUvOffsetX, AlleySidewalkUvOffsetY, AlleySidewalkUvRotation, AlleySidewalkCrackCount, AlleySidewalkCrackSizePercent,
                 AlleySidewalkCrackWidthPercent, AlleySidewalkCrackOpacityPercent, AlleySidewalkCrackRandomnessPercent, AlleySidewalkFilterColor, AlleySidewalkFilterOpacityPercent,
                 crackDepth: AlleySidewalkCrackDepthStrengthPercent, crackRotation: AlleySidewalkCrackRotation,
                 crackOffsetX: AlleySidewalkCrackOffsetX, crackOffsetY: AlleySidewalkCrackOffsetY);
-            Mod.AlleySidewalkAtlas?.Configure(AlleySidewalkEnabled &&
+            Mod.AlleySidewalkAtlas?.Configure((textures && AlleySidewalkEnabled) &&
                 (AlleySidewalkDetail != 0 || AlleySidewalkUvSizePercent != 100 || AlleySidewalkDepthStrengthPercent != 0 ||
                  AlleySidewalkUvOffsetX != 0 || AlleySidewalkUvOffsetY != 0 || AlleySidewalkUvRotation != 0 || AlleySidewalkCrackCount != 0 || TextureColorFilter.IsActive(AlleySidewalkFilterColor, AlleySidewalkFilterOpacityPercent)), false);
             // Leave the original RoadEU atlas untouched at unchanged defaults.
-            Mod.SidewalkAtlas?.Configure(SidewalkEnabled &&
+            Mod.SidewalkAtlas?.Configure((textures && SidewalkEnabled) &&
                 ((Mod.DebugBackendEnabled && DiagnoseRoadEUAtlas) || HasSidewalkEndcapChanges || SidewalkDetail != 0 || SidewalkUvSizePercent != 100 ||
                  SidewalkDepthStrengthPercent != 0 || SidewalkUvOffsetX != 0 ||
                  SidewalkUvOffsetY != 0 || SidewalkUvRotation != 0 || SidewalkCrackCount != 0 || TextureColorFilter.IsActive(SidewalkFilterColor, SidewalkFilterOpacityPercent)),
                 Mod.DebugBackendEnabled && DiagnoseRoadEUAtlas);
-            Mod.RailGravel?.Configure(RailGravelEnabled, RailGravelDetail,
+            Mod.RailGravel?.Configure((textures && RailGravelEnabled), RailGravelDetail,
                 RailGravelDetail == 2 ? RoadTextureSource.Custom : RoadTextureSource.Generated,
                 RailGravelUvSizePercent, RailGravelDepthStrengthPercent, 1f,
                 RailGravelUvOffsetX, RailGravelUvOffsetY, RailGravelUvRotation,

@@ -22,6 +22,7 @@ namespace Advanced_Graphics
         protected bool RefreshEndcapScale()
         {
             var settings = Mod.ActiveSetting;
+            if (settings != null && !settings.TexturesEnabled) settings = null;
             bool parking = this is ParkingRoadAtlasSystem;
             float u = (parking ? settings?.ParkingEndcapU : IsAlleyAtlas ? settings?.AlleyEndcapU : settings?.SidewalkEndcapU) ?? 1f;
             float v = (parking ? settings?.ParkingEndcapV : IsAlleyAtlas ? settings?.AlleyEndcapV : settings?.SidewalkEndcapV) ?? 1f;

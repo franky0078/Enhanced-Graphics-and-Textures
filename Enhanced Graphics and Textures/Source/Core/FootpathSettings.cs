@@ -11,10 +11,12 @@ namespace Advanced_Graphics
         public const string FootpathGroup = "Footpath materials";
 
         [SettingsUISection(FootpathSection, FootpathGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         public bool FootpathEnabled { get; set; }
 
         private int m_FootpathDetail;
         [SettingsUISection(FootpathSection, FootpathGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = 2, step = 1, scalarMultiplier = 1)]
         public int FootpathDetail
         {
@@ -23,26 +25,32 @@ namespace Advanced_Graphics
         }
 
         [SettingsUISection(FootpathSection, FootpathGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 10, max = MaxTextureUvSize, step = 5, scalarMultiplier = 1)]
         public int FootpathUvSizePercent { get; set; } = 100;
 
         [SettingsUISection(FootpathSection, FootpathGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = MaxTextureDepthStrength, step = 25, scalarMultiplier = 1)]
         public int FootpathDepthStrengthPercent { get; set; }
 
         [SettingsUISection(FootpathSection, FootpathGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = MaxTextureUvOffset, step = 5, scalarMultiplier = 1)]
         public int FootpathUvOffsetX { get; set; }
 
         [SettingsUISection(FootpathSection, FootpathGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = MaxTextureUvOffset, step = 5, scalarMultiplier = 1)]
         public int FootpathUvOffsetY { get; set; }
 
         [SettingsUISection(FootpathSection, FootpathGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = 360, step = 1, scalarMultiplier = 1)]
         public int FootpathUvRotation { get; set; }
 
         [SettingsUISection(FootpathSection, FootpathGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUIButton]
         public bool OpenFootpathTextureFolder
         {
@@ -59,10 +67,12 @@ namespace Advanced_Graphics
         }
 
         [SettingsUISection(FootpathSection, FootpathGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUIButton]
         public bool ReloadFootpathTexture { set { if (value) Mod.Footpath?.ReloadCustomTexture(); } }
 
         [SettingsUISection(FootpathSection, FootpathGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUIButton]
         public bool ResetFootpath { set { if (value) { SetFootpathDefaults(); ApplyAndSave(); } } }
 
@@ -80,7 +90,7 @@ namespace Advanced_Graphics
 
         private void ApplyFootpathToSystem()
         {
-            Mod.Footpath?.Configure(FootpathEnabled && (FootpathDetail != 0 || FootpathUvSizePercent != 100 ||
+            Mod.Footpath?.Configure(TexturesEnabled && FootpathEnabled && (FootpathDetail != 0 || FootpathUvSizePercent != 100 ||
                 FootpathDepthStrengthPercent != 0 || FootpathUvOffsetX != 0 || FootpathUvOffsetY != 0 ||
                 FootpathUvRotation != 0 || TextureColorFilter.IsActive(FootpathFilterColor, FootpathFilterOpacityPercent)),
                 FootpathDetail, FootpathDetail == 2 ? RoadTextureSource.Custom : RoadTextureSource.Generated,

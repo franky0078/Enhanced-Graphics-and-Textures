@@ -30,10 +30,73 @@ namespace Advanced_Graphics
         private static bool s_ParkingMode;
         private const int BuildsPerScan = 16;
         private const int MaximumCorners = 4096;
+        private bool m_LimitLogged, m_MainPending;
+        private readonly Dictionary<(Entity, bool), float2> m_BuildHistory = new Dictionary<(Entity, bool), float2>();
+
+        // Only a real loop is blocked (back to an earlier state more than 3 times in 60 s); progress while loading always builds.
+        private readonly Dictionary<(Entity, bool), float2> m_Oscillations = new Dictionary<(Entity, bool), float2>();
+
+        private bool Flapping((Entity, bool) key) =>
+            m_Oscillations.TryGetValue(key, out var history) && UnityEngine.Time.unscaledTime - history.x <= 60f && history.y > 3f;
+
+        private bool Oscillating((Entity, bool) key, Runtime old, int signature)
+        {
+            if (old == null || !((old.Stale && signature == old.BuiltSignature) || (old.PreviousSignature != 0 && signature == old.PreviousSignature)))
+                return Flapping(key);
+            float now = UnityEngine.Time.unscaledTime;
+            if (m_Oscillations.Count > 20000) m_Oscillations.Clear();
+            if (!m_Oscillations.TryGetValue(key, out var history) || now - history.x > 60f) history = new float2(now, 0f);
+            history.y += 1f;
+            m_Oscillations[key] = history;
+            return history.y > 3f;
+        }
+
+        // Rebuilds of an existing corner after its first rebuild in the minute: which part of the signature changed (log output option).
+        private int m_RebuildLogged;
+        private static readonly string[] s_PartNames = { "node geometry", "node composition", "mesh", "edge length", "borrowed frames / alley frames", "atlas pattern" };
+
+        private void LogRebuild((Entity, bool) key, Runtime old, int[] parts, string name, Entity node)
+        {
+            if (old == null || m_RebuildLogged >= 40 || !m_BuildHistory.TryGetValue(key, out var history) ||
+                UnityEngine.Time.unscaledTime - history.x > 60f || history.y < 1f) return;
+            m_RebuildLogged++;
+            var changed = new List<string>();
+            if (old.Stale) changed.Add("swap stale (native node composition changed)");
+            if (old.Parts != null)
+                for (int i = 0; i < parts.Length && i < old.Parts.Length; i++)
+                    if (parts[i] != old.Parts[i]) changed.Add(s_PartNames[i]);
+            if (changed.Count == 0) changed.Add("settings");
+            string place = EntityManager.HasComponent<Game.Net.Node>(node) ? EntityManager.GetComponentData<Game.Net.Node>(node).m_Position.xz.ToString() : "?";
+            Mod.LogLater("Junction corner rebuilt again: " + name + " | node " + place + " | " + (key.Item2 ? "start" : "end") +
+                " | build " + (history.y + 1f).ToString("0") + " this minute | changed: " + string.Join(", ", changed));
+        }
+
+        // Parking corners and roads at parking junctions that keep the game's look, once per corner (log output option).
+        private readonly HashSet<(Entity, bool)> m_SkipLogged = new HashSet<(Entity, bool)>();
+
+        private void LogSkip(bool relevant, Entity road, bool start, string name, Entity node, string reason)
+        {
+            if (!relevant || m_SkipLogged.Count >= 60 || !m_SkipLogged.Add((road, start))) return;
+            string place = EntityManager.HasComponent<Game.Net.Node>(node) ? EntityManager.GetComponentData<Game.Net.Node>(node).m_Position.xz.ToString() : "?";
+            Mod.LogLater("Junction corner kept original: " + name + " | node " + place + " | " + (start ? "start" : "end") + " | " + reason);
+        }
+
+        private void RecordBuild((Entity, bool) key)
+        {
+            m_WindowBuilds++;
+            float now = UnityEngine.Time.unscaledTime;
+            if (m_BuildHistory.Count > 20000) m_BuildHistory.Clear();
+            if (!m_BuildHistory.TryGetValue(key, out var history) || now - history.x > 60f) history = new float2(now, 0f);
+            history.y += 1f;
+            m_BuildHistory[key] = history;
+        }
 
         private sealed class Runtime
         {
             public int Signature;
+            public int[] Parts;
+            public int BuiltSignature, PreviousSignature;
+            public bool Stale;
             public Entity Source;
             public Entity Composition;
             public bool Announced;
@@ -105,6 +168,107 @@ namespace Advanced_Graphics
         private PrefabSystem m_Prefabs;
         private EntityQuery m_Roads;
         private float m_NextScan;
+        // Scans only on a reason (net change, pending builds, stale swap, settings), not every 2 s: a full scan costs 15-70 ms in big cities.
+        private bool m_ScanWanted = true;
+        // Two options: alleys / road ends, and parking roads (corners, roads at parking junctions, tiling).
+        private static bool s_NormalOn, s_ParkingOn;
+        private float m_FullScanAt, m_RetryAt, m_RetryDelay = 2f;
+        private int m_LastConfig;
+        private EntityQuery m_NetChanges;
+
+        private void WantScan(float delay)
+        {
+            m_ScanWanted = true;
+            m_NextScan = math.min(m_NextScan, UnityEngine.Time.unscaledTime + delay);
+        }
+
+        // Incremental scans: after the first full scan only the nodes touched by net changes, pending builds, stale swaps or
+        // retries are scanned (with all roads at them). A full scan runs on load, settings changes and every 5 minutes as a safety net.
+        private readonly HashSet<Entity> m_DirtyNodes = new HashSet<Entity>();
+        private readonly HashSet<Entity> m_RetryNodes = new HashSet<Entity>();
+        private HashSet<Entity> m_ScanNodes;
+        private bool m_FullWanted = true;
+        private const float FullScanInterval = 300f;
+        private const int IncrementalLimit = 2000;
+        private int m_FullScans;
+
+        private void MarkNode(Entity node, float delay)
+        {
+            if (node == Entity.Null) return;
+            m_DirtyNodes.Add(node);
+            WantScan(delay);
+        }
+
+        private void MarkRoadSide(Entity road, bool start, float delay)
+        {
+            if (!EntityManager.Exists(road) || !EntityManager.HasComponent<Edge>(road)) { m_FullWanted = true; WantScan(delay); return; }
+            var edge = EntityManager.GetComponentData<Edge>(road);
+            MarkNode(start ? edge.m_Start : edge.m_End, delay);
+        }
+
+        private void CollectNetChanges()
+        {
+            var changed = m_NetChanges.ToEntityArray(Allocator.Temp);
+            try
+            {
+                foreach (var entity in changed)
+                {
+                    if (EntityManager.HasComponent<Edge>(entity))
+                    {
+                        var edge = EntityManager.GetComponentData<Edge>(entity);
+                        if (edge.m_Start != Entity.Null) m_DirtyNodes.Add(edge.m_Start);
+                        if (edge.m_End != Entity.Null) m_DirtyNodes.Add(edge.m_End);
+                    }
+                    else m_DirtyNodes.Add(entity);
+                }
+            }
+            finally { changed.Dispose(); }
+        }
+
+        // Roads at the given nodes (same filter as m_Roads).
+        private Entity[] RoadsAt(HashSet<Entity> nodes)
+        {
+            var roads = new HashSet<Entity>();
+            foreach (var node in nodes)
+            {
+                if (!EntityManager.Exists(node) || EntityManager.HasComponent<Deleted>(node) || !EntityManager.HasBuffer<ConnectedEdge>(node)) continue;
+                var edges = EntityManager.GetBuffer<ConnectedEdge>(node, true);
+                for (int i = 0; i < edges.Length; i++)
+                {
+                    var road = edges[i].m_Edge;
+                    if (EntityManager.Exists(road) && !EntityManager.HasComponent<Deleted>(road) && !EntityManager.HasComponent<Temp>(road) &&
+                        EntityManager.HasComponent<Edge>(road) && EntityManager.HasComponent<Composition>(road) && EntityManager.HasComponent<PrefabRef>(road))
+                        roads.Add(road);
+                }
+            }
+            var result = new Entity[roads.Count];
+            roads.CopyTo(result);
+            return result;
+        }
+
+        // Geometry not streamed yet: retry later with growing delay instead of rescanning every 0.5 s (only the waiting nodes).
+        private void ScheduleRetry(Entity node)
+        {
+            if (node != Entity.Null) m_RetryNodes.Add(node);
+            else m_FullWanted = true;
+            if (m_RetryAt > 0f) return;
+            m_RetryAt = UnityEngine.Time.unscaledTime + m_RetryDelay;
+            m_RetryDelay = math.min(m_RetryDelay * 2f, 60f);
+        }
+
+        private int ConfigSignature()
+        {
+            var setting = Mod.ActiveSetting;
+            unchecked
+            {
+                int hash = PatternSignature();
+                hash = hash * 31 + (Mod.DebugBackendEnabled ? setting?.JunctionSyncBlendMode ?? 0 : 0);
+                hash = hash * 31 + (Mod.DebugBackendEnabled && (setting?.JunctionRecomputeTangents ?? false) ? 1 : 0);
+                hash = hash * 31 + (s_NormalOn ? 1 : 0) + (s_ParkingOn ? 2 : 0);
+                hash = hash * 31 + Quantize(setting?.RoadEndTilingU ?? 1f);
+                return hash * 31 + Quantize(setting?.RoadEndTilingV ?? 1f);
+            }
+        }
         private bool m_Failed;
         private bool m_SyncOnRestore;
         private static int s_SyncBlendMode;
@@ -147,13 +311,28 @@ namespace Advanced_Graphics
             m_Prefabs = World.GetOrCreateSystemManaged<PrefabSystem>();
             m_Roads = GetEntityQuery(ComponentType.ReadOnly<Edge>(), ComponentType.ReadOnly<Composition>(),
                 ComponentType.ReadOnly<PrefabRef>(), ComponentType.Exclude<Deleted>(), ComponentType.Exclude<Temp>());
+            m_NetChanges = GetEntityQuery(
+                new EntityQueryDesc
+                {
+                    All = new[] { ComponentType.ReadOnly<Edge>() },
+                    Any = new[] { ComponentType.ReadOnly<Updated>(), ComponentType.ReadOnly<Deleted>() },
+                    None = new[] { ComponentType.ReadOnly<Temp>() }
+                },
+                new EntityQueryDesc
+                {
+                    All = new[] { ComponentType.ReadOnly<Game.Net.Node>() },
+                    Any = new[] { ComponentType.ReadOnly<Updated>(), ComponentType.ReadOnly<Deleted>() },
+                    None = new[] { ComponentType.ReadOnly<Temp>() }
+                });
         }
 
         protected override void OnUpdate()
         {
             EndRendering();
             var setting = Mod.ActiveSetting;
-            if (setting == null || !setting.SidewalkJunctionOverlay)
+            s_NormalOn = setting != null && setting.TexturesEnabled && setting.SidewalkJunctionOverlay;
+            s_ParkingOn = setting != null && setting.TexturesEnabled && setting.SidewalkJunctionParking;
+            if (setting == null || (!s_NormalOn && !s_ParkingOn))
             {
                 if (m_Runtimes.Count > 0 || m_ParkingEdgeRuntimes.Count > 0 || m_ParkingNodeRuntimes.Count > 0) DropAll();
                 m_Failed = false;
@@ -164,18 +343,57 @@ namespace Advanced_Graphics
             try
             {
                 ReleaseRetired(false);
-                if (setting.HasPendingApply == false && UnityEngine.Time.unscaledTime >= m_NextScan)
+                float now = UnityEngine.Time.unscaledTime;
+                if (!m_NetChanges.IsEmptyIgnoreFilter) { CollectNetChanges(); m_ScanWanted = true; m_RetryDelay = 2f; }
+                int config = ConfigSignature();
+                if (config != m_LastConfig) { m_LastConfig = config; m_FullWanted = true; m_ScanWanted = true; }
+                if (m_RetryAt > 0f && now >= m_RetryAt)
                 {
-                    m_NextScan = UnityEngine.Time.unscaledTime + 2f;
-                    Scan();
+                    m_RetryAt = 0f;
+                    m_DirtyNodes.UnionWith(m_RetryNodes);
+                    m_RetryNodes.Clear();
+                    m_ScanWanted = true;
                 }
+                if (now >= m_FullScanAt) { m_FullWanted = true; m_ScanWanted = true; }
+                if (setting.HasPendingApply == false && m_ScanWanted && now >= m_NextScan)
+                {
+                    m_ScanWanted = false;
+                    m_NextScan = now + 0.25f;
+                    bool full = m_FullWanted || m_DirtyNodes.Count > IncrementalLimit;
+                    if (full)
+                    {
+                        if (now >= m_FullScanAt && m_FullScanAt > 0f) m_RebuildLogged = 0;
+                        m_FullWanted = false;
+                        m_FullScanAt = now + FullScanInterval;
+                        m_DirtyNodes.Clear();
+                        m_ScanNodes = null;
+                        m_FullScans++;
+                    }
+                    else
+                    {
+                        m_ScanNodes = new HashSet<Entity>(m_DirtyNodes);
+                        m_DirtyNodes.Clear();
+                    }
+                    if (full || m_ScanNodes.Count > 0)
+                    {
+                        long scanStart = System.Diagnostics.Stopwatch.GetTimestamp();
+                        Scan();
+                        TrackTime(ref m_ScanTicks, ref m_ScanMaxTicks, scanStart);
+                        m_Scans++;
+                    }
+                    m_ScanNodes = null;
+                }
+                long attachStart = System.Diagnostics.Stopwatch.GetTimestamp();
                 Attach();
+                TrackTime(ref m_AttachTicks, ref m_AttachMaxTicks, attachStart);
+                m_Frames++;
+                ReportTiming();
             }
             catch (Exception ex)
             {
                 m_Failed = true;
-                try { DropAll(); } catch (Exception inner) { Mod.log.Error(inner, "Junction sidewalk cleanup failed."); }
-                Mod.log.Error(ex, "Junction sidewalk meshes stopped. Toggle the option off/on to retry.");
+                try { DropAll(); } catch (Exception inner) { Mod.ErrorLater(inner, "Junction sidewalk cleanup failed."); }
+                Mod.ErrorLater(ex, "Junction sidewalk meshes stopped. Toggle the option off/on to retry.");
             }
         }
 
@@ -195,7 +413,8 @@ namespace Advanced_Graphics
                 if ((start ? native.m_StartNode : native.m_EndNode) != runtime.Source)
                 {
                     runtime.Signature = 0;
-                    m_NextScan = math.min(m_NextScan, UnityEngine.Time.unscaledTime + 0.25f);
+                    runtime.Stale = true;
+                    if (!Flapping(pair.Key)) MarkRoadSide(edge, start, 0.25f);
                     m_Stale++;
                     continue;
                 }
@@ -224,6 +443,42 @@ namespace Advanced_Graphics
         public void EndRendering()
         {
             if (m_Attached.Count == 0) return;
+            long restoreStart = System.Diagnostics.Stopwatch.GetTimestamp();
+            try { EndRenderingCore(); }
+            finally { TrackTime(ref m_RestoreTicks, ref m_RestoreMaxTicks, restoreStart); }
+        }
+
+        // Timing per 10 s (log output option): scans, swaps per frame and rebuilds, to find what costs frame time.
+        private long m_ScanTicks, m_ScanMaxTicks, m_AttachTicks, m_AttachMaxTicks, m_RestoreTicks, m_RestoreMaxTicks;
+        private int m_Scans, m_Frames, m_WindowBuilds;
+        private float m_TimingSince = -1f;
+
+        private static void TrackTime(ref long total, ref long max, long start)
+        {
+            long ticks = System.Diagnostics.Stopwatch.GetTimestamp() - start;
+            total += ticks;
+            if (ticks > max) max = ticks;
+        }
+
+        private void ReportTiming()
+        {
+            float now = UnityEngine.Time.unscaledTime;
+            if (m_TimingSince < 0f) m_TimingSince = now;
+            if (now - m_TimingSince < 10f) return;
+            double ms = 1000.0 / System.Diagnostics.Stopwatch.Frequency;
+            int frames = Math.Max(1, m_Frames), scans = Math.Max(1, m_Scans);
+            Mod.LogLater("Junction sidewalk timing (10 s): " + m_Scans + " scans (" + m_FullScans + " full) avg " + (m_ScanTicks * ms / scans).ToString("0.0") +
+                " ms max " + (m_ScanMaxTicks * ms).ToString("0.0") + " ms; swap per frame avg " + (m_AttachTicks * ms / frames).ToString("0.00") +
+                " ms max " + (m_AttachMaxTicks * ms).ToString("0.0") + " ms; restore per frame avg " + (m_RestoreTicks * ms / frames).ToString("0.00") +
+                " ms max " + (m_RestoreMaxTicks * ms).ToString("0.0") + " ms; " + m_WindowBuilds + " rebuilds; " + m_Runtimes.Count + " corners, " +
+                m_TiledParkingEdges.Count + " tiled parking edges, " + m_ParkingNodeRoads.Count + " parking node roads, " + m_Attached.Count + " swapped edges.");
+            m_ScanTicks = m_ScanMaxTicks = m_AttachTicks = m_AttachMaxTicks = m_RestoreTicks = m_RestoreMaxTicks = 0;
+            m_Scans = m_Frames = m_WindowBuilds = m_FullScans = 0;
+            m_TimingSince = now;
+        }
+
+        private void EndRenderingCore()
+        {
             if (m_SyncOnRestore)
             {
                 EntityManager.CompleteAllTrackedJobs();
@@ -251,6 +506,11 @@ namespace Advanced_Graphics
         public void PreDeserialize(Context context)
         {
             m_Attached.Clear();
+            m_BuildHistory.Clear();
+            m_Oscillations.Clear();
+            m_SkipLogged.Clear();
+            m_LimitLogged = false;
+            m_RebuildLogged = 0;
             m_Runtimes.Clear();
             m_Owned.Clear();
             m_Retired.Clear();
@@ -262,6 +522,10 @@ namespace Advanced_Graphics
             ForgetParkingEdges();
             ParkingCornerVersion++;
             m_NextScan = 0f;
+            m_ScanWanted = true;
+            m_FullWanted = true;
+            m_DirtyNodes.Clear();
+            m_RetryNodes.Clear();
         }
 
         internal void DropAll()
@@ -277,6 +541,8 @@ namespace Advanced_Graphics
             m_Runtimes.Clear();
             DropParkingEdges();
             m_NextScan = 0f;
+            m_ScanWanted = true;
+            m_FullWanted = true;
         }
 
         protected override void OnDestroy()
@@ -336,6 +602,7 @@ namespace Advanced_Graphics
             m_ParkingCorners = m_ParkingNeighbourCorners = m_DensityStandIns = m_AsphaltTriangles = m_MiterParts = m_MiterLogged = m_BorrowedSlots = 0;
             m_ParkingSidewalkEnds.Clear();
             m_ParkingEndCorners.Clear();
+            m_ParkingAlleyCorners.Clear();
             m_Corners = m_Built = m_Skipped = m_SplitPieces = m_WalkTriangles = m_NoFrame = m_NotLoaded = m_Clamped = 0;
             m_ClampExcess = 0f;
             s_SyncBlendMode = Mod.DebugBackendEnabled ? math.clamp(Mod.ActiveSetting?.JunctionSyncBlendMode ?? 0, 0, 6) : 0;
@@ -350,35 +617,51 @@ namespace Advanced_Graphics
             m_CurbLogged = 0;
             m_RampsReshaped = m_RampsFailed = m_MixedTriangles = m_SidewalkEnds = m_WrappedParts = m_CurbEnds = m_Caps = 0;
             int builds = 0;
-            var roads = m_Roads.ToEntityArray(Allocator.Temp);
-            try
+            m_MainPending = false;
+            Entity[] ordered;
+            if (m_ScanNodes == null)
             {
-                for (int pass = 0; pass < 2; pass++)
-                foreach (var road in roads)
+                var roads = m_Roads.ToEntityArray(Allocator.Temp);
+                ordered = roads.ToArray();
+                roads.Dispose();
+            }
+            else ordered = RoadsAt(m_ScanNodes);
+            {
+                // Stable order: chunk order changes with every BatchesUpdated, and at the corner limit that rebuilt other corners each scan.
+                Array.Sort(ordered, (x, y) => x.Index.CompareTo(y.Index));
+                var laterRoads = new HashSet<Entity>();
+                for (int pass = 0; pass < 3; pass++)
+                foreach (var road in ordered)
                 {
-                    if (active.Count >= MaximumCorners) break;
+                    if ((m_ScanNodes == null ? active.Count : m_Runtimes.Count) >= MaximumCorners) break;
+                    if (pass > 0 && !laterRoads.Contains(road)) continue;
                     if (IsAlley(road)) continue;
                     var prefabEntity = EntityManager.GetComponentData<PrefabRef>(road).m_Prefab;
-                    if (!m_Prefabs.TryGetPrefab<PrefabBase>(prefabEntity, out var prefab) || prefab == null ||
-                        RoadBuilderSurfaceCompatibility.IsRoadBuilderRoad(prefab)) continue;
+                    if (!m_Prefabs.TryGetPrefab<PrefabBase>(prefabEntity, out var prefab) || prefab == null) continue;
                     var edge = EntityManager.GetComponentData<Edge>(road);
                     var composition = EntityManager.GetComponentData<Composition>(road);
-                    bool parkingRoad = IsParkingRoad(prefab.name) && !HasRoadSidewalk(road);
+                    bool parkingRoad = IsParkingPrefab(prefab) && !HasRoadSidewalk(road);
+                    // Road Builder roads: only their parking corners (free layouts, other corners keep the game's look).
+                    if (!parkingRoad && RoadBuilderSurfaceCompatibility.IsRoadBuilderRoad(prefab)) continue;
                     for (int side = 0; side < 2; side++)
                     {
                         bool start = side == 0;
                         var junction = start ? edge.m_Start : edge.m_End;
+                        if (m_ScanNodes != null && !m_ScanNodes.Contains(junction)) continue;
                         bool cap = EntityManager.HasBuffer<ConnectedEdge>(junction) &&
                             EntityManager.GetBuffer<ConnectedEdge>(junction, true).Length == 1;
                         bool parking = false, parkingNeighbour = false;
+                        int sideMask = 3;
                         if (!cap && parkingRoad && AtParkingJunction(road, prefabEntity, junction)) parking = true;
-                        else if (!cap && !AtAlleyJunction(junction))
+                        else if (!cap && !AtAlleyJunction(road, junction, out sideMask))
                         {
                             if (!parkingRoad) { if (!HasParkingNeighbour(road, junction)) continue; parkingNeighbour = true; }
                             else if (!AtParkingJunction(road, prefabEntity, junction)) continue;
                             else parking = true;
                         }
-                        if ((pass == 1) != parkingNeighbour) continue;
+                        if ((parking || parkingNeighbour) ? !s_ParkingOn : !s_NormalOn) continue;
+                        if (pass == 0 && (cap || parkingNeighbour)) laterRoads.Add(road);
+                        if ((cap ? 2 : parkingNeighbour ? 1 : 0) != pass) continue;
                         if (!parking && !parkingNeighbour && EntityManager.GetBuffer<ConnectedEdge>(junction, true).Length == 2) sidewalkEnds.Add(junction);
                         if (parking && EntityManager.GetBuffer<ConnectedEdge>(junction, true).Length == 2 && AtAlleyJunction(junction))
                         {
@@ -390,14 +673,14 @@ namespace Advanced_Graphics
                         if (cap) m_Caps++; else if (parking) m_ParkingCorners++; else if (parkingNeighbour) m_ParkingNeighbourCorners++; else m_Corners++;
                         bool hasNodeGeometry = start ? EntityManager.HasComponent<StartNodeGeometry>(road)
                             : EntityManager.HasComponent<EndNodeGeometry>(road);
-                        if (!hasNodeGeometry || !EntityManager.HasComponent<EdgeGeometry>(road)) { m_Skipped++; continue; }
+                        if (!hasNodeGeometry || !EntityManager.HasComponent<EdgeGeometry>(road)) { m_Skipped++; LogSkip(parking || parkingNeighbour, road, start, prefab.name, junction, "no node geometry"); continue; }
                         var geometry = start ? EntityManager.GetComponentData<StartNodeGeometry>(road).m_Geometry
                             : EntityManager.GetComponentData<EndNodeGeometry>(road).m_Geometry;
                         var edgeGeometry = EntityManager.GetComponentData<EdgeGeometry>(road);
                         var source = start ? composition.m_StartNode : composition.m_EndNode;
                         if (source == Entity.Null || m_Owned.Contains(source) ||
                             !EntityManager.HasComponent<NetCompositionMeshRef>(source) ||
-                            !EntityManager.HasComponent<NetCompositionData>(source)) { m_Skipped++; continue; }
+                            !EntityManager.HasComponent<NetCompositionData>(source)) { m_Skipped++; LogSkip(parking || parkingNeighbour, road, start, prefab.name, junction, "no node composition"); continue; }
                         var meshRef = EntityManager.GetComponentData<NetCompositionMeshRef>(source);
                         if (Mod.DebugBackendEnabled && VerboseJunctionLog && meshRef.m_Mesh != Entity.Null && m_InspectedMeshes.Count <= 16 &&
                             EntityManager.HasBuffer<NetCompositionPiece>(meshRef.m_Mesh) && m_InspectedMeshes.Add(meshRef.m_Mesh))
@@ -406,10 +689,19 @@ namespace Advanced_Graphics
                         if (meshRef.m_Mesh == Entity.Null || !EntityManager.HasComponent<NetCompositionMeshData>(meshRef.m_Mesh) ||
                             !EntityManager.HasBuffer<NetCompositionPiece>(meshRef.m_Mesh) ||
                             !ValidSync(compositionData.m_SyncVertexOffsetsLeft, geometry.m_SyncVertexTargetsLeft) ||
-                            !ValidSync(compositionData.m_SyncVertexOffsetsRight, geometry.m_SyncVertexTargetsRight)) { m_Skipped++; continue; }
+                            !ValidSync(compositionData.m_SyncVertexOffsetsRight, geometry.m_SyncVertexTargetsRight))
+                        {
+                            m_Skipped++;
+                            LogSkip(parking || parkingNeighbour, road, start, prefab.name, junction, "node sync targets out of order (left " +
+                                compositionData.m_SyncVertexOffsetsLeft + " -> " + geometry.m_SyncVertexTargetsLeft + ", right " +
+                                compositionData.m_SyncVertexOffsetsRight + " -> " + geometry.m_SyncVertexTargetsRight + ")");
+                            continue;
+                        }
 
                         var key = (road, start);
                         active.Add(key);
+                        if (parking && EntityManager.GetBuffer<ConnectedEdge>(junction, true).Length >= 3 && HasAlleyArm(junction))
+                            m_ParkingAlleyCorners.Add((junction, key));
                         int borrowSignature = 0;
                         var borrow = parkingNeighbour ? BorrowParkingFrames(road, start, junction, out borrowSignature) : null;
                         if (borrow != null) borrowSignature = borrowSignature * 31 + PatternSignature();
@@ -418,14 +710,22 @@ namespace Advanced_Graphics
                             (edgeGeometry.m_Start.m_Length + edgeGeometry.m_End.m_Length).GetHashCode() * 17 ^ (start ? 0x5bd1e995 : 0) ^
                             (s_SyncBlendMode + 1) * 0x01000193 ^ (cap ? 0x3c6ef372 ^ (s_EndTilingU * 97f + s_EndTilingV * 7919f).GetHashCode() : 0) ^ (s_RecomputeTangents ? 0x6a09e667 : 0) ^ (parking ? 0x1b873593 : 0) ^ (parkingNeighbour ? 0x2e1b2138 : 0) ^ borrowSignature * 0x3243f6a9 ^
                             (parking ? PatternSignature() * 0x2c1b3c6d : 0);
+                        if (cap || parking || parkingNeighbour) sideMask = 3;
+                        signature ^= sideMask * 0x4f1bbcdd;
                         if (signature == 0) signature = 1;
                         m_Runtimes.TryGetValue(key, out var old);
                         if (old != null && old.Signature == signature) continue;
+                        var parts = new[] { geometry.GetHashCode(), source.GetHashCode(), meshRef.m_Mesh.GetHashCode(),
+                            (edgeGeometry.m_Start.m_Length + edgeGeometry.m_End.m_Length).GetHashCode(), borrowSignature, parking ? PatternSignature() : 0 };
+                        LogRebuild(key, old, parts, prefab.name, junction);
                         if (builds >= BuildsPerScan)
                         {
+                            MarkNode(junction, 0.1f);
                             m_NextScan = UnityEngine.Time.unscaledTime + 0.1f;
+                            m_MainPending = true;
                             continue;
                         }
+                        if (Oscillating(key, old, signature)) continue;
                         builds++;
                         m_DumpNeighbour = parkingNeighbour;
                         s_SquareSync = parking;
@@ -436,20 +736,26 @@ namespace Advanced_Graphics
                         m_MiterJunction = (parking && UseMiter) || borrow != null ? junction : Entity.Null;
                         m_MiterRoad = road;
                         m_BorrowFrames = borrow;
+                        SetSideFilter(road, start, junction, sideMask);
                         var runtime = SafeBuild(source, () => Build(source, meshRef, compositionData, geometry, edgeGeometry, start,
                             capInfo: cap ? MakeCapInfo(edgeGeometry, start) : null, parking: parking, edgeComposition: composition.m_Edge));
                         m_MiterJunction = Entity.Null;
                         m_BorrowFrames = null;
+                        m_SideMask = 3;
                         m_DumpNeighbour = false;
                         s_SquareSync = false;
                         s_BendSync = false;
                         if (runtime == null)
                         {
                             builds--;
-                            m_NextScan = UnityEngine.Time.unscaledTime + 0.5f;
+                            ScheduleRetry(junction);
                             continue;
                         }
                         runtime.Signature = signature;
+                        runtime.Parts = parts;
+                        runtime.BuiltSignature = signature;
+                        runtime.PreviousSignature = old?.BuiltSignature ?? 0;
+                        RecordBuild(key);
                         runtime.Mesh = runtime.Created.Count > 0 ? FindMesh(runtime) : Entity.Null;
                         if (old != null)
                         {
@@ -459,15 +765,35 @@ namespace Advanced_Graphics
                         }
                         m_Runtimes[key] = runtime;
                         if (runtime.Composition != Entity.Null) m_Built++;
+                        else LogSkip(parking || parkingNeighbour, road, start, prefab.name, junction, "nothing remapped (no straight strip or sidewalk found at the seam)");
                     }
                 }
             }
-            finally { roads.Dispose(); }
+            if (active.Count >= MaximumCorners && !m_LimitLogged)
+            {
+                m_LimitLogged = true;
+                Mod.LogLater("Junction sidewalk meshes: limit of " + MaximumCorners + " corners reached, further corners keep the game's look.");
+            }
 
             ScanAlleyNodes(active, mainCorners, sidewalkEnds, ref builds);
 
             var remove = new List<(Entity, bool)>();
-            foreach (var pair in m_Runtimes) if (!active.Contains(pair.Key)) remove.Add(pair.Key);
+            foreach (var pair in m_Runtimes)
+            {
+                if (active.Contains(pair.Key)) continue;
+                // Incremental scan: only corners at the scanned nodes (or of removed roads) can be dropped.
+                if (m_ScanNodes != null)
+                {
+                    var road = pair.Key.Item1;
+                    bool gone = !EntityManager.Exists(road) || EntityManager.HasComponent<Deleted>(road) || !EntityManager.HasComponent<Edge>(road);
+                    if (!gone)
+                    {
+                        var edge = EntityManager.GetComponentData<Edge>(road);
+                        if (!m_ScanNodes.Contains(pair.Key.Item2 ? edge.m_Start : edge.m_End)) continue;
+                    }
+                }
+                remove.Add(pair.Key);
+            }
             if (remove.Count > 0) EndRendering();
             foreach (var key in remove)
             {
@@ -477,28 +803,32 @@ namespace Advanced_Graphics
                     EntityManager.AddComponent<BatchesUpdated>(key.Item1);
             }
 
-            ScanParkingEdges();
+            ScanParkingEdges(ordered);
 
-            int live = 0, withBatches = 0, batchGroups = 0;
-            foreach (var runtime in m_Runtimes.Values)
+            // Status report (debug only): walks every corner's batches, skipped in normal play.
+            if (Mod.DebugBackendEnabled)
             {
-                if (runtime.Composition == Entity.Null) continue;
-                live++;
-                if (runtime.Mesh != Entity.Null && EntityManager.Exists(runtime.Mesh) && EntityManager.HasBuffer<BatchGroup>(runtime.Mesh))
+                int live = 0, withBatches = 0, batchGroups = 0;
+                foreach (var runtime in m_Runtimes.Values)
                 {
-                    int groups = EntityManager.GetBuffer<BatchGroup>(runtime.Mesh, true).Length;
-                    batchGroups += groups;
-                    if (groups > 0) withBatches++;
+                    if (runtime.Composition == Entity.Null) continue;
+                    live++;
+                    if (runtime.Mesh != Entity.Null && EntityManager.Exists(runtime.Mesh) && EntityManager.HasBuffer<BatchGroup>(runtime.Mesh))
+                    {
+                        int groups = EntityManager.GetBuffer<BatchGroup>(runtime.Mesh, true).Length;
+                        batchGroups += groups;
+                        if (groups > 0) withBatches++;
+                    }
                 }
-            }
-            string report = "Junction sidewalk meshes: " + live + " corners active (" + m_Corners + " alley corners found, " + m_ParkingCorners + " parking road corners (" + m_AsphaltTriangles + " asphalt triangles remapped, " + m_MiterParts + " mitered), " + m_TiledEdgeCompositions + " tiled parking edge compositions (" + m_TiledParkingEdges.Count + " edges), " + m_TiledNodeCompositions + " tiled parking node compositions, " + m_ParkingNeighbourCorners + " road corners at parking junctions (" + m_BorrowedSlots + " with the parking grid), " + m_Caps + " road ends, " + m_SidewalkEnds + " sidewalk ends, " + m_AlleyMeshes + " alley node meshes remapped, " +
-                m_Built + " built now, " + m_Skipped + " skipped, " + m_SplitPieces + " sidewalk pieces split, " +
-                m_WalkTriangles + " sidewalk triangles remapped (" + m_CurbTriangles + " widened curb, " + m_RampsReshaped + " curb ramps shortened (" + m_CurbEnds + " curb ends), " + m_RampsFailed + " not, " + m_MixedTriangles + " ramp end faces), " + m_Clamped + " UVs outside the strip (max " + m_ClampExcess.ToString("0.#") + " px, " + m_WrappedParts + " wrapped parts), " + m_NoFrame + " without frame, " + m_Stale + " stale swaps, " +
-                m_NotLoaded + " waiting for geometry, sync blend " + s_SyncBlendMode + ", " + withBatches + " meshes with batches / " + batchGroups + " batch groups).";
-            if (Mod.DebugBackendEnabled && report != m_LastReport)
-            {
-                m_LastReport = report;
-                Mod.LogLater(report);
+                string report = "Junction sidewalk meshes: " + live + " corners active (" + m_Corners + " alley corners found, " + m_ParkingCorners + " parking road corners (" + m_AsphaltTriangles + " asphalt triangles remapped, " + m_MiterParts + " mitered), " + m_TiledEdgeCompositions + " tiled parking edge compositions (" + m_TiledParkingEdges.Count + " edges), " + m_TiledNodeCompositions + " tiled parking node compositions, " + m_ParkingNeighbourCorners + " road corners at parking junctions (" + m_BorrowedSlots + " with the parking grid), " + m_Caps + " road ends, " + m_SidewalkEnds + " sidewalk ends, " + m_AlleyMeshes + " alley node meshes remapped, " +
+                    m_Built + " built now, " + m_Skipped + " skipped, " + m_SplitPieces + " sidewalk pieces split, " +
+                    m_WalkTriangles + " sidewalk triangles remapped (" + m_CurbTriangles + " widened curb, " + m_RampsReshaped + " curb ramps shortened (" + m_CurbEnds + " curb ends), " + m_RampsFailed + " not, " + m_MixedTriangles + " ramp end faces), " + m_Clamped + " UVs outside the strip (max " + m_ClampExcess.ToString("0.#") + " px, " + m_WrappedParts + " wrapped parts), " + m_NoFrame + " without frame, " + m_Stale + " stale swaps, " +
+                    m_NotLoaded + " waiting for geometry, sync blend " + s_SyncBlendMode + ", " + withBatches + " meshes with batches / " + batchGroups + " batch groups).";
+                if (report != m_LastReport)
+                {
+                    m_LastReport = report;
+                    Mod.LogLater(report);
+                }
             }
             m_Stale = 0;
         }
@@ -532,6 +862,19 @@ namespace Advanced_Graphics
                     list.Add(new SourceFrame { Frame = road, Centroid = item.Centroid, MaterialIndex = AnyMaterial, MaxU = RightUv });
                 }
                 signatures[pair.Key] = (signatures[pair.Key] * 31 + main.Signature) * 31 + PatternSignature();
+            }
+            // Alleys at a parking road junction (T or crossing): the parking corners' straight frames, converted to the RoadEU atlas.
+            foreach (var pair in m_ParkingAlleyCorners)
+            {
+                if (!m_Runtimes.TryGetValue(pair.Item2, out var main) || main.Composition == Entity.Null || main.Frames.Count == 0) continue;
+                if (!frames.TryGetValue(pair.Item1, out var list)) { list = new List<SourceFrame>(); frames.Add(pair.Item1, list); signatures.Add(pair.Item1, 0); }
+                foreach (var item in main.Frames)
+                {
+                    var road = item.Frame != null ? ToRoadFrame(item.Frame) : null;
+                    if (road == null) continue;
+                    list.Add(new SourceFrame { Frame = road, Centroid = item.Centroid, MaterialIndex = AnyMaterial, MaxU = RightUv });
+                }
+                signatures[pair.Item1] = (signatures[pair.Item1] * 31 + main.Signature) * 31 + PatternSignature();
             }
             foreach (var pair in frames)
             {
@@ -570,7 +913,11 @@ namespace Advanced_Graphics
                     if (signature == 0) signature = 1;
                     m_Runtimes.TryGetValue(key, out var old);
                     if (old != null && old.Signature == signature) { if (old.Composition != Entity.Null) m_AlleyMeshes++; continue; }
-                    if (builds >= BuildsPerScan) { m_NextScan = UnityEngine.Time.unscaledTime + 0.1f; continue; }
+                    var parts = new[] { geometry.GetHashCode(), source.GetHashCode(), meshRef.m_Mesh.GetHashCode(), 0, signatures[node], 0 };
+                    LogRebuild(key, old, parts, "alley node", node);
+                    if (builds >= BuildsPerScan || m_MainPending) { MarkNode(node, 0.1f); m_NextScan = UnityEngine.Time.unscaledTime + 0.1f; continue; }
+                    // Alley nodes follow the main corners' frames: wait until those are all built (no chain of rebuilds while loading).
+                    if (Oscillating(key, old, signature)) continue;
                     builds++;
                     var edgeGeometry = EntityManager.GetComponentData<EdgeGeometry>(alley);
                     m_DumpAlleyEnd = m_ParkingSidewalkEnds.Contains(node);
@@ -582,8 +929,12 @@ namespace Advanced_Graphics
                     m_DumpAlleyEnd = false;
                     s_UntaperWalk = false;
                     s_BendSync = false;
-                    if (runtime == null) { builds--; m_NextScan = UnityEngine.Time.unscaledTime + 0.5f; continue; }
+                    if (runtime == null) { builds--; ScheduleRetry(node); continue; }
                     runtime.Signature = signature;
+                    runtime.Parts = parts;
+                    runtime.BuiltSignature = signature;
+                    runtime.PreviousSignature = old?.BuiltSignature ?? 0;
+                    RecordBuild(key);
                     runtime.Mesh = runtime.Created.Count > 0 ? FindMesh(runtime) : Entity.Null;
                     if (old != null)
                     {
@@ -761,11 +1112,78 @@ namespace Advanced_Graphics
             return alleys >= 1 && alleys < edges.Length;
         }
 
+        // Per road: at 2-3 edges the node rule above. At crossings with 4 or more edges (alley crossing a road) only a road
+        // whose two neighbouring arms are both alleys; a corner between two roads with sidewalks keeps the game's look.
+        private bool AtAlleyJunction(Entity road, Entity node, out int sides)
+        {
+            sides = 3;
+            if (!EntityManager.HasBuffer<ConnectedEdge>(node)) return false;
+            var edges = EntityManager.GetBuffer<ConnectedEdge>(node, true);
+            if (edges.Length <= 3) return AtAlleyJunction(node);
+            sides = 0;
+            var arms = new List<(float, Entity)>(edges.Length);
+            for (int i = 0; i < edges.Length; i++)
+            {
+                var other = edges[i].m_Edge;
+                if (!EntityManager.HasComponent<Edge>(other)) return false;
+                bool start = EntityManager.GetComponentData<Edge>(other).m_Start == node;
+                if (!EdgeDirection(other, start, out var direction)) return false;
+                arms.Add((math.atan2(direction.y, direction.x), other));
+            }
+            arms.Sort((a, b) => a.Item1.CompareTo(b.Item1));
+            int index = arms.FindIndex(a => a.Item2 == road);
+            if (index < 0) return false;
+            var previous = arms[(index + arms.Count - 1) % arms.Count].Item2;
+            var next = arms[(index + 1) % arms.Count].Item2;
+            if (previous == road || next == road || IsAlley(road)) return false;
+            sides = (IsAlley(previous) ? 1 : 0) | (IsAlley(next) ? 2 : 0);
+            return sides != 0;
+        }
+
+        // Crossing with 4+ arms where only one neighbouring arm of this road is an alley: only the sidewalk on that side is
+        // straightened, the corner towards the other road keeps the game's look. Bit 1: clockwise neighbour, bit 2: counter-clockwise.
+        private int m_SideMask = 3;
+        private float2 m_SideNode, m_SideDirection;
+
+        private void SetSideFilter(Entity road, bool start, Entity node, int mask)
+        {
+            m_SideMask = 3;
+            if (mask == 3 || !EntityManager.HasComponent<Game.Net.Node>(node) || !EdgeDirection(road, start, out var direction)) return;
+            m_SideMask = mask;
+            m_SideNode = EntityManager.GetComponentData<Game.Net.Node>(node).m_Position.xz;
+            m_SideDirection = direction;
+        }
+
+        private bool SideAllowed(float2 center)
+        {
+            if (m_SideMask == 3) return true;
+            if (math.any(math.isnan(center))) return false;
+            float side = Cross2(m_SideDirection, center - m_SideNode);
+            return side > 0f ? (m_SideMask & 2) != 0 : (m_SideMask & 1) != 0;
+        }
+
         private static bool IsParkingRoad(string name) => name != null &&
             (name.StartsWith("Alley", StringComparison.Ordinal) || name.StartsWith("Small Road", StringComparison.Ordinal) ||
              name.StartsWith("Medium Road", StringComparison.Ordinal)) &&
             name.IndexOf(" - ", StringComparison.Ordinal) >= 0 &&
             name.IndexOf("Parking", StringComparison.OrdinalIgnoreCase) >= 0;
+
+        // Parking road by name, or a Road Builder road with parking lanes (same rule as the parking atlas).
+        private readonly Dictionary<PrefabBase, bool> m_ParkingPrefabs = new Dictionary<PrefabBase, bool>();
+
+        private bool IsParkingPrefab(PrefabBase prefab)
+        {
+            if (prefab == null) return false;
+            if (m_ParkingPrefabs.TryGetValue(prefab, out bool parking)) return parking;
+            parking = IsParkingRoad(prefab.name);
+            if (!parking)
+            {
+                try { parking = RoadBuilderSurfaceCompatibility.IsRoadBuilderRoad(prefab) && RoadBuilderSurfaceCompatibility.HasParkingLanes(prefab); }
+                catch (Exception) { parking = false; }
+            }
+            m_ParkingPrefabs[prefab] = parking;
+            return parking;
+        }
 
         // Junction of a parking road with other roads (or the transition into a road of another kind).
         private bool AtParkingJunction(Entity road, Entity prefabEntity, Entity node)
@@ -778,7 +1196,7 @@ namespace Advanced_Graphics
             if (other == road || !EntityManager.HasComponent<PrefabRef>(other)) return false;
             var otherPrefab = EntityManager.GetComponentData<PrefabRef>(other).m_Prefab;
             if (otherPrefab == prefabEntity) return false;
-            if (!m_Prefabs.TryGetPrefab<PrefabBase>(otherPrefab, out var prefab) || prefab == null || !IsParkingRoad(prefab.name)) return true;
+            if (!m_Prefabs.TryGetPrefab<PrefabBase>(otherPrefab, out var prefab) || prefab == null || !IsParkingPrefab(prefab)) return true;
             bool otherAlley = prefab.name.StartsWith("Alley", StringComparison.Ordinal);
             bool ownAlley = m_Prefabs.TryGetPrefab<PrefabBase>(prefabEntity, out var own) && own != null &&
                 own.name.StartsWith("Alley", StringComparison.Ordinal);
@@ -796,7 +1214,7 @@ namespace Advanced_Graphics
                 var other = edges[i].m_Edge;
                 if (other == road || !EntityManager.HasComponent<PrefabRef>(other)) continue;
                 if (m_Prefabs.TryGetPrefab<PrefabBase>(EntityManager.GetComponentData<PrefabRef>(other).m_Prefab, out var prefab) &&
-                    prefab != null && IsParkingRoad(prefab.name) && !RoadBuilderSurfaceCompatibility.IsRoadBuilderRoad(prefab)) return true;
+                    prefab != null && IsParkingPrefab(prefab)) return true;
             }
             return false;
         }
@@ -819,7 +1237,7 @@ namespace Advanced_Graphics
             {
                 m_Reshaped = null; m_ReshapeMap = null; m_ReshapeU = null; m_ReshapeExtra = null; m_ReshapeDrop = null; m_ReshapeFill = null;
                 SetParkingMode(false);
-                if (m_BuildErrors++ < 5) Mod.log.Error(ex, "Junction sidewalk mesh skipped for one corner/road end.");
+                if (m_BuildErrors++ < 5) Mod.ErrorLater(ex, "Junction sidewalk mesh skipped for one corner/road end.");
                 return new Runtime { Source = source };
             }
         }
@@ -1484,6 +1902,8 @@ namespace Advanced_Graphics
                         if (frame == null) m_NoFrame++;
                         break;
                     }
+                    if (frame != null && m_SideMask != 3 &&
+                        !SideAllowed(SlotCenter(positions, uvs, indices, begin, end, piece, data, geometry, compositionData))) frame = null;
                     if (frame != null && m_BorrowFrames != null)
                     {
                         var center = SlotCenter(positions, uvs, indices, begin, end, piece, data, geometry, compositionData);
@@ -1894,18 +2314,20 @@ namespace Advanced_Graphics
             };
         }
 
+        private static int Quantize(float value) => (int)math.round(value * 4096f);
+
         private static int PatternSignature()
         {
             unchecked
             {
                 int hash = SidewalkRoadAtlasSystem.RoadPatternValid ? 0x45d9f3b : 0x119de1f3;
-                hash = hash * 31 + SidewalkRoadAtlasSystem.RoadPatternRepeatsV.GetHashCode();
-                hash = hash * 31 + SidewalkRoadAtlasSystem.RoadPatternShiftU.GetHashCode();
-                hash = hash * 31 + SidewalkRoadAtlasSystem.RoadPatternShiftV.GetHashCode();
-                hash = hash * 31 + ParkingRoadAtlasSystem.SidewalkPatternRepeatsU.GetHashCode();
-                hash = hash * 31 + ParkingRoadAtlasSystem.SidewalkRepeatShiftRight.GetHashCode();
-                hash = hash * 31 + ParkingRoadAtlasSystem.SidewalkRepeatShiftLeft.GetHashCode();
-                return hash * 31 + ParkingRoadAtlasSystem.SidewalkPatternRepeatsV.GetHashCode();
+                hash = hash * 31 + Quantize(SidewalkRoadAtlasSystem.RoadPatternRepeatsV);
+                hash = hash * 31 + Quantize(SidewalkRoadAtlasSystem.RoadPatternShiftU);
+                hash = hash * 31 + Quantize(SidewalkRoadAtlasSystem.RoadPatternShiftV);
+                hash = hash * 31 + Quantize(ParkingRoadAtlasSystem.SidewalkPatternRepeatsU);
+                hash = hash * 31 + Quantize(ParkingRoadAtlasSystem.SidewalkRepeatShiftRight);
+                hash = hash * 31 + Quantize(ParkingRoadAtlasSystem.SidewalkRepeatShiftLeft);
+                return hash * 31 + Quantize(ParkingRoadAtlasSystem.SidewalkPatternRepeatsV);
             }
         }
         private int m_MiterLogged;
@@ -1948,7 +2370,7 @@ namespace Advanced_Graphics
                 if (other == m_MiterRoad || !EntityManager.HasComponent<EdgeGeometry>(other) || !EntityManager.HasComponent<Edge>(other) ||
                     !EntityManager.HasComponent<PrefabRef>(other) || IsAlley(other)) continue;
                 bool otherParking = m_Prefabs.TryGetPrefab<PrefabBase>(EntityManager.GetComponentData<PrefabRef>(other).m_Prefab, out var prefab) &&
-                    prefab != null && IsParkingRoad(prefab.name) && !HasRoadSidewalk(other);
+                    prefab != null && IsParkingPrefab(prefab) && !HasRoadSidewalk(other);
                 if (otherParking != neighbourParking) continue;
                 var geometry = EntityManager.GetComponentData<EdgeGeometry>(other);
                 bool otherStart = EntityManager.GetComponentData<Edge>(other).m_Start == m_MiterJunction;
@@ -2548,6 +2970,14 @@ namespace Advanced_Graphics
         private int m_AlleyEndDumps;
         private readonly HashSet<Entity> m_ParkingSidewalkEnds = new HashSet<Entity>();
         private readonly Dictionary<Entity, (Entity, bool)> m_ParkingEndCorners = new Dictionary<Entity, (Entity, bool)>();
+        private readonly List<(Entity, (Entity, bool))> m_ParkingAlleyCorners = new List<(Entity, (Entity, bool))>();
+
+        private bool HasAlleyArm(Entity node)
+        {
+            var edges = EntityManager.GetBuffer<ConnectedEdge>(node, true);
+            for (int i = 0; i < edges.Length; i++) if (IsAlley(edges[i].m_Edge)) return true;
+            return false;
+        }
         private const int AnyMaterial = int.MinValue;
         private const float RoadUPerMetre = 64f / 1024f;
         private const float RoadVPerMetre = 0.0313f;
@@ -2742,7 +3172,7 @@ namespace Advanced_Graphics
                 foreach (var road in roads)
                 {
                     var prefabEntity = EntityManager.GetComponentData<PrefabRef>(road).m_Prefab;
-                    if (!m_Prefabs.TryGetPrefab<PrefabBase>(prefabEntity, out var prefab) || prefab == null || !IsParkingRoad(prefab.name)) continue;
+                    if (!m_Prefabs.TryGetPrefab<PrefabBase>(prefabEntity, out var prefab) || prefab == null || !IsParkingPrefab(prefab)) continue;
                     if (!EntityManager.HasComponent<EdgeGeometry>(road)) continue;
                     var edgeGeometry = EntityManager.GetComponentData<EdgeGeometry>(road);
                     float2 edgeLength = edgeGeometry.m_Start.m_Length + edgeGeometry.m_End.m_Length;

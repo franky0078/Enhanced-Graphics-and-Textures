@@ -11,10 +11,12 @@ namespace Advanced_Graphics
         public const string GrassGroup = "Roadside grass materials";
 
         [SettingsUISection(GrassSection, GrassGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         public bool GrassEnabled { get; set; }
 
         private int m_GrassDetail;
         [SettingsUISection(GrassSection, GrassGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = 2, step = 1, scalarMultiplier = 1)]
         public int GrassDetail
         {
@@ -23,26 +25,32 @@ namespace Advanced_Graphics
         }
 
         [SettingsUISection(GrassSection, GrassGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 50, max = MaxTextureUvSize, step = 25, scalarMultiplier = 1)]
         public int GrassUvSizePercent { get; set; } = 100;
 
         [SettingsUISection(GrassSection, GrassGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = MaxTextureDepthStrength, step = 25, scalarMultiplier = 1)]
         public int GrassDepthStrengthPercent { get; set; }
 
         [SettingsUISection(GrassSection, GrassGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = MaxTextureUvOffset, step = 5, scalarMultiplier = 1)]
         public int GrassUvOffsetX { get; set; }
 
         [SettingsUISection(GrassSection, GrassGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = MaxTextureUvOffset, step = 5, scalarMultiplier = 1)]
         public int GrassUvOffsetY { get; set; }
 
         [SettingsUISection(GrassSection, GrassGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0, max = 360, step = 1, scalarMultiplier = 1)]
         public int GrassUvRotation { get; set; }
 
         [SettingsUISection(GrassSection, GrassGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUIButton]
         public bool OpenGrassTextureFolder
         {
@@ -59,10 +67,12 @@ namespace Advanced_Graphics
         }
 
         [SettingsUISection(GrassSection, GrassGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUIButton]
         public bool ReloadGrassTexture { set { if (value) Mod.Grass?.ReloadCustomTexture(); } }
 
         [SettingsUISection(GrassSection, GrassGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUIButton]
         public bool ResetGrass { set { if (value) { SetGrassDefaults(); ApplyAndSave(); } } }
 
@@ -80,7 +90,7 @@ namespace Advanced_Graphics
 
         private void ApplyGrassToSystem()
         {
-            Mod.Grass?.Configure(GrassEnabled && (GrassDetail != 0 || GrassUvSizePercent != 100 ||
+            Mod.Grass?.Configure(TexturesEnabled && GrassEnabled && (GrassDetail != 0 || GrassUvSizePercent != 100 ||
                 GrassDepthStrengthPercent != 0 || GrassUvOffsetX != 0 || GrassUvOffsetY != 0 ||
                 GrassUvRotation != 0 || TextureColorFilter.IsActive(GrassFilterColor, GrassFilterOpacityPercent)),
                 GrassDetail, GrassDetail == 2 ? RoadTextureSource.Custom : RoadTextureSource.Generated,

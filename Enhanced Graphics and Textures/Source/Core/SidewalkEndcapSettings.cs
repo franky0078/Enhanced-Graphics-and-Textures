@@ -13,6 +13,7 @@ namespace Advanced_Graphics
         [SettingsUIHidden]
         public float SidewalkEndcapU { get => m_SidewalkEndcapU; set => m_SidewalkEndcapU = ClampEndcapScale(value); }
         [SettingsUISection(SidewalkSection, SidewalkGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0.1f, max = 8f, step = 0.05f, scalarMultiplier = 1, unit = Unit.kFloatSingleFraction)]
         public float SidewalkEndcapUDraft { get => m_SidewalkEndcapUDraft ?? SidewalkEndcapU; set => m_SidewalkEndcapUDraft = ClampEndcapScale(value); }
         private float m_SidewalkEndcapV = 1f;
@@ -20,9 +21,11 @@ namespace Advanced_Graphics
         [SettingsUIHidden]
         public float SidewalkEndcapV { get => m_SidewalkEndcapV; set => m_SidewalkEndcapV = ClampEndcapScale(value); }
         [SettingsUISection(SidewalkSection, SidewalkGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0.1f, max = 8f, step = 0.05f, scalarMultiplier = 1, unit = Unit.kFloatSingleFraction)]
         public float SidewalkEndcapVDraft { get => m_SidewalkEndcapVDraft ?? SidewalkEndcapV; set => m_SidewalkEndcapVDraft = ClampEndcapScale(value); }
         [SettingsUISection(SidewalkSection, SidewalkGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUIButton]
         public bool ApplySidewalkEndcap { set { if (value) { ApplyEndcapValues("sidewalk", SidewalkEndcapUDraft, SidewalkEndcapVDraft); ApplyAndSave(); } } }
         private float m_AlleyEndcapU = 1f;
@@ -30,6 +33,7 @@ namespace Advanced_Graphics
         [SettingsUIHidden]
         public float AlleyEndcapU { get => m_AlleyEndcapU; set => m_AlleyEndcapU = ClampEndcapScale(value); }
         [SettingsUISection(AlleySidewalkSection, AlleySidewalkGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0.1f, max = 8f, step = 0.05f, scalarMultiplier = 1, unit = Unit.kFloatSingleFraction)]
         public float AlleyEndcapUDraft { get => m_AlleyEndcapUDraft ?? AlleyEndcapU; set => m_AlleyEndcapUDraft = ClampEndcapScale(value); }
         private float m_AlleyEndcapV = 1f;
@@ -37,9 +41,11 @@ namespace Advanced_Graphics
         [SettingsUIHidden]
         public float AlleyEndcapV { get => m_AlleyEndcapV; set => m_AlleyEndcapV = ClampEndcapScale(value); }
         [SettingsUISection(AlleySidewalkSection, AlleySidewalkGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0.1f, max = 8f, step = 0.05f, scalarMultiplier = 1, unit = Unit.kFloatSingleFraction)]
         public float AlleyEndcapVDraft { get => m_AlleyEndcapVDraft ?? AlleyEndcapV; set => m_AlleyEndcapVDraft = ClampEndcapScale(value); }
         [SettingsUISection(AlleySidewalkSection, AlleySidewalkGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUIButton]
         public bool ApplyAlleyEndcap { set { if (value) { ApplyEndcapValues("alley", AlleyEndcapUDraft, AlleyEndcapVDraft); ApplyAndSave(); } } }
         private float m_ParkingEndcapU = 1f;
@@ -47,6 +53,7 @@ namespace Advanced_Graphics
         [SettingsUIHidden]
         public float ParkingEndcapU { get => m_ParkingEndcapU; set => m_ParkingEndcapU = ClampEndcapScale(value); }
         [SettingsUISection(RoadSection, RoadGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0.1f, max = 8f, step = 0.05f, scalarMultiplier = 1, unit = Unit.kFloatSingleFraction)]
         public float ParkingEndcapUDraft { get => m_ParkingEndcapUDraft ?? ParkingEndcapU; set => m_ParkingEndcapUDraft = ClampEndcapScale(value); }
         private float m_ParkingEndcapV = 1f;
@@ -54,9 +61,11 @@ namespace Advanced_Graphics
         [SettingsUIHidden]
         public float ParkingEndcapV { get => m_ParkingEndcapV; set => m_ParkingEndcapV = ClampEndcapScale(value); }
         [SettingsUISection(RoadSection, RoadGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0.1f, max = 8f, step = 0.05f, scalarMultiplier = 1, unit = Unit.kFloatSingleFraction)]
         public float ParkingEndcapVDraft { get => m_ParkingEndcapVDraft ?? ParkingEndcapV; set => m_ParkingEndcapVDraft = ClampEndcapScale(value); }
         [SettingsUISection(RoadSection, RoadGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUIButton]
         public bool ApplyParkingEndcap { set { if (value) { ApplyEndcapValues("parking", ParkingEndcapUDraft, ParkingEndcapVDraft); ApplyAndSave(); } } }
         private float m_LargeRoadEndcapU = 1f, m_LargeRoadEndcapV = 1f;
@@ -66,12 +75,15 @@ namespace Advanced_Graphics
         [SettingsUIHidden]
         public float LargeRoadEndcapV { get => m_LargeRoadEndcapV; set => m_LargeRoadEndcapV = ClampEndcapScale(value); }
         [SettingsUISection(SidewalkSection, SidewalkGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0.1f, max = 8f, step = 0.05f, scalarMultiplier = 1, unit = Unit.kFloatSingleFraction)]
         public float LargeRoadEndcapUDraft { get => m_LargeRoadEndcapUDraft ?? LargeRoadEndcapU; set => m_LargeRoadEndcapUDraft = ClampEndcapScale(value); }
         [SettingsUISection(SidewalkSection, SidewalkGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUISlider(min = 0.1f, max = 8f, step = 0.05f, scalarMultiplier = 1, unit = Unit.kFloatSingleFraction)]
         public float LargeRoadEndcapVDraft { get => m_LargeRoadEndcapVDraft ?? LargeRoadEndcapV; set => m_LargeRoadEndcapVDraft = ClampEndcapScale(value); }
         [SettingsUISection(SidewalkSection, SidewalkGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         [SettingsUIButton]
         public bool ApplyLargeRoadEndcap { set { if (value) { ApplyEndcapValues("large", LargeRoadEndcapUDraft, LargeRoadEndcapVDraft); ApplyAndSave(); } } }
         internal bool HasSidewalkEndcapChanges => SidewalkEndcapU != 1f || SidewalkEndcapV != 1f ||

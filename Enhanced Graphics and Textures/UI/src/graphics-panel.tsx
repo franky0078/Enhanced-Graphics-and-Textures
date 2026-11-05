@@ -10,11 +10,11 @@ const state$ = bindValue<string>(group, "graphicsSettings", "{}");
 type GraphicKey = "TreeLodDistance" | "GlobalDetailScalePercent" | "TerrainTessellationLevel" |
     "TerrainPatchSizeUnits" | "ShadowResolution" | "ShadowDistanceMeters" | "SmallShadowCasterThreshold" |
     "TaaSharpenStrength" | "TaaStabilityEnabled" | "TaaStabilityStrength" | "BloomMode" | "BloomIntensity" | "SunBloomStrength" | "SkyExposure";
-type State = Record<GraphicKey, number> & { show: boolean; x: number; y: number; DefaultShadowResolution: number };
+type State = Record<GraphicKey, number> & { show: boolean; x: number; y: number; DefaultShadowResolution: number; GameTessellation: number; GamePatchSize: number };
 type Tab = "Details" | "Terrain" | "Shadows" | "Lighting" | "AntiAliasing";
 const tabs: Tab[] = ["Details", "Terrain", "Shadows", "AntiAliasing", "Lighting"];
 const initial: State = { show: false, x: -1, y: -1, TreeLodDistance: 100, GlobalDetailScalePercent: 100,
-    TerrainTessellationLevel: 5, TerrainPatchSizeUnits: 64, ShadowResolution: 0, DefaultShadowResolution: 0, ShadowDistanceMeters: 0,
+    TerrainTessellationLevel: 0, TerrainPatchSizeUnits: 0, ShadowResolution: 0, DefaultShadowResolution: 0, GameTessellation: 0, GamePatchSize: 0, ShadowDistanceMeters: 0,
     SmallShadowCasterThreshold: 0, TaaSharpenStrength: 0, TaaStabilityEnabled: 0, TaaStabilityStrength: 0.5, BloomMode: 0, BloomIntensity: 0.2,
     SunBloomStrength: 1, SkyExposure: 0 };
 const controls: (SliderControl & { key: GraphicKey; tab: Tab })[] = [
@@ -22,8 +22,8 @@ const controls: (SliderControl & { key: GraphicKey; tab: Tab })[] = [
     { key: "TreeLodDistance", label: "TreeLodDistance", tab: "Details", min: 10, max: 500, step: 10 },
     { key: "GlobalDetailScalePercent", label: "GlobalDetailScalePercent", tab: "Details", min: 10, max: 500, step: 10 },
     { key: "TaaSharpenStrength", label: "TaaSharpenStrength", tab: "AntiAliasing", min: 0, max: 2, step: 0.05 },
-    { key: "TerrainTessellationLevel", label: "TerrainTessellationLevel", tab: "Terrain", min: 1, max: 16, step: 1 },
-    { key: "TerrainPatchSizeUnits", label: "TerrainPatchSizeUnits", tab: "Terrain", min: 4, max: 128, step: 1 },
+    { key: "TerrainTessellationLevel", label: "TerrainTessellationLevel", tab: "Terrain", min: 0, max: 16, step: 1 },
+    { key: "TerrainPatchSizeUnits", label: "TerrainPatchSizeUnits", tab: "Terrain", min: 0, max: 128, step: 1 },
     { key: "ShadowResolution", label: "ShadowResolution", tab: "Shadows", min: 0, max: 8192, step: 512 },
     { key: "ShadowDistanceMeters", label: "ShadowDistanceMeters", tab: "Shadows", min: 0, max: 2000, step: 50 },
     { key: "SmallShadowCasterThreshold", label: "SmallShadowCasterThreshold", tab: "Shadows", min: 0, max: 10, step: 1 },
@@ -167,6 +167,9 @@ export function GraphicsPanel({ panelClass }: { panelClass: string }) {
                     {tabs.map(key => <button key={key} className={tab === key ? styles.selectedTab : ""}
                         onClick={() => { flush(); setTab(key); }}>{text(key, key)}</button>)}
                 </div>
+                {tab === "Terrain" && <p className={styles.textureHint}>
+                    {text("TerrainGameValue", "0 = game value")}: {value.GameTessellation > 0 ? `${value.GameTessellation} / ${value.GamePatchSize}` : "–"}
+                </p>}
                 {tab === "Shadows" && <p className={styles.textureHint}>
                     {text("ShadowGameValue", "Default for shadow quality")}: {value.DefaultShadowResolution > 0 ? value.DefaultShadowResolution : "–"}
                     {draft.ShadowResolution === 0 ? ` (${text("GameDefault", "Game default")})` : ""}

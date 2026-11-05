@@ -37,14 +37,18 @@ Adjustable sidewalk texture tiling at road ends and junctions.
 
 **How to use**
 
+**How to use**
+
 1. Enable the mod and load a city.
 2. Open Options and select Enhanced Graphics and Textures to adjust graphics settings and surface options.
-3. Click the in-game texture editor button to open the surface panel. Its tooltip identifies the editor.
-4. Select the surface tab and enable the corresponding surface override.
-5. Select the texture mode: 0 = Original, 1 = Generated, 2 = Custom.
-6. Adjust texture size, depth, offset and rotation. Use the crack controls where available.
-7. Parking surface factor in the road tab adjusts the asphalt scale on parking spaces without changing the carriageway or sidewalk scale.
-8. Use the reset controls to return the corresponding surface or graphics settings to their defaults.
+3. At the top of the settings, use "Enable graphics" and "Enable textures" to turn each part of the mod on or off. 
+   (This lets you use the mod for textures only or for graphics only.)
+4. Click the in-game texture editor button to open the surface panel. Its tooltip identifies the editor.
+5. Select the surface tab and enable the corresponding surface override.
+6. Select the texture mode: 0 = Original, 1 = Generated, 2 = Custom.
+7. Adjust texture size, depth, offset and rotation. Use the crack controls where available.
+8. Parking surface factor in the road tab adjusts the asphalt scale on parking spaces without changing the carriageway or sidewalk scale.
+9. Use the reset controls to return the corresponding surface or graphics settings to their defaults.
 
 Launcher visibility for the surface panels can be configured in the mod options.
 

@@ -826,7 +826,111 @@ namespace Advanced_Graphics
             AddEndcapEntries(entries);
             AddDebugWindowEntries(entries);
             AddLogOutputEntries(entries);
+            AddModuleEntries(entries);
             return entries;
+        }
+
+        // Module switches (graphics / textures) and the "0 = game value" texts for terrain and shadow resolution.
+        private void AddModuleEntries(Dictionary<string, string> entries)
+        {
+            string tess = Mod.Graphics?.DefaultTessellation?.ToString() ?? "?";
+            string patch = Mod.Graphics?.DefaultPatchSize?.ToString() ?? "?";
+            string shadow = Mod.Graphics?.DefaultShadowResolution?.ToString() ?? "?";
+            string[] t;
+            switch (m_Language)
+            {
+                case "de":
+                    t = new[] {
+                        "Grafik aktivieren",
+                        "Schaltet alle Grafikfunktionen der Mod ein oder aus: Baum-LOD, Objektdetails, Cache, Terrain, Schatten, Schärfe, Bloom und Himmel. Aus: Die Mod setzt alles, was sie geändert hat, auf die Werte des Spiels zurück und verändert die Grafikeinstellungen des Spiels danach nicht mehr. Die Grafik-Optionen und das Grafikfenster sind dann ausgeblendet bzw. ausgegraut.",
+                        "Texturen aktivieren",
+                        "Schaltet alle Texturfunktionen der Mod ein oder aus: Straßen, Gehwege, Gassen, Feldwege, Gleisschotter, Gras, Fußwege und gerade Gehwegplatten. Aus: Das Spiel zeigt wieder seine Originaltexturen. Die Textur-Optionen und das Texturfenster sind dann ausgeblendet bzw. ausgegraut.",
+                        $"0 = Spielwert (aktuell {tess}); erst ein Wert ab 1 überschreibt die Geländequalität des Spiels. Höher: potenziell feinere Geländegeometrie, meist langsamer. Niedriger: gröberes Gelände, meist schneller. Spielmenü bis 5; höhere Werte sind experimentell und können begrenzt werden.",
+                        $"0 = Spielwert (aktuell {patch}); erst ein Wert ab 4 überschreibt das Spiel. Kleiner: feinere Unterteilung des Terrains, oft bessere Übergänge, aber mehr Zeichenaufwand und eventuell weniger FPS. Größer: gröbere Unterteilung, weniger Zeichenaufrufe und oft mehr FPS. Spielmenü bis 64.",
+                        $"0 = Spielwert (aktuell {shadow} Pixel), auch wenn im Spielmenü eine eigene Auflösung eingestellt ist. Ein Wert ab 512 überschreibt das Spiel; 8192 ist eine zusätzliche Mod-Einstellung. Höher: schärfere Schatten, mehr VRAM- und GPU-Bedarf, oft weniger FPS. Niedriger: weichere oder pixeligere Schatten, oft mehr FPS. Schatten im Spielmenü aktivieren.",
+                        "Terrain-Tessellation auf 0 (Spielwert) zurücksetzen.",
+                        "Terrain-Patchgröße auf 0 (Spielwert) zurücksetzen.",
+                        "Schattenauflösung auf 0 (Spielwert) zurücksetzen.",
+                        "Spielwerte bei 0 (Tessellation / Patchgröße)",
+                        "Spielwert bei 0" };
+                    break;
+                case "es":
+                    t = new[] {
+                        "Activar gráficos",
+                        "Activa o desactiva todas las funciones gráficas del mod: LOD de árboles, detalle de objetos, caché, terreno, sombras, nitidez, bloom y cielo. Desactivado: el mod restablece todo lo que cambió a los valores del juego y ya no modifica los ajustes gráficos del juego. Las opciones gráficas y la ventana de gráficos quedan ocultas o atenuadas.",
+                        "Activar texturas",
+                        "Activa o desactiva todas las funciones de texturas del mod: carreteras, aceras, callejones, caminos de grava, balasto, césped, senderos y losas rectas. Desactivado: el juego vuelve a mostrar sus texturas originales. Las opciones de texturas y la ventana de texturas quedan ocultas o atenuadas.",
+                        $"0 = valor del juego (actual {tess}); solo un valor desde 1 sustituye la calidad del terreno del juego. Más alto: terreno potencialmente más detallado, normalmente más lento. Más bajo: terreno más simple, normalmente más rápido. Juego hasta 5; por encima es experimental y puede limitarse.",
+                        $"0 = valor del juego (actual {patch}); solo un valor desde 4 sustituye al juego. Más pequeño: subdivisión más fina y posibles mejores transiciones, pero más trabajo de dibujo y quizá menos FPS. Más grande: menos llamadas de dibujo y normalmente más FPS. Juego hasta 64.",
+                        $"0 = valor del juego (actual {shadow} píxeles), también con una resolución personalizada en el menú del juego. Un valor desde 512 sustituye al juego; 8192 es una opción adicional del mod. Más alto: sombras más nítidas, más VRAM y GPU, normalmente menos FPS. Más bajo: sombras más suaves o pixeladas, normalmente más FPS. Activa las sombras en el juego.",
+                        "Restablecer la teselación del terreno a 0 (valor del juego).",
+                        "Restablecer el tamaño de parche a 0 (valor del juego).",
+                        "Restablecer la resolución de sombras a 0 (valor del juego).",
+                        "Valores del juego con 0 (teselación / parche)",
+                        "Valor del juego con 0" };
+                    break;
+                case "fr":
+                    t = new[] {
+                        "Activer les graphismes",
+                        "Active ou désactive toutes les fonctions graphiques du mod : LOD des arbres, détails des objets, cache, terrain, ombres, netteté, bloom et ciel. Désactivé : le mod rétablit tout ce qu'il a modifié aux valeurs du jeu et ne modifie plus les réglages graphiques du jeu. Les options graphiques et la fenêtre graphique sont masquées ou grisées.",
+                        "Activer les textures",
+                        "Active ou désactive toutes les fonctions de texture du mod : routes, trottoirs, ruelles, chemins de gravier, ballast, herbe, sentiers et dalles droites. Désactivé : le jeu affiche à nouveau ses textures d'origine. Les options de texture et la fenêtre des textures sont masquées ou grisées.",
+                        $"0 = valeur du jeu (actuellement {tess}) ; seule une valeur à partir de 1 remplace la qualité du terrain du jeu. Plus élevé : terrain potentiellement plus détaillé, généralement plus lent. Plus bas : terrain plus simple, généralement plus rapide. Jeu jusqu'à 5 ; au-delà, expérimental et parfois limité.",
+                        $"0 = valeur du jeu (actuellement {patch}) ; seule une valeur à partir de 4 remplace le jeu. Plus petit : subdivision plus fine et transitions parfois meilleures, mais plus de rendu et parfois moins de FPS. Plus grand : moins d'appels de rendu, souvent plus de FPS. Jeu jusqu'à 64.",
+                        $"0 = valeur du jeu (actuellement {shadow} pixels), même avec une résolution personnalisée dans le menu du jeu. Une valeur à partir de 512 remplace le jeu ; 8192 est une option supplémentaire du mod. Plus élevé : ombres plus nettes, plus de VRAM et de GPU, souvent moins de FPS. Plus bas : ombres plus douces ou pixelisées, souvent plus de FPS. Activez les ombres dans le jeu.",
+                        "Rétablir la tessellation du terrain à 0 (valeur du jeu).",
+                        "Rétablir la taille des parcelles à 0 (valeur du jeu).",
+                        "Rétablir la résolution des ombres à 0 (valeur du jeu).",
+                        "Valeurs du jeu à 0 (tessellation / parcelle)",
+                        "Valeur du jeu à 0" };
+                    break;
+                case "it":
+                    t = new[] {
+                        "Attiva grafica",
+                        "Attiva o disattiva tutte le funzioni grafiche della mod: LOD degli alberi, dettagli degli oggetti, cache, terreno, ombre, nitidezza, bloom e cielo. Disattivata: la mod ripristina tutto ciò che ha modificato ai valori del gioco e non modifica più le impostazioni grafiche del gioco. Le opzioni grafiche e la finestra grafica sono nascoste o disattivate.",
+                        "Attiva texture",
+                        "Attiva o disattiva tutte le funzioni texture della mod: strade, marciapiedi, vicoli, strade sterrate, massicciata, erba, sentieri e lastre dritte. Disattivate: il gioco mostra di nuovo le sue texture originali. Le opzioni texture e la finestra texture sono nascoste o disattivate.",
+                        $"0 = valore del gioco (attuale {tess}); solo un valore da 1 sostituisce la qualità del terreno del gioco. Più alto: geometria del terreno potenzialmente più fine, di solito più lento. Più basso: terreno più semplice, di solito più veloce. Gioco fino a 5; oltre è sperimentale e può essere limitato.",
+                        $"0 = valore del gioco (attuale {patch}); solo un valore da 4 sostituisce il gioco. Più piccolo: suddivisione più fine e possibili transizioni migliori, ma più lavoro di disegno e forse meno FPS. Più grande: meno chiamate di disegno, spesso più FPS. Gioco fino a 64.",
+                        $"0 = valore del gioco (attuale {shadow} pixel), anche con una risoluzione personalizzata nel menu del gioco. Un valore da 512 sostituisce il gioco; 8192 è un'impostazione aggiuntiva della mod. Più alto: ombre più nitide, più VRAM e GPU, spesso meno FPS. Più basso: ombre più morbide o pixelate, spesso più FPS. Attiva le ombre nel gioco.",
+                        "Ripristina la tessellazione terreno a 0 (valore del gioco).",
+                        "Ripristina la dimensione patch a 0 (valore del gioco).",
+                        "Ripristina la risoluzione ombre a 0 (valore del gioco).",
+                        "Valori del gioco con 0 (tessellazione / patch)",
+                        "Valore del gioco con 0" };
+                    break;
+                default:
+                    t = new[] {
+                        "Enable graphics",
+                        "Turns all graphics features of the mod on or off: tree LOD, object detail, cache, terrain, shadows, sharpness, bloom and sky. Off: the mod restores everything it changed to the game's values and no longer touches the game's graphics settings. The graphics options and the graphics window are then hidden or greyed out.",
+                        "Enable textures",
+                        "Turns all texture features of the mod on or off: roads, sidewalks, alleys, gravel roads, rail ballast, grass, footpaths and straight sidewalk slabs. Off: the game shows its original textures again. The texture options and the texture window are then hidden or greyed out.",
+                        $"0 = game value (currently {tess}); only a value of 1 or more overrides the game's terrain quality. Higher: potentially finer terrain geometry, usually slower. Lower: simpler terrain, usually faster. Game menu up to 5; higher values are experimental and may be clamped.",
+                        $"0 = game value (currently {patch}); only a value of 4 or more overrides the game. Smaller: finer terrain subdivision and possibly better transitions, but more draw work and possibly fewer FPS. Larger: fewer draw calls, often more FPS. Game menu up to 64.",
+                        $"0 = game value (currently {shadow} pixels), including a custom resolution set in the game's menu. A value of 512 or more overrides the game; 8192 is an additional mod setting. Higher: sharper shadows, more VRAM and GPU work, often fewer FPS. Lower: softer or more pixelated shadows, often more FPS. Enable shadows in game options.",
+                        "Restore terrain tessellation to 0 (game value).",
+                        "Restore terrain patch size to 0 (game value).",
+                        "Restore shadow resolution to 0 (game value).",
+                        "Game values at 0 (tessellation / patch size)",
+                        "Game value at 0" };
+                    break;
+            }
+            entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.GraphicsEnabled))] = t[0];
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.GraphicsEnabled))] = t[1];
+            entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.TexturesEnabled))] = t[2];
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.TexturesEnabled))] = t[3];
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.TerrainTessellationLevel))] = t[4];
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.TerrainPatchSizeUnits))] = t[5];
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.ShadowResolution))] = t[6];
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.ResetTessellation))] = t[7];
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.ResetPatchSize))] = t[8];
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.ResetShadowResolution))] = t[9];
+            const string prefix = "AdvancedGraphics.UI.Graphics.";
+            entries[prefix + "TerrainGameValue"] = t[10];
+            entries[prefix + "ShadowGameValue"] = t[11];
+            entries[prefix + "TipTerrainTessellationLevel"] = t[4];
+            entries[prefix + "TipTerrainPatchSizeUnits"] = t[5];
+            entries[prefix + "TipShadowResolution"] = t[6];
         }
 
         private void AddLogOutputEntries(Dictionary<string, string> entries)
@@ -906,27 +1010,39 @@ namespace Advanced_Graphics
 
         private void AddJunctionOverlayEntries(Dictionary<string, string> entries)
         {
-            string label, hint;
+            string label, hint, parkingLabel, parkingHint;
             switch (m_Language)
             {
                 case "de":
-                    label = "Gerade Gehwegplatten an Einmündungen";
-                    hint = "Standard an. Ersetzt an Einmündungen von Gassen ohne Gehweg die gestreckte Gehwegtextur der Bordsteinrundung durch ein gerades Plattenraster. An Kreuzungen von Parkstraßen läuft die Parkstraßen-Gehwegtextur gerade durch die Rundung, statt ihr zu folgen. Das Spiel zeichnet dafür eine angepasste Kopie des Kreuzungsmeshes; Geometrie, Licht und Wetter bleiben original. Spielstände werden nicht verändert."; break;
+                    label = "Gerade Gehwegplatten an Gassen und Straßenenden";
+                    hint = "Standard aus. Kann in großen Städten die Leistung beeinträchtigen (Ruckler beim Laden und beim Bauen). Ersetzt an Einmündungen von Gassen ohne Gehweg und an runden Straßenenden die gestreckte Gehwegtextur durch ein gerades Plattenraster. Das Spiel zeichnet dafür eine angepasste Kopie des Kreuzungsmeshes; Geometrie, Licht und Wetter bleiben original. Spielstände werden nicht verändert.";
+                    parkingLabel = "Gerade Gehwegplatten an Parkstraßen";
+                    parkingHint = "Standard aus. Kann in großen Städten die Leistung spürbar beeinträchtigen (Ruckler beim Laden und beim Bauen). An Kreuzungen von Parkstraßen (auch Road-Builder-Straßen mit Parkplätzen) läuft der Gehweg gerade durch die Rundung, einmündende Straßen bekommen eine L-Fuge. Parkfläche, Risse und Gehweg werden pro Meter gekachelt statt pro Straßenstück gestaucht. Spielstände werden nicht verändert."; break;
                 case "es":
-                    label = "Losas rectas en cruces";
-                    hint = "Activado por defecto. En cruces con callejones sin acera, sustituye la textura estirada de la esquina por una cuadrícula recta. En cruces de calles con aparcamiento, la acera continúa recta a través de la curva. El juego dibuja una copia ajustada de la malla del cruce; geometría, luz y clima no cambian. No modifica las partidas."; break;
+                    label = "Losas rectas en callejones y finales de calle";
+                    hint = "Desactivado por defecto. Puede afectar al rendimiento en ciudades grandes (tirones al cargar y al construir). En cruces con callejones sin acera y en finales redondos de calle, sustituye la textura estirada de la acera por una cuadrícula recta. El juego dibuja una copia ajustada de la malla del cruce; geometría, luz y clima no cambian. No modifica las partidas.";
+                    parkingLabel = "Losas rectas en calles con aparcamiento";
+                    parkingHint = "Desactivado por defecto. Puede afectar notablemente al rendimiento en ciudades grandes (tirones al cargar y al construir). En cruces de calles con aparcamiento (también calles de Road Builder con aparcamiento) la acera continúa recta a través de la curva y las calles que desembocan reciben una junta en L. Aparcamiento, grietas y acera se repiten por metro en lugar de comprimirse por tramo. No modifica las partidas."; break;
                 case "fr":
-                    label = "Dalles droites aux carrefours";
-                    hint = "Activé par défaut. Aux entrées de ruelles sans trottoir, remplace la texture étirée de l'arrondi par une grille droite. Aux carrefours des rues avec stationnement, le trottoir continue tout droit à travers l'arrondi. Le jeu dessine une copie ajustée du maillage du carrefour ; géométrie, lumière et météo restent d'origine. Les sauvegardes ne sont pas modifiées."; break;
+                    label = "Dalles droites aux ruelles et fins de rue";
+                    hint = "Désactivé par défaut. Peut réduire les performances dans les grandes villes (saccades au chargement et à la construction). Aux entrées de ruelles sans trottoir et aux fins de rue arrondies, remplace la texture étirée du trottoir par une grille droite. Le jeu dessine une copie ajustée du maillage du carrefour ; géométrie, lumière et météo restent d'origine. Les sauvegardes ne sont pas modifiées.";
+                    parkingLabel = "Dalles droites aux rues avec stationnement";
+                    parkingHint = "Désactivé par défaut. Peut nettement réduire les performances dans les grandes villes (saccades au chargement et à la construction). Aux carrefours des rues avec stationnement (y compris les rues Road Builder avec stationnement), le trottoir continue tout droit à travers l'arrondi et les rues adjacentes reçoivent un joint en L. Stationnement, fissures et trottoir se répètent par mètre au lieu d'être compressés par tronçon. Les sauvegardes ne sont pas modifiées."; break;
                 case "it":
-                    label = "Lastre dritte agli incroci";
-                    hint = "Attivato per default. Agli incroci con vicoli senza marciapiede sostituisce la texture stirata della curva con una griglia dritta. Agli incroci delle strade con parcheggio il marciapiede prosegue dritto attraverso la curva. Il gioco disegna una copia adattata della mesh dell'incrocio; geometria, luce e meteo restano originali. I salvataggi non vengono modificati."; break;
+                    label = "Lastre dritte a vicoli e fine strada";
+                    hint = "Disattivato per default. Può ridurre le prestazioni nelle città grandi (scatti durante il caricamento e la costruzione). Agli incroci con vicoli senza marciapiede e alle fine strada arrotondate sostituisce la texture stirata del marciapiede con una griglia dritta. Il gioco disegna una copia adattata della mesh dell'incrocio; geometria, luce e meteo restano originali. I salvataggi non vengono modificati.";
+                    parkingLabel = "Lastre dritte alle strade con parcheggio";
+                    parkingHint = "Disattivato per default. Può ridurre sensibilmente le prestazioni nelle città grandi (scatti durante il caricamento e la costruzione). Agli incroci delle strade con parcheggio (anche strade Road Builder con parcheggio) il marciapiede prosegue dritto attraverso la curva e le strade laterali ricevono un giunto a L. Parcheggio, crepe e marciapiede si ripetono per metro invece di essere compressi per tratto. I salvataggi non vengono modificati."; break;
                 default:
-                    label = "Straight sidewalk slabs at junctions";
-                    hint = "On by default. At junctions with sidewalk-free alleys, replaces the stretched sidewalk texture of the curb rounding with a straight slab grid. At junctions of parking roads, the parking road sidewalk runs straight through the curb rounding instead of following it. The game draws an adjusted copy of the junction mesh; geometry, lighting and weather stay vanilla. Saves are not modified."; break;
+                    label = "Straight sidewalk slabs at alleys and road ends";
+                    hint = "Off by default. May reduce performance in large cities (stutters while loading and building). At junctions with sidewalk-free alleys and at round road ends, replaces the stretched sidewalk texture with a straight slab grid. The game draws an adjusted copy of the junction mesh; geometry, lighting and weather stay vanilla. Saves are not modified.";
+                    parkingLabel = "Straight sidewalk slabs at parking roads";
+                    parkingHint = "Off by default. May noticeably reduce performance in large cities (stutters while loading and building). At junctions of parking roads (including Road Builder roads with parking), the sidewalk runs straight through the curb rounding and side roads get an L-shaped joint. Parking, cracks and sidewalk tile per metre instead of being squashed per road segment. Saves are not modified."; break;
             }
             entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.SidewalkJunctionOverlay))] = label;
             entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.SidewalkJunctionOverlay))] = hint;
+            entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.SidewalkJunctionParking))] = parkingLabel;
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.SidewalkJunctionParking))] = parkingHint;
             entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.JunctionSyncBlendMode))] = m_Language == "de"
                 ? "Einmündung: Sync-Überblendung (Debug)" : "Junction sync blend (debug)";
             entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.JunctionSyncBlendMode))] = m_Language == "de"

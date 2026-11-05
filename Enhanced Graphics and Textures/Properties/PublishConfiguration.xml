@@ -48,12 +48,14 @@
 
 		1. Enable the mod and load a city.
 		2. Open Options and select Enhanced Graphics and Textures to adjust graphics settings and surface options.
-		3. Click the in-game texture editor button to open the surface panel. Its tooltip identifies the editor.
-		4. Select the surface tab and enable the corresponding surface override.
-		5. Select the texture mode: 0 = Original, 1 = Generated, 2 = Custom.
-		6. Adjust texture size, depth, offset and rotation. Use the crack controls where available.
-		7. Parking surface factor in the road tab adjusts the asphalt scale on parking spaces without changing the carriageway or sidewalk scale.
-		8. Use the reset controls to return the corresponding surface or graphics settings to their defaults.
+		3. At the top of the settings, use "Enable graphics" and "Enable textures" to turn each part of the mod on or off. 
+		   (This lets you use the mod for textures only or for graphics only.)
+		4. Click the in-game texture editor button to open the surface panel. Its tooltip identifies the editor.
+		5. Select the surface tab and enable the corresponding surface override.
+		6. Select the texture mode: 0 = Original, 1 = Generated, 2 = Custom.
+		7. Adjust texture size, depth, offset and rotation. Use the crack controls where available.
+		8. Parking surface factor in the road tab adjusts the asphalt scale on parking spaces without changing the carriageway or sidewalk scale.
+		9. Use the reset controls to return the corresponding surface or graphics settings to their defaults.
 
 		Launcher visibility for the surface panels can be configured in the mod options.
 
@@ -141,7 +143,7 @@
 	<AccessLevel Value="Public" />
 	<Tag Value="Code Mod" />
 	
-	<ModVersion Value="1.7.0" />
+	<ModVersion Value="1.7.3" />
 	
 	<!--Existing value retained. Set this to the game version tested locally before publishing.-->
 	<GameVersion Value="1.6.*" />
@@ -149,11 +151,10 @@
 	<ChangeLog>
 		Latest changes:
 
-		- fixed parking road textures (asphalt, cracks and sidewalk) no longer get squashed on short road segments and between junctions
-		- Textures now tile per metre
-		- fixed stretched textures on medium Roads with parking and on alleys with parking
-		- fixed bend from a parking road with sidewalk into an alley with parking(the alley sidewalk continues the straight slab grid of the parking corner).
-		- added an option to turn off the sidewalk straightening at junctions and use the game's original look instead (mod settings → Sidewalk). The straightening is enabled by default.
+		- added "Enable graphics" and "Enable textures" switches. When off, the mod restores and no longer changes the game's graphics settings or textures.
+		- fixed terrain quality was overwritten on every start. (terrain and shadow resolution now default to 0 = game value).
+		- fixed texture changes re-applied graphics settings.
+		- fixed shadow resolution "default" could replace a custom resolution from the game menu.
 
 	</ChangeLog>
 
