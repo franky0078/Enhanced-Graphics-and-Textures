@@ -55,6 +55,7 @@ namespace Advanced_Graphics
         internal static RoadAsphaltSystem RoadAsphalt;
         internal static SidewalkSurfaceSystem Sidewalk;
         internal static SidewalkJunctionMeshSystem SidewalkJunctionMeshes;
+        internal static bool JunctionRestoreAfterRendering = false;
         internal static SidewalkRoadAtlasSystem SidewalkAtlas;
         internal static AlleySidewalkSurfaceSystem AlleySidewalk;
         internal static AlleySidewalkAtlasSystem AlleySidewalkAtlas;
@@ -83,7 +84,10 @@ namespace Advanced_Graphics
             updateSystem.UpdateBefore<SidewalkJunctionRestoreSystem, EndFrameBarrier>(SystemUpdatePhase.MainLoop);
             updateSystem.UpdateBefore<SidewalkJunctionRestoreSystem>(SystemUpdatePhase.PreTool);
             updateSystem.UpdateBefore<SidewalkJunctionRestoreSystem>(SystemUpdatePhase.ApplyTool);
-            updateSystem.UpdateAfter<SidewalkJunctionRestoreSystem>(SystemUpdatePhase.Rendering);
+            // Restoring right after Rendering made the main thread wait for the game's render jobs that still read Composition
+            // (job wait up to ~13 ms, own work 0.1-0.3 ms). At CompleteRendering those jobs are done; the restores before
+            // tools, simulation, end of frame and saving stay. Set JunctionRestoreAfterRendering = true to go back.
+            if (JunctionRestoreAfterRendering) updateSystem.UpdateAfter<SidewalkJunctionRestoreSystem>(SystemUpdatePhase.Rendering);
             updateSystem.UpdateBefore<SidewalkJunctionRestoreSystem, SimulationSystem>(SystemUpdatePhase.LateUpdate);
             updateSystem.UpdateAfter<SidewalkJunctionRestoreSystem>(SystemUpdatePhase.CompleteRendering);
             updateSystem.UpdateBefore<PreSerialize<SidewalkJunctionMeshSystem>, BeginPrefabSerializationSystem>(SystemUpdatePhase.Serialize);

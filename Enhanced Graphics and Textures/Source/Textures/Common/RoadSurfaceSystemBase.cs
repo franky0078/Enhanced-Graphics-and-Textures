@@ -61,7 +61,10 @@ namespace Advanced_Graphics
         private int CrackDepth => HasIndependentCrackControls ? m_CrackDepth : m_Depth;
         private int m_CrackCount, m_CrackSize = 100, m_CrackWidth = 100, m_CrackOpacity = 100, m_CrackRandomness = 50;
         private Setting.RoadTextureSource m_Source;
-        private int m_Frames, m_PollInterval = 120;
+        private int m_Frames;
+        private const int PollFrames = 120;
+        // Material search only after new or reset batches, settings changes or every 5 minutes (was every 3600 frames).
+        private readonly MaterialScanGate m_ScanGate = new MaterialScanGate();
         private bool m_Dirty;
         private bool m_TextureDirty;
         private bool m_NormalOnly;
@@ -204,8 +207,9 @@ namespace Advanced_Graphics
         protected override void OnUpdate()
         {
             if (Mod.ActiveSetting?.HasPendingApply == true) return;
-            if (!m_Dirty && (!m_Enabled || ++m_Frames < m_PollInterval)) return;
+            if (!m_Dirty && (!m_Enabled || ++m_Frames < PollFrames)) return;
             m_Frames = 0;
+            if (!m_Dirty && !m_TextureDirty && m_Enabled && !m_ScanGate.ShouldScan(World, false)) return;
             if (!m_Enabled)
             {
                 RestoreNow();
@@ -226,6 +230,7 @@ namespace Advanced_Graphics
                 if (!ApplyToSourceMaterials)
                 {
                     RestoreMaterials();
+                    m_ScanGate.Passed(World, false);
                     m_Dirty = false;
                     return;
                 }
@@ -274,12 +279,13 @@ namespace Advanced_Graphics
                         $"UV {m_OffsetX}/{m_OffsetY}% rotation {m_Rotation}°, depth {m_Depth}%, " +
                         $"cracks {m_CrackCount}/{m_CrackSize}%/{m_CrackWidth}%/{m_CrackOpacity}%/{m_CrackRandomness}%, " +
                         $"{m_Original.Count} materials ({added} new)");
-                m_PollInterval = m_Original.Count == 0 ? 120 : 3600;
+                m_ScanGate.Passed(World, m_Original.Count == 0 || added > 0);
                 m_Dirty = false;
             }
             catch (Exception ex)
             {
                 m_Dirty = false;
+                m_ScanGate.Reset();
                 Mod.log.Error(ex, SurfaceName + " could not be applied.");
             }
         }
@@ -785,7 +791,7 @@ namespace Advanced_Graphics
             ClearSourceCache();
             ClearCrackCache();
             ClearCustomNormal();
-            m_PollInterval = 120;
+            m_ScanGate.Reset();
             OnSurfaceReset();
         }
 

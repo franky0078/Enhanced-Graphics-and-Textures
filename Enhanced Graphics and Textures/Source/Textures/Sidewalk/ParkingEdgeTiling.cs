@@ -174,7 +174,7 @@ namespace Advanced_Graphics
                 ? EntityManager.GetBuffer<NetCompositionCarriageway>(source, true).ToNativeArray(Allocator.Temp).ToArray()
                 : new NetCompositionCarriageway[0];
             foreach (var piece in pieces)
-                if (!PieceLoaded(piece.m_Piece)) { m_NotLoaded++; return null; }
+                if (!PieceLoaded(piece.m_Piece) && !IsInvisiblePiece(piece.m_Piece)) { m_NotLoaded++; return null; }
 
             var runtime = new Runtime { Source = source, Parking = true, Signature = TiledSignature };
             try

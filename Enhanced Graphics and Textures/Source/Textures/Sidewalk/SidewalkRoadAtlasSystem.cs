@@ -108,6 +108,7 @@ namespace Advanced_Graphics
         protected override void OnUpdate()
         {
             TexturePool.Trim();
+            TrackNetChanges();
             if (Mod.ActiveSetting?.HasPendingApply == true) return;
             bool scaleChanged = RefreshEndcapScale();
             bool tileChanged = m_SourceColor != Surface?.ActiveColorTexture ||
@@ -116,11 +117,13 @@ namespace Advanced_Graphics
             bool roadEuChanged = IsAlleyAtlas && m_RoadEuAtlasChanged;
             if (!m_Dirty && !tileChanged && !scaleChanged && !roadEuChanged && ++m_Frames < 120) return;
             m_Frames = 0;
+            if (!ShouldRunPass(m_Dirty || tileChanged || scaleChanged || roadEuChanged)) return;
             m_Dirty = false;
             m_RoadEuAtlasChanged = false;
             if (!m_Enabled)
             {
                 RestoreNow();
+                PassFinished(false);
                 return;
             }
 
@@ -130,6 +133,7 @@ namespace Advanced_Graphics
             if (color == null)
             {
                 if (m_SourceColor != null) RestoreNow();
+                PassFinished(false);
                 return;
             }
 
@@ -233,9 +237,11 @@ namespace Advanced_Graphics
                     m_LoggedMissing = true;
                     Mod.LogLater("RoadEU atlas diagnostic: 0 matching materials. Load a city and retry.");
                 }
+                PassFinished(m_Materials.Count == 0 || added > 0);
             }
             catch (Exception ex)
             {
+                ResetScanGate();
                 Mod.log.Error(ex, "RoadEU sidewalk atlas could not be applied.");
             }
         }
@@ -406,6 +412,7 @@ namespace Advanced_Graphics
         public void RestoreNow(bool releaseSources = true)
         {
             bool hadMaterials = m_Materials.Count > 0;
+            ResetScanGate();
             RestoreIsolatedAlleyBatches();
             foreach (var pair in m_Materials)
             {

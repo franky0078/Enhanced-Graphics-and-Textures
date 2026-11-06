@@ -48,6 +48,7 @@ namespace Advanced_Graphics
         private Texture2D m_AsphaltColor, m_AsphaltNormal, m_SidewalkColor, m_SidewalkNormal;
         private int m_ParkingFrames;
         private int m_CornerVersion = -1;
+        private bool m_CornersChanged;
         private float m_ParkingScaleFactor = 1f, m_ParkingDepthFactor = 1f;
 
         protected override string IsolatedSurfaceLabel => "Parking road";
@@ -71,6 +72,7 @@ namespace Advanced_Graphics
         protected override void OnUpdate()
         {
             TexturePool.Trim();
+            TrackNetChanges();
             var settings = Mod.ActiveSetting;
             var asphaltColor = Mod.RoadAsphalt?.ActiveColorTexture;
             var asphaltNormal = asphaltColor != null ? Mod.RoadAsphalt?.ActiveNormalTexture : null;
@@ -95,9 +97,12 @@ namespace Advanced_Graphics
             {
                 m_CornerVersion = cornerVersion;
                 m_ParkingFrames = Mathf.Max(m_ParkingFrames, 110);
+                m_CornersChanged = true;
             }
             if (!changed && !scaleChanged && ++m_ParkingFrames < 120) return;
             m_ParkingFrames = 0;
+            if (!ShouldRunPass(changed || scaleChanged || m_CornersChanged)) return;
+            m_CornersChanged = false;
             if (scaleChanged && !changed) RestoreIsolatedAlleyBatches();
             if (changed)
             {
@@ -115,6 +120,7 @@ namespace Advanced_Graphics
             if (asphaltColor == null && sidewalkColor == null)
             {
                 RestoreParkingNow();
+                PassFinished(false);
                 return;
             }
 
@@ -164,6 +170,7 @@ namespace Advanced_Graphics
                     }
                 }
                 int applied = ApplyIsolatedAlleyBatches();
+                PassFinished(m_ParkingMaterials.Count == 0 || added > 0);
                 if (added > 0)
                     Mod.LogLater("Parking road atlas: " + added + " new materials, " + applied +
                         " isolated batches; parking uses Asphalt, outer sidewalk uses Sidewalk; " +
@@ -519,6 +526,7 @@ namespace Advanced_Graphics
 
         public void RestoreParkingNow(bool releaseSources = true)
         {
+            ResetScanGate();
             RestoreIsolatedAlleyBatches();
             m_ParkingMaterials.Clear();
             foreach (var copy in m_ParkingColors.Values) TexturePool.Release(copy, false);

@@ -143,7 +143,7 @@
 	<AccessLevel Value="Public" />
 	<Tag Value="Code Mod" />
 	
-	<ModVersion Value="1.7.3" />
+	<ModVersion Value="1.7.4" />
 	
 	<!--Existing value retained. Set this to the game version tested locally before publishing.-->
 	<GameVersion Value="1.6.*" />
@@ -151,10 +151,7 @@
 	<ChangeLog>
 		Latest changes:
 
-		- added "Enable graphics" and "Enable textures" switches. When off, the mod restores and no longer changes the game's graphics settings or textures.
-		- fixed terrain quality was overwritten on every start. (terrain and shadow resolution now default to 0 = game value).
-		- fixed texture changes re-applied graphics settings.
-		- fixed shadow resolution "default" could replace a custom resolution from the game menu.
+		- performance improvements and bug fixes
 
 	</ChangeLog>
 

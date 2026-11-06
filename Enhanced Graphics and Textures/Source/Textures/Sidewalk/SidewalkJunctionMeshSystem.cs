@@ -29,6 +29,12 @@ namespace Advanced_Graphics
         private static float s_WalkLeft = LeftUv, s_WalkRight = RightUv;
         private static bool s_ParkingMode;
         private const int BuildsPerScan = 16;
+        // Builds stop for this scan after ScanBudgetMs (the rest follows 0.1 s later): one corner costs 1-8 ms,
+        // 16 in one frame made scans of up to 130 ms while loading or after editing.
+        private const double ScanBudgetMs = 6.0;
+        private long m_ScanStart;
+        private bool OverScanBudget(int builds) => builds > 0 &&
+            (System.Diagnostics.Stopwatch.GetTimestamp() - m_ScanStart) * 1000.0 / System.Diagnostics.Stopwatch.Frequency > ScanBudgetMs;
         private const int MaximumCorners = 4096;
         private bool m_LimitLogged, m_MainPending;
         private readonly Dictionary<(Entity, bool), float2> m_BuildHistory = new Dictionary<(Entity, bool), float2>();
@@ -55,7 +61,7 @@ namespace Advanced_Graphics
         private int m_RebuildLogged;
         private static readonly string[] s_PartNames = { "node geometry", "node composition", "mesh", "edge length", "borrowed frames / alley frames", "atlas pattern" };
 
-        private void LogRebuild((Entity, bool) key, Runtime old, int[] parts, string name, Entity node)
+        private void LogRebuild((Entity, bool) key, Runtime old, int[] parts, string name, Entity node, string detail = null)
         {
             if (old == null || m_RebuildLogged >= 40 || !m_BuildHistory.TryGetValue(key, out var history) ||
                 UnityEngine.Time.unscaledTime - history.x > 60f || history.y < 1f) return;
@@ -68,7 +74,8 @@ namespace Advanced_Graphics
             if (changed.Count == 0) changed.Add("settings");
             string place = EntityManager.HasComponent<Game.Net.Node>(node) ? EntityManager.GetComponentData<Game.Net.Node>(node).m_Position.xz.ToString() : "?";
             Mod.LogLater("Junction corner rebuilt again: " + name + " | node " + place + " | " + (key.Item2 ? "start" : "end") +
-                " | build " + (history.y + 1f).ToString("0") + " this minute | changed: " + string.Join(", ", changed));
+                " | build " + (history.y + 1f).ToString("0") + " this minute | changed: " + string.Join(", ", changed) +
+                (detail != null ? " | before: " + (old.Detail ?? "?") + " | now: " + detail : ""));
         }
 
         // Parking corners and roads at parking junctions that keep the game's look, once per corner (log output option).
@@ -97,6 +104,8 @@ namespace Advanced_Graphics
             public int[] Parts;
             public int BuiltSignature, PreviousSignature;
             public bool Stale;
+            // Alley nodes (log output option): scan type and the corners their frames came from, for "rebuilt again" lines.
+            public string Detail;
             public Entity Source;
             public Entity Composition;
             public bool Announced;
@@ -185,7 +194,6 @@ namespace Advanced_Graphics
         // Incremental scans: after the first full scan only the nodes touched by net changes, pending builds, stale swaps or
         // retries are scanned (with all roads at them). A full scan runs on load, settings changes and every 5 minutes as a safety net.
         private readonly HashSet<Entity> m_DirtyNodes = new HashSet<Entity>();
-        private readonly HashSet<Entity> m_RetryNodes = new HashSet<Entity>();
         private HashSet<Entity> m_ScanNodes;
         private bool m_FullWanted = true;
         private const float FullScanInterval = 300f;
@@ -216,10 +224,10 @@ namespace Advanced_Graphics
                     if (EntityManager.HasComponent<Edge>(entity))
                     {
                         var edge = EntityManager.GetComponentData<Edge>(entity);
-                        if (edge.m_Start != Entity.Null) m_DirtyNodes.Add(edge.m_Start);
-                        if (edge.m_End != Entity.Null) m_DirtyNodes.Add(edge.m_End);
+                        if (edge.m_Start != Entity.Null) { m_DirtyNodes.Add(edge.m_Start); NodeChanged(edge.m_Start); }
+                        if (edge.m_End != Entity.Null) { m_DirtyNodes.Add(edge.m_End); NodeChanged(edge.m_End); }
                     }
-                    else m_DirtyNodes.Add(entity);
+                    else { m_DirtyNodes.Add(entity); NodeChanged(entity); }
                 }
             }
             finally { changed.Dispose(); }
@@ -246,11 +254,12 @@ namespace Advanced_Graphics
             return result;
         }
 
-        // Geometry not streamed yet: retry later with growing delay instead of rescanning every 0.5 s (only the waiting nodes).
+        // Geometry not streamed yet. A node waits for its pieces (JunctionWaiting.cs, cheap check, no timed rescans);
+        // Entity.Null (road without Edge) falls back to a full scan with growing delay.
         private void ScheduleRetry(Entity node)
         {
-            if (node != Entity.Null) m_RetryNodes.Add(node);
-            else m_FullWanted = true;
+            if (node != Entity.Null) { WaitForGeometry(node); return; }
+            m_FullWanted = true;
             if (m_RetryAt > 0f) return;
             m_RetryAt = UnityEngine.Time.unscaledTime + m_RetryDelay;
             m_RetryDelay = math.min(m_RetryDelay * 2f, 60f);
@@ -350,10 +359,9 @@ namespace Advanced_Graphics
                 if (m_RetryAt > 0f && now >= m_RetryAt)
                 {
                     m_RetryAt = 0f;
-                    m_DirtyNodes.UnionWith(m_RetryNodes);
-                    m_RetryNodes.Clear();
                     m_ScanWanted = true;
                 }
+                CheckWaitingNodes(now);
                 if (now >= m_FullScanAt) { m_FullWanted = true; m_ScanWanted = true; }
                 if (setting.HasPendingApply == false && m_ScanWanted && now >= m_NextScan)
                 {
@@ -378,6 +386,7 @@ namespace Advanced_Graphics
                     {
                         long scanStart = System.Diagnostics.Stopwatch.GetTimestamp();
                         Scan();
+                        ResolveWaiting(m_ScanNodes);
                         TrackTime(ref m_ScanTicks, ref m_ScanMaxTicks, scanStart);
                         m_Scans++;
                     }
@@ -450,6 +459,8 @@ namespace Advanced_Graphics
 
         // Timing per 10 s (log output option): scans, swaps per frame and rebuilds, to find what costs frame time.
         private long m_ScanTicks, m_ScanMaxTicks, m_AttachTicks, m_AttachMaxTicks, m_RestoreTicks, m_RestoreMaxTicks;
+        // Restore split: waiting for the game's jobs that use Composition (sync point) vs. the mod's own write-back.
+        private long m_RestoreWaitTicks, m_RestoreWaitMaxTicks, m_RestoreWorkMaxTicks;
         private int m_Scans, m_Frames, m_WindowBuilds;
         private float m_TimingSince = -1f;
 
@@ -470,20 +481,47 @@ namespace Advanced_Graphics
             Mod.LogLater("Junction sidewalk timing (10 s): " + m_Scans + " scans (" + m_FullScans + " full) avg " + (m_ScanTicks * ms / scans).ToString("0.0") +
                 " ms max " + (m_ScanMaxTicks * ms).ToString("0.0") + " ms; swap per frame avg " + (m_AttachTicks * ms / frames).ToString("0.00") +
                 " ms max " + (m_AttachMaxTicks * ms).ToString("0.0") + " ms; restore per frame avg " + (m_RestoreTicks * ms / frames).ToString("0.00") +
-                " ms max " + (m_RestoreMaxTicks * ms).ToString("0.0") + " ms; " + m_WindowBuilds + " rebuilds; " + m_Runtimes.Count + " corners, " +
-                m_TiledParkingEdges.Count + " tiled parking edges, " + m_ParkingNodeRoads.Count + " parking node roads, " + m_Attached.Count + " swapped edges.");
+                " ms max " + (m_RestoreMaxTicks * ms).ToString("0.0") + " ms (job wait avg " + (m_RestoreWaitTicks * ms / frames).ToString("0.00") +
+                " ms max " + (m_RestoreWaitMaxTicks * ms).ToString("0.0") + " ms, own work max " + (m_RestoreWorkMaxTicks * ms).ToString("0.0") + " ms); " +
+                m_WindowBuilds + " rebuilds; " + m_Runtimes.Count + " corners, " +
+                m_TiledParkingEdges.Count + " tiled parking edges, " + m_ParkingNodeRoads.Count + " parking node roads, " + m_Attached.Count + " swapped edges; " +
+                m_Waiting.Count + " nodes waiting for geometry (" + m_WaitingChecks + " checks, " + m_WaitingReady + " ready, check max " +
+                (m_WaitingCheckMaxTicks * ms).ToString("0.00") + " ms); invisible pieces left out in " + m_InvisibleLeftOut + " builds.");
+            m_InvisibleLeftOut = 0;
+            m_WaitingCheckMaxTicks = 0;
+            LogMissingPieces(now);
             m_ScanTicks = m_ScanMaxTicks = m_AttachTicks = m_AttachMaxTicks = m_RestoreTicks = m_RestoreMaxTicks = 0;
+            m_RestoreWaitTicks = m_RestoreWaitMaxTicks = m_RestoreWorkMaxTicks = 0;
             m_Scans = m_Frames = m_WindowBuilds = m_FullScans = 0;
+            m_WaitingChecks = m_WaitingReady = 0;
+            PruneCornerBuiltAt();
             m_TimingSince = now;
         }
 
         private void EndRenderingCore()
         {
+            long waitStart = System.Diagnostics.Stopwatch.GetTimestamp();
             if (m_SyncOnRestore)
             {
                 EntityManager.CompleteAllTrackedJobs();
                 m_SyncOnRestore = false;
             }
+            // SetComponentData below would wait for these jobs anyway; doing it explicitly separates the wait from the own work.
+            EntityManager.CompleteDependencyBeforeRW<Composition>();
+            long workStart = System.Diagnostics.Stopwatch.GetTimestamp();
+            long wait = workStart - waitStart;
+            m_RestoreWaitTicks += wait;
+            if (wait > m_RestoreWaitMaxTicks) m_RestoreWaitMaxTicks = wait;
+            try { RestoreAttached(); }
+            finally
+            {
+                long work = System.Diagnostics.Stopwatch.GetTimestamp() - workStart;
+                if (work > m_RestoreWorkMaxTicks) m_RestoreWorkMaxTicks = work;
+            }
+        }
+
+        private void RestoreAttached()
+        {
             foreach (var pair in m_Attached)
             {
                 var edge = pair.Key;
@@ -525,7 +563,7 @@ namespace Advanced_Graphics
             m_ScanWanted = true;
             m_FullWanted = true;
             m_DirtyNodes.Clear();
-            m_RetryNodes.Clear();
+            ClearWaiting();
         }
 
         internal void DropAll()
@@ -540,6 +578,7 @@ namespace Advanced_Graphics
             }
             m_Runtimes.Clear();
             DropParkingEdges();
+            ClearWaiting();
             m_NextScan = 0f;
             m_ScanWanted = true;
             m_FullWanted = true;
@@ -599,6 +638,7 @@ namespace Advanced_Graphics
         // Finds the corners to rebuild (alley junctions, parking corners, roads at parking junctions, road ends).
         private void Scan()
         {
+            m_ScanStart = System.Diagnostics.Stopwatch.GetTimestamp();
             m_ParkingCorners = m_ParkingNeighbourCorners = m_DensityStandIns = m_AsphaltTriangles = m_MiterParts = m_MiterLogged = m_BorrowedSlots = 0;
             m_ParkingSidewalkEnds.Clear();
             m_ParkingEndCorners.Clear();
@@ -717,8 +757,7 @@ namespace Advanced_Graphics
                         if (old != null && old.Signature == signature) continue;
                         var parts = new[] { geometry.GetHashCode(), source.GetHashCode(), meshRef.m_Mesh.GetHashCode(),
                             (edgeGeometry.m_Start.m_Length + edgeGeometry.m_End.m_Length).GetHashCode(), borrowSignature, parking ? PatternSignature() : 0 };
-                        LogRebuild(key, old, parts, prefab.name, junction);
-                        if (builds >= BuildsPerScan)
+                        if (builds >= BuildsPerScan || OverScanBudget(builds))
                         {
                             MarkNode(junction, 0.1f);
                             m_NextScan = UnityEngine.Time.unscaledTime + 0.1f;
@@ -726,6 +765,7 @@ namespace Advanced_Graphics
                             continue;
                         }
                         if (Oscillating(key, old, signature)) continue;
+                        LogRebuild(key, old, parts, prefab.name, junction);
                         builds++;
                         m_DumpNeighbour = parkingNeighbour;
                         s_SquareSync = parking;
@@ -764,6 +804,7 @@ namespace Advanced_Graphics
                             EntityManager.AddComponent<BatchesUpdated>(road);
                         }
                         m_Runtimes[key] = runtime;
+                        CornerBuilt(junction);
                         if (runtime.Composition != Entity.Null) m_Built++;
                         else LogSkip(parking || parkingNeighbour, road, start, prefab.name, junction, "nothing remapped (no straight strip or sidewalk found at the seam)");
                     }
@@ -838,23 +879,35 @@ namespace Advanced_Graphics
         {
             var frames = new Dictionary<Entity, List<SourceFrame>>();
             var signatures = new Dictionary<Entity, int>();
+            var details = ModLog.Enabled ? new Dictionary<Entity, List<string>>() : null;
             foreach (var end in sidewalkEnds)
             {
                 frames[end] = new List<SourceFrame>();
                 signatures[end] = 0x2545f491;
                 m_SidewalkEnds++;
+                AddDetail(details, end, "sidewalk end");
             }
             foreach (var corner in mainCorners)
             {
-                if (!m_Runtimes.TryGetValue(corner.Item2, out var main) || main.Composition == Entity.Null || main.Frames.Count == 0) continue;
+                if (!m_Runtimes.TryGetValue(corner.Item2, out var main) || main.Composition == Entity.Null || main.Frames.Count == 0)
+                {
+                    AddDetail(details, corner.Item1, "main " + CornerName(corner.Item2) + " missing");
+                    continue;
+                }
                 if (!frames.TryGetValue(corner.Item1, out var list)) { list = new List<SourceFrame>(); frames.Add(corner.Item1, list); signatures.Add(corner.Item1, 0); }
                 list.AddRange(main.Frames);
                 signatures[corner.Item1] = signatures[corner.Item1] * 31 + main.Signature;
+                AddDetail(details, corner.Item1, "main " + CornerName(corner.Item2) + "=" + main.Signature + "/" + main.Frames.Count);
             }
             foreach (var pair in m_ParkingEndCorners)
             {
                 if (!frames.TryGetValue(pair.Key, out var list) || !m_Runtimes.TryGetValue(pair.Value, out var main) ||
-                    main.Composition == Entity.Null || main.Frames.Count == 0) continue;
+                    main.Composition == Entity.Null || main.Frames.Count == 0)
+                {
+                    AddDetail(details, pair.Key, "parking end " + CornerName(pair.Value) + " missing");
+                    continue;
+                }
+                AddDetail(details, pair.Key, "parking end " + CornerName(pair.Value) + "=" + main.Signature + "/" + main.Frames.Count);
                 foreach (var item in main.Frames)
                 {
                     var road = item.Frame != null ? ToRoadFrame(item.Frame) : null;
@@ -866,7 +919,12 @@ namespace Advanced_Graphics
             // Alleys at a parking road junction (T or crossing): the parking corners' straight frames, converted to the RoadEU atlas.
             foreach (var pair in m_ParkingAlleyCorners)
             {
-                if (!m_Runtimes.TryGetValue(pair.Item2, out var main) || main.Composition == Entity.Null || main.Frames.Count == 0) continue;
+                if (!m_Runtimes.TryGetValue(pair.Item2, out var main) || main.Composition == Entity.Null || main.Frames.Count == 0)
+                {
+                    AddDetail(details, pair.Item1, "parking corner " + CornerName(pair.Item2) + " missing");
+                    continue;
+                }
+                AddDetail(details, pair.Item1, "parking corner " + CornerName(pair.Item2) + "=" + main.Signature + "/" + main.Frames.Count);
                 if (!frames.TryGetValue(pair.Item1, out var list)) { list = new List<SourceFrame>(); frames.Add(pair.Item1, list); signatures.Add(pair.Item1, 0); }
                 foreach (var item in main.Frames)
                 {
@@ -913,11 +971,16 @@ namespace Advanced_Graphics
                     if (signature == 0) signature = 1;
                     m_Runtimes.TryGetValue(key, out var old);
                     if (old != null && old.Signature == signature) { if (old.Composition != Entity.Null) m_AlleyMeshes++; continue; }
+                    // Main corners at this node built less than AlleySettleTime ago: wait (one rebuild instead of a chain).
+                    float settle = AlleySettleWait(node);
+                    if (settle > 0f) { MarkNode(node, settle + 0.05f); continue; }
                     var parts = new[] { geometry.GetHashCode(), source.GetHashCode(), meshRef.m_Mesh.GetHashCode(), 0, signatures[node], 0 };
-                    LogRebuild(key, old, parts, "alley node", node);
-                    if (builds >= BuildsPerScan || m_MainPending) { MarkNode(node, 0.1f); m_NextScan = UnityEngine.Time.unscaledTime + 0.1f; continue; }
                     // Alley nodes follow the main corners' frames: wait until those are all built (no chain of rebuilds while loading).
+                    if (builds >= BuildsPerScan || OverScanBudget(builds) || m_MainPending) { MarkNode(node, 0.1f); m_NextScan = UnityEngine.Time.unscaledTime + 0.1f; continue; }
                     if (Oscillating(key, old, signature)) continue;
+                    string detail = details != null && details.TryGetValue(node, out var detailList)
+                        ? (m_ScanNodes == null ? "full scan: " : "incremental scan: ") + string.Join(", ", detailList) : null;
+                    LogRebuild(key, old, parts, "alley node", node, detail);
                     builds++;
                     var edgeGeometry = EntityManager.GetComponentData<EdgeGeometry>(alley);
                     m_DumpAlleyEnd = m_ParkingSidewalkEnds.Contains(node);
@@ -932,6 +995,7 @@ namespace Advanced_Graphics
                     if (runtime == null) { builds--; ScheduleRetry(node); continue; }
                     runtime.Signature = signature;
                     runtime.Parts = parts;
+                    runtime.Detail = detail;
                     runtime.BuiltSignature = signature;
                     runtime.PreviousSignature = old?.BuiltSignature ?? 0;
                     RecordBuild(key);
@@ -947,6 +1011,15 @@ namespace Advanced_Graphics
                 }
             }
         }
+
+        private static void AddDetail(Dictionary<Entity, List<string>> details, Entity node, string text)
+        {
+            if (details == null) return;
+            if (!details.TryGetValue(node, out var list)) { list = new List<string>(); details.Add(node, list); }
+            list.Add(text);
+        }
+
+        private static string CornerName((Entity, bool) key) => "road " + key.Item1.Index + (key.Item2 ? " start" : " end");
 
         private readonly Dictionary<Entity, bool> m_SidewalkFreeMeshes = new Dictionary<Entity, bool>();
         private readonly Dictionary<Entity, bool> m_RoadSidewalkMeshes = new Dictionary<Entity, bool>();
@@ -1271,7 +1344,7 @@ namespace Advanced_Graphics
             var runtime = new Runtime { Source = source };
             var meshEntity = meshRef.m_Mesh;
             var meshData = EntityManager.GetComponentData<NetCompositionMeshData>(meshEntity);
-            var pieces = EntityManager.GetBuffer<NetCompositionPiece>(meshEntity, true).ToNativeArray(Allocator.Temp).ToArray();
+            var pieces = WithoutGeometryFreePieces(EntityManager.GetBuffer<NetCompositionPiece>(meshEntity, true).ToNativeArray(Allocator.Temp).ToArray());
             var meshMaterials = EntityManager.HasBuffer<MeshMaterial>(meshEntity)
                 ? EntityManager.GetBuffer<MeshMaterial>(meshEntity, true).ToNativeArray(Allocator.Temp).ToArray()
                 : new MeshMaterial[0];

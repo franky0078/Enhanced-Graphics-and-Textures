@@ -33,6 +33,7 @@ namespace Advanced_Graphics
         private readonly Dictionary<Material, Maps> m_Maps = new Dictionary<Material, Maps>();
         private bool m_Enabled, m_Dirty;
         private int m_FilterColor = 0xffffff, m_FilterOpacityPercent = 100;
+        private readonly MaterialScanGate m_ScanGate = new MaterialScanGate();
         private int m_Size = 100, m_Depth, m_Frames, m_Detail, m_OffsetX, m_OffsetY, m_Rotation;
         private Texture2D m_Tile, m_NormalTile;
         private Color32[] m_TilePixels, m_NormalTilePixels;
@@ -83,8 +84,10 @@ namespace Advanced_Graphics
             }
             if (!m_Enabled || IsOriginal) { m_Dirty = false; return; }
             if (m_Dirty && m_Work == null && m_Maps.Count > 0) StartWork();
-            if (!m_Dirty && ++m_Frames < (m_Maps.Count == 0 ? 120 : 3600)) return;
+            if (!m_Dirty && ++m_Frames < 120) return;
             m_Frames = 0;
+            // Material search only after new or reset batches or every 5 minutes (was every 3600 frames).
+            if (!m_Dirty && !m_ScanGate.ShouldScan(World, false)) return;
             int added = 0;
             foreach (var material in Resources.FindObjectsOfTypeAll<Material>())
             {
@@ -136,6 +139,7 @@ namespace Advanced_Graphics
             if (m_Dirty || added > 0)
                 Mod.log.Info($"Gravel shoulder: size {m_Size}, depth {m_Depth}, {m_Maps.Count} materials ({added} new)");
             m_Dirty = false;
+            m_ScanGate.Passed(World, m_Maps.Count == 0 || added > 0);
             if (added > 0 && m_Work == null) StartWork();
         }
 
@@ -324,6 +328,7 @@ namespace Advanced_Graphics
             }
             m_Maps.Clear();
             m_Frames = 0;
+            m_ScanGate.Reset();
         }
 
         protected override void OnDestroy() { RestoreNow(); base.OnDestroy(); }
