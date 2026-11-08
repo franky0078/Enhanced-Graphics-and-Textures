@@ -47,6 +47,7 @@ namespace Advanced_Graphics
         internal static RoadMaterialInspector RoadInspector;
         internal static RailMaterialInspector RailInspector;
         internal static RailGravelSystem RailGravel;
+        internal static RailCrossingSurfaceSystem RailCrossingSurface;
         internal static RoadGravelSystem RoadGravel;
         internal static GrassSurfaceSystem Grass;
         internal static FootpathSurfaceSystem Footpath;
@@ -75,6 +76,7 @@ namespace Advanced_Graphics
             updateSystem.UpdateAt<RoadMaterialInspector>(SystemUpdatePhase.Rendering);
             updateSystem.UpdateAt<RailMaterialInspector>(SystemUpdatePhase.Rendering);
             updateSystem.UpdateAt<RailGravelSystem>(SystemUpdatePhase.Rendering);
+            updateSystem.UpdateAfter<RailCrossingSurfaceSystem, BatchManagerSystem>(SystemUpdatePhase.Rendering);
             updateSystem.UpdateAt<RoadGravelSystem>(SystemUpdatePhase.Rendering);
             updateSystem.UpdateAt<GravelShoulderSurfaceSystem>(SystemUpdatePhase.Rendering);
             updateSystem.UpdateAfter<GravelShoulderSystem, GravelShoulderSurfaceSystem>(SystemUpdatePhase.Rendering);
@@ -103,6 +105,7 @@ namespace Advanced_Graphics
             RoadInspector = updateSystem.World.GetOrCreateSystemManaged<RoadMaterialInspector>();
             RailInspector = updateSystem.World.GetOrCreateSystemManaged<RailMaterialInspector>();
             RailGravel = updateSystem.World.GetOrCreateSystemManaged<RailGravelSystem>();
+            RailCrossingSurface = updateSystem.World.GetOrCreateSystemManaged<RailCrossingSurfaceSystem>();
             RoadGravel = updateSystem.World.GetOrCreateSystemManaged<RoadGravelSystem>();
             Grass = updateSystem.World.GetOrCreateSystemManaged<GrassSurfaceSystem>();
             Footpath = updateSystem.World.GetOrCreateSystemManaged<FootpathSurfaceSystem>();
@@ -204,6 +207,8 @@ namespace Advanced_Graphics
             RailInspector = null;
             RailGravel?.RestoreNow();
             RailGravel = null;
+            RailCrossingSurface?.RestoreNow();
+            RailCrossingSurface = null;
             Grass?.RestoreNow();
             Grass = null;
             Footpath?.RestoreNow();

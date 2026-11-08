@@ -41,6 +41,7 @@ namespace Advanced_Graphics
             Mod.RoadGravel?.ReloadCustomTexture();
             Mod.GravelShoulderSurface?.ReloadCustomTexture();
             Mod.RailGravel?.ReloadCustomTexture();
+            Mod.RailCrossingSurface?.ReloadCustomTexture();
         }
 
         private float m_SurfaceTextureMipBias;
@@ -1168,6 +1169,7 @@ namespace Advanced_Graphics
         public override void SetDefaults()
         {
             ResetEndcapValues();
+            ResetRailCrossing();
             UseRoadNormalMap = UseSidewalkNormalMap = UseAlleySidewalkNormalMap = UseRoadGravelNormalMap = UseGravelShoulderNormalMap = UseRailNormalMap = UseGrassNormalMap = false;
             SurfaceTextureMipBias = 0f;
             RoadFilterColor = SidewalkFilterColor = AlleySidewalkFilterColor = RoadGravelFilterColor = GravelShoulderFilterColor = RailFilterColor = 0xffffff;
@@ -1469,11 +1471,3 @@ namespace Advanced_Graphics
         }
     }
 }
-
-
-
-
-
-
-
-

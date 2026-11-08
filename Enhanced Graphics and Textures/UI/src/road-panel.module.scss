@@ -197,3 +197,4 @@
 .textureActions { display: flex; flex-direction: row; margin-top: 8rem; }
 .textureActions .reset { flex: 1 1 0; width: 0; min-width: 0; margin-top: 0; padding: 7rem 5rem; }
 .textureActions .reset + .reset { margin-left: 8rem; }
+.textureActions .reset:disabled { opacity: .5; pointer-events: none; }

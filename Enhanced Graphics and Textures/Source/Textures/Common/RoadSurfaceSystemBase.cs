@@ -460,15 +460,20 @@ namespace Advanced_Graphics
             for (int y = 0; y < size; y++)
             for (int x = 0; x < size; x++)
             {
-                float grain = (Hash(x, y, 17) - 0.5f) * 5f;
-                float soft = (Hash(x / 4, y / 4, 29) - 0.5f) * 2f;
-                byte shade = (byte)Mathf.Clamp(84f + grain + soft, 0f, 255f);
+                byte shade = (byte)Mathf.Clamp(NeutralAsphaltShade(x, y), 0f, 255f);
                 colors[y * size + x] = new Color32(shade, (byte)(shade + 1), (byte)(shade + 2), 255);
             }
             var texture = new Texture2D(size, size, TextureFormat.RGBA32, false, false);
             texture.SetPixels32(colors);
             texture.Apply(false, false);
             return texture;
+        }
+
+        internal static float NeutralAsphaltShade(int x, int y)
+        {
+            float grain = (Hash(x, y, 17) - 0.5f) * 5f;
+            float soft = (Hash(x / 4, y / 4, 29) - 0.5f) * 2f;
+            return 84f + grain + soft;
         }
 
         private static float Hash(int x, int y, int seed)
@@ -803,10 +808,3 @@ namespace Advanced_Graphics
         }
     }
 }
-
-
-
-
-
-
-

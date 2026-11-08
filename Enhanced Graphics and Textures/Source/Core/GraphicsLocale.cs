@@ -825,6 +825,7 @@ namespace Advanced_Graphics
             AddNormalToggleEntries(entries);
             AddEndcapEntries(entries);
             AddDebugWindowEntries(entries);
+            AddRailCrossingEntries(entries);
             AddLogOutputEntries(entries);
             AddModuleEntries(entries);
             return entries;
@@ -961,6 +962,42 @@ namespace Advanced_Graphics
             }
             entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.EnableLogOutput))] = label;
             entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.EnableLogOutput))] = description;
+        }
+
+        private void AddRailCrossingEntries(Dictionary<string, string> entries)
+        {
+            string[] labels;
+            switch (m_Language)
+            {
+                case "de":
+                    labels = new[] { "Bahnübergang", "Straße und Gehweg", "Auflage", "Glanz", "0 % = matt, 100 % = ursprünglicher Glanz.",
+                        "Blendet die Auflage aus, damit die Straße und der Gehweg darunter sichtbar werden.", "Bahnübergang zurücksetzen",
+                        "RailCrossing_BaseColor.png und optional RailCrossing_Normal.png. Ohne gültige Farbtextur wird die eingebaute Auflage verwendet." };
+                    break;
+                case "es":
+                    labels = new[] { "Paso a nivel", "Calzada y acera", "Revestimiento", "Brillo", "0 % = mate, 100 % = brillo original.",
+                        "Oculta el revestimiento para mostrar la calzada y la acera inferiores.", "Restablecer paso a nivel",
+                        "RailCrossing_BaseColor.png y, opcionalmente, RailCrossing_Normal.png. Sin una textura de color válida se usa el revestimiento incluido." };
+                    break;
+                case "fr":
+                    labels = new[] { "Passage à niveau", "Route et trottoir", "Revêtement", "Brillance", "0 % = mat, 100 % = brillance d’origine.",
+                        "Masque le revêtement pour laisser apparaître la route et le trottoir en dessous.", "Réinitialiser le passage à niveau",
+                        "RailCrossing_BaseColor.png et, en option, RailCrossing_Normal.png. Sans texture de couleur valide, le revêtement intégré est utilisé." };
+                    break;
+                case "it":
+                    labels = new[] { "Passaggio a livello", "Strada e marciapiede", "Rivestimento", "Lucentezza", "0% = opaco, 100% = lucentezza originale.",
+                        "Nasconde il rivestimento per mostrare la strada e il marciapiede sottostanti.", "Ripristina passaggio a livello",
+                        "RailCrossing_BaseColor.png e, facoltativamente, RailCrossing_Normal.png. Senza una texture colore valida viene usato il rivestimento integrato." };
+                    break;
+                default:
+                    labels = new[] { "Level crossing", "Road and sidewalk", "Cover", "Gloss", "0% = matte, 100% = original gloss.",
+                        "Makes the cover transparent so the road and sidewalk below show through.", "Reset crossing",
+                        "RailCrossing_BaseColor.png and optional RailCrossing_Normal.png. Uses the built-in cover without a valid color PNG." };
+                    break;
+            }
+            var keys = new[] { "RailCrossing", "RailCrossingThrough", "RailCrossingCover", "RailCrossingGloss", "TipRailCrossingGloss",
+                "RailCrossingThroughHint", "RailCrossingReset", "RailCrossingFiles" };
+            for (int i = 0; i < keys.Length; i++) entries["AdvancedGraphics.UI." + keys[i]] = labels[i];
         }
 
         private void AddDebugWindowEntries(Dictionary<string, string> entries)

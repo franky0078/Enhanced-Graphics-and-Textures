@@ -36,6 +36,7 @@ Adjust these surfaces independently:
 - Gravel roads
 - Gravel sidewalks / road edges
 - Railway ballast
+- Railway crossing
 
 The editor provides original, generated and custom texture modes, with surface-dependent controls for texture size, depth, offset and rotation.
 Asphalt and sidewalk controls also include procedural cracks with adjustable count, size, width, opacity and randomness.
@@ -82,6 +83,7 @@ Use these exact filenames:
 - Gravel road: Gravel/RoadGravel_BaseColor.png and Gravel/RoadGravel_Normal.png
 - Gravel sidewalk / edge: GravelSidewalk/GravelShoulder_BaseColor.png and GravelSidewalk/GravelShoulder_Normal.png
 - Railway ballast: Rail/RailGravel_BaseColor.png and Rail/RailGravel_Normal.png
+- Railway crossing: Rail/RailCrossing/RailCrossing_BaseColor.png and Rail/RailCrossing/RailCrossing_Normal.png
 
 1. Prepare a square, seamlessly tiling PNG, at most 4096 × 4096 pixels and no larger than 32 MiB.
 2. Place it in the corresponding subfolder using the exact filename above.

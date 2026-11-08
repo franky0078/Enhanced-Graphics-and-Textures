@@ -20,9 +20,11 @@ type Surface = "road" | "sidewalk" | "alley" | "rail" | "gravel" | "shoulder" | 
 const triggers: Record<Surface, string> = { footpath: "setFootpathSetting", grass: "setGrassSetting", road: "setRoadSetting", sidewalk: "setSidewalkSetting", alley: "setAlleySidewalkSetting", rail: "setRailSetting", gravel: "setGravelSetting", shoulder: "setShoulderSetting" };
 const prefixes: Record<Surface, string> = { footpath: "Footpath", grass: "Grass", road: "", sidewalk: "Sidewalk", alley: "AlleySidewalk", rail: "RailGravel", gravel: "RoadGravel", shoulder: "GravelShoulder" };
 type Key = "largeEndcapU" | "largeEndcapV" | "roadEndU" | "roadEndV" | "alleyEndcapU" | "alleyEndcapV" | "parkingEndcapU" | "parkingEndcapV" | "endcapU" | "endcapV" | "detail" | "uv" | "depth" | "tiling" | "parkingScale" | "parkingDepth" | "parkingSidewalkU" | "parkingSidewalkV" | "shiftU" | "shiftV" | "mipBias" | "offsetX" | "offsetY" |
-    "rotation" | "cracks" | "crackSize" | "crackWidth" | "crackOpacity" | "crackDepth" | "crackRotation" | "crackOffsetX" | "crackOffsetY" | "randomness";
-type State = Record<Key, number> & { show: boolean; enabled: boolean; filterColor: number; filterOpacity: number; probe?: boolean; customCracks?: boolean; crackStatus?: number };
+    "rotation" | "cracks" | "crackSize" | "crackWidth" | "crackOpacity" | "crackDepth" | "crackRotation" | "crackOffsetX" | "crackOffsetY" | "randomness" |
+    "crossingMode" | "crossingDepth" | "crossingGloss" | "crossingUv" | "crossingOffsetX" | "crossingOffsetY" | "crossingRotation";
+type State = Record<Key, number> & { show: boolean; enabled: boolean; filterColor: number; filterOpacity: number; crossingColor: number; crossingOpacity: number; probe?: boolean; customCracks?: boolean; crackStatus?: number };
 const initial: State = { show: true, enabled: false, filterColor: 0xffffff, filterOpacity: 100, detail: 0, uv: 100, depth: 0,
+    crossingMode: 1, crossingDepth: 100, crossingGloss: 10, crossingUv: 100, crossingOffsetX: 0, crossingOffsetY: 0, crossingRotation: 0, crossingColor: 0xffffff, crossingOpacity: 100,
     largeEndcapU: 1, largeEndcapV: 1, roadEndU: 1, roadEndV: 1, alleyEndcapU: 1, alleyEndcapV: 1, parkingEndcapU: 1, parkingEndcapV: 1, endcapU: 1, endcapV: 1, tiling: 1, parkingScale: 1, parkingDepth: 1, parkingSidewalkU: 1, parkingSidewalkV: 1, shiftU: 0, shiftV: 0, mipBias: 0, offsetX: 0, offsetY: 0, rotation: 0, cracks: 0, crackSize: 100, crackWidth: 100, crackOpacity: 100, crackDepth: 100, crackRotation: 0, crackOffsetX: 0, crackOffsetY: 0, randomness: 50 };
 
 const controls: { key: Key; label: string; min: number; max: number; step: number }[] = [
@@ -48,6 +50,15 @@ const controls: { key: Key; label: string; min: number; max: number; step: numbe
     { key: "parkingSidewalkV", label: "ParkingSidewalkV", min: 0.1, max: 8, step: 0.05 },
     { key: "shiftU", label: "ShiftU", min: 0, max: 100, step: 1 },
     { key: "shiftV", label: "ShiftV", min: 0, max: 100, step: 1 },
+];
+
+const crossingControls: { key: Key; label: string; min: number; max: number; step: number }[] = [
+    { key: "crossingDepth", label: "Depth", min: 0, max: 3000, step: 25 },
+    { key: "crossingGloss", label: "RailCrossingGloss", min: 0, max: 100, step: 1 },
+    { key: "crossingUv", label: "Uv", min: 10, max: 3000, step: 5 },
+    { key: "crossingOffsetX", label: "OffsetX", min: 0, max: 300, step: 5 },
+    { key: "crossingOffsetY", label: "OffsetY", min: 0, max: 300, step: 5 },
+    { key: "crossingRotation", label: "Rotation", min: 0, max: 360, step: 1 },
 ];
 
 export type SliderControl = { key: string; label: string; min: number; max: number; step: number };
@@ -110,7 +121,7 @@ export function RoadSlider({ control, label, description, value, displayValue, o
             <span className={styles.rowLabel}>{label}</span>
         </Tooltip>
         <div ref={track} className={styles.slider} role="slider" tabIndex={0}
-            aria-label={label} aria-valuemin={control.min} aria-valuemax={control.max} aria-valuenow={value}
+            aria-label={label} aria-valuemin={control.min} aria-valuemax={control.max} aria-valuenow={value} aria-valuetext={displayValue}
             onMouseDown={event => {
                 if (event.button !== 0) return;
                 event.preventDefault(); event.stopPropagation();
@@ -176,7 +187,7 @@ export function RoadPanel({ panelClass }: { panelClass: string }) {
     const [colorStart, setColorStart] = React.useState({ x: 650, y: 100 });
     const { translate } = useLocalization();
     const [open, setOpen] = React.useState(false);
-    const [colorOpen, setColorOpen] = React.useState(false);
+    const [colorOpen, setColorOpen] = React.useState<"surface" | "crossing" | null>(null);
     const [surface, setSurface] = React.useState<Surface>("road");
     const [position, setPosition] = React.useState({ x: 86, y: 100 });
     const [draft, setDraft] = React.useState<State>(initial);
@@ -267,6 +278,7 @@ export function RoadPanel({ panelClass }: { panelClass: string }) {
     if (!surfaces.some(key => values[key].show)) return null;
     const titles: Record<Surface, string> = { footpath: text("FootpathTitle", "Footpath"), grass: text("GrassTitle", "Sidewalk grass"), road: text("Title", "Road"), sidewalk: text("Sidewalk", "Sidewalk"), alley: text("AlleySidewalk", "Small-road sidewalk"), rail: text("Rail", "Rail"), gravel: text("RoadGravelTitle", "Gravel road"), shoulder: text("GravelShoulderTitle", "Gravel sidewalk") };
     const tabTitle = titles[surface];
+    const crossingModes = [text("RailCrossingThrough", "Road and sidewalk"), text("RailCrossingCover", "Cover"), text("Custom", "Custom texture")];
     const launcherTitle = text("OpenTextureEditor", "Enhanced Graphics and Textures – open texture editor");
     const prefix = prefixes[surface];
     return <>
@@ -313,7 +325,7 @@ export function RoadPanel({ panelClass }: { panelClass: string }) {
                                     flushPending(); setSurface(key); setDraft(values[key]);
                                     const rect = mainPanelRef.current?.getBoundingClientRect();
                                     setColorStart({ x: rect ? rect.right + 24 : position.x + 564, y: rect?.top ?? position.y });
-                                    setColorOpen(true);
+                                    setColorOpen("surface");
                                 }}>
                                 <span className={styles.colorSwatch} style={{ backgroundColor: values[key].filterOpacity > 0 && values[key].filterColor !== 0xffffff ? colorHex(values[key].filterColor) : "transparent" }} />
                             </button>
@@ -373,7 +385,45 @@ export function RoadPanel({ panelClass }: { panelClass: string }) {
                 </div>
                 {surface === "shoulder" && <p className={styles.textureHint}>{text("GravelShoulderHint", "Adjusts the original gravel road edge atlas.")}</p>}
                 <Tooltip tooltip={text(`${prefix}TipReset`, "Restore surface defaults.")}><button className={styles.reset}
-                    onClick={() => { edits.current[surface] = {}; pendingChange.current = null; if (pendingTimer.current !== null) clearTimeout(pendingTimer.current); pendingTimer.current = null; trigger(group, triggers[surface], "reset"); }}>{text("Reset", "Reset")}</button></Tooltip>
+                    onClick={() => { flushPending(); edits.current[surface] = {}; trigger(group, triggers[surface], "reset"); }}>{text("Reset", "Reset")}</button></Tooltip>
+                {surface === "rail" && <>
+                    <div className={styles.separator} />
+                    <RoadSlider control={{ key: "crossingMode", label: "RailCrossing", min: 0, max: 2, step: 1 }}
+                        label={text("RailCrossing", "Level crossing")} value={draft.crossingMode}
+                        description={crossingModes.join(" / ")} displayValue={crossingModes[Math.max(0, Math.min(2, draft.crossingMode))]}
+                        onChange={(next, dragging) => {
+                            if (next === 0 && colorOpen === "crossing") setColorOpen(null);
+                            set("crossingMode", next, dragging);
+                        }} onCommit={flushPending} />
+                    {draft.crossingMode === 0 ? <p className={styles.textureHint}>
+                        {text("RailCrossingThroughHint", "Makes the cover transparent so the road and sidewalk below show through.")}
+                    </p> : <>
+                        {crossingControls.map(control => <RoadSlider key={control.key} control={control}
+                            label={text(control.label, control.label)} value={draft[control.key]}
+                            description={text(`Tip${control.label}`, "Adjust the crossing cover.")}
+                            onChange={(next, dragging) => set(control.key, next, dragging)} onCommit={flushPending} />)}
+                    </>}
+                    {draft.crossingMode === 2 && <>
+                        <p className={styles.textureHint}>{text("RailCrossingFiles", "RailCrossing_BaseColor.png and optional RailCrossing_Normal.png. Uses the built-in cover if the color PNG is missing.")}</p>
+                        <div className={styles.textureActions}>
+                            <button type="button" className={styles.reset} onClick={() => { flushPending(); trigger(group, "reloadSurfaceTexture", "railCrossing"); }}>{text("ReloadSurfaceTexture", "Reload texture")}</button>
+                            <button type="button" className={styles.reset} onClick={() => trigger(group, "openSurfaceTextureFolder", "railCrossing")}>{text("OpenSurfaceTextureFolder", "Open folder")}</button>
+                        </div>
+                    </>}
+                    <div className={styles.textureActions}>
+                        <button type="button" className={styles.reset} disabled={draft.crossingMode === 0} onClick={() => {
+                            flushPending();
+                            const rect = mainPanelRef.current?.getBoundingClientRect();
+                            setColorStart({ x: rect ? rect.right + 24 : position.x + 564, y: rect?.top ?? position.y });
+                            setColorOpen("crossing");
+                        }}>{text("ColorFilter", "Color filter")}</button>
+                        <button type="button" className={styles.reset} onClick={() => {
+                            flushPending();
+                            for (const key of [...crossingControls.map(control => control.key), "crossingMode"] as Key[]) delete edits.current.rail?.[key];
+                            trigger(group, "setRailSetting", "crossingReset");
+                        }}>{text("RailCrossingReset", "Reset crossing")}</button>
+                    </div>
+                </>}
                 </div>
             </Scrollable>
         </div>}
@@ -383,12 +433,18 @@ export function RoadPanel({ panelClass }: { panelClass: string }) {
             onSavePosition={next => trigger(group, "setTextureGeneralWindowPosition", `${next.x.toFixed(1)}:${next.y.toFixed(1)}`)}
             onClose={() => setGeneralOpen(false)}
             onApply={next => { flushPending(); trigger(group, "setRoadSetting", `mipBias:${next}`); }} />}
-        {open && colorOpen && values[surface].show && <ColorFilterWindow surface={surface} mode={values[surface].detail}
-            title={titles[surface]} color={values[surface].filterColor} opacity={values[surface].filterOpacity} text={text}
+        {open && colorOpen && values[surface].show && (colorOpen === "surface" || (surface === "rail" && draft.crossingMode !== 0)) &&
+            <ColorFilterWindow surface={surface} mode={colorOpen === "crossing" ? draft.crossingMode : values[surface].detail}
+            title={colorOpen === "crossing" ? text("RailCrossing", "Level crossing") : titles[surface]}
+            color={colorOpen === "crossing" ? railValue.crossingColor : values[surface].filterColor}
+            opacity={colorOpen === "crossing" ? railValue.crossingOpacity : values[surface].filterOpacity} text={text}
             panelClass={panelClass} savedPosition={colorWindowPosition} initialPosition={colorStart}
             onSavePosition={position => trigger(group, "setColorWindowPosition", `${position.x.toFixed(1)}:${position.y.toFixed(1)}`)}
-            onClose={() => setColorOpen(false)}
-            onApply={(color, opacity) => { flushPending(); trigger(group, "setSurfaceFilterColor", `${surface}:${color}:${opacity}:${values[surface].detail}`); }} />}
+            onClose={() => setColorOpen(null)}
+            onApply={(color, opacity) => {
+                flushPending();
+                trigger(group, "setSurfaceFilterColor", colorOpen === "crossing" ? `railCrossing:${color}:${opacity}` : `${surface}:${color}:${opacity}:${values[surface].detail}`);
+            }} />}
     </>;
 }
 

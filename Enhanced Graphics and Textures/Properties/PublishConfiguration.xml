@@ -9,6 +9,7 @@
 	<LongDescription>
 		Enhanced Graphics and Textures adds extended graphics controls and an in-game surface texture editor
 
+
 		**Graphics controls**
 
 		- Tree LOD distance and global object detail scale
@@ -35,12 +36,17 @@
 		- Gravel roads
 		- Gravel sidewalks / road edges
 		- Railway ballast
+		- Railway crossing
 
 		The editor provides original, generated and custom texture modes, with surface-dependent controls for texture size, depth, offset and rotation.
 		Asphalt and sidewalk controls also include procedural cracks with adjustable count, size, width, opacity and randomness.
+
 		Depth controls change the material's normal-map appearance.
+
 		Parking spaces use the selected road asphalt texture, while outer sidewalks use the sidewalk texture settings.
+
 		Color Filter controls for all surfaces.
+
 		Adjustable sidewalk texture tiling at road ends and junctions.
 
 
@@ -48,8 +54,8 @@
 
 		1. Enable the mod and load a city.
 		2. Open Options and select Enhanced Graphics and Textures to adjust graphics settings and surface options.
-		3. At the top of the settings, use "Enable graphics" and "Enable textures" to turn each part of the mod on or off. 
-		   (This lets you use the mod for textures only or for graphics only.)
+		3. At the top of the settings, use "Enable graphics" and "Enable textures" to turn each part of the mod on or off.
+		(This lets you use the mod for textures only or for graphics only.)
 		4. Click the in-game texture editor button to open the surface panel. Its tooltip identifies the editor.
 		5. Select the surface tab and enable the corresponding surface override.
 		6. Select the texture mode: 0 = Original, 1 = Generated, 2 = Custom.
@@ -79,6 +85,7 @@
 		- Gravel road: Gravel/RoadGravel_BaseColor.png and Gravel/RoadGravel_Normal.png
 		- Gravel sidewalk / edge: GravelSidewalk/GravelShoulder_BaseColor.png and GravelSidewalk/GravelShoulder_Normal.png
 		- Railway ballast: Rail/RailGravel_BaseColor.png and Rail/RailGravel_Normal.png
+		- Railway crossing: Rail/RailCrossing/RailCrossing_BaseColor.png and Rail/RailCrossing/RailCrossing_Normal.png
 
 		1. Prepare a square, seamlessly tiling PNG, at most 4096 × 4096 pixels and no larger than 32 MiB.
 		2. Place it in the corresponding subfolder using the exact filename above.
@@ -143,7 +150,7 @@
 	<AccessLevel Value="Public" />
 	<Tag Value="Code Mod" />
 	
-	<ModVersion Value="1.7.4" />
+	<ModVersion Value="1.7.6" />
 	
 	<!--Existing value retained. Set this to the game version tested locally before publishing.-->
 	<GameVersion Value="1.6.*" />
@@ -151,7 +158,7 @@
 	<ChangeLog>
 		Latest changes:
 
-		- performance improvements and bug fixes
+		- added three rail crossing surface modes, selectable with a three-step slider in the Rail tab.
 
 	</ChangeLog>
 

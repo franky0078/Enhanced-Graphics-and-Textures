@@ -81,6 +81,10 @@ namespace Advanced_Graphics
                     if (openFolder) s.OpenRailTextureFolder = true;
                     else s.ReloadRailTexture = true;
                     break;
+                case "railCrossing":
+                    if (openFolder) s.OpenRailCrossingFolder();
+                    else Mod.RailCrossingSurface?.ReloadCustomTexture();
+                    break;
             }
         }
 
@@ -178,7 +182,14 @@ namespace Advanced_Graphics
             if ((parts.Length < 2 || parts.Length > 4) || !int.TryParse(parts[1], out int color) ||
                 (parts.Length >= 3 && !int.TryParse(parts[2], out opacity)) || opacity < 0 || opacity > 100 ||
                 (parts.Length == 4 && (!int.TryParse(parts[3], out mode) || mode < 0 || mode > 2)) ||
-                color < 0 || color > 0xffffff || !s.SetFilterColor(parts[0], color, opacity, mode)) return;
+                color < 0 || color > 0xffffff) return;
+            if (parts[0] == "railCrossing")
+            {
+                s.RailCrossingColor = color;
+                s.RailCrossingColorOpacity = opacity;
+                m_RailState = BuildRailState(s);
+            }
+            else if (!s.SetFilterColor(parts[0], color, opacity, mode)) return;
             s.ApplyToSystem();
             m_SavePending = true;
             m_SaveAt = UnityEngine.Time.unscaledTime + 0.6f;
@@ -315,6 +326,15 @@ namespace Advanced_Graphics
                 ",\"offsetX\":" + s.RailGravelUvOffsetX +
                 ",\"offsetY\":" + s.RailGravelUvOffsetY +
                 ",\"rotation\":" + s.RailGravelUvRotation +
+                ",\"crossingMode\":" + s.RailCrossingMode +
+                ",\"crossingDepth\":" + s.RailCrossingDepth +
+                ",\"crossingGloss\":" + s.RailCrossingGloss +
+                ",\"crossingUv\":" + s.RailCrossingUv +
+                ",\"crossingOffsetX\":" + s.RailCrossingOffsetX +
+                ",\"crossingOffsetY\":" + s.RailCrossingOffsetY +
+                ",\"crossingRotation\":" + s.RailCrossingRotation +
+                ",\"crossingColor\":" + s.RailCrossingColor +
+                ",\"crossingOpacity\":" + s.RailCrossingColorOpacity +
                 ",\"probe\":" + (Mod.RailInspector?.IsProbeActive == true ? "true" : "false") + "}";
         }
 
@@ -383,6 +403,7 @@ namespace Advanced_Graphics
             var s = Mod.ActiveSetting;
             if (s == null || string.IsNullOrEmpty(request)) return;
             if (request == "reset") { s.ResetRailGravel = true; m_RailState = BuildRailState(s); return; }
+            if (request == "crossingReset") request = "crossingReset:0";
             int separator = request.IndexOf(':');
             if (separator <= 0 || !int.TryParse(request.Substring(separator + 1), out int value)) return;
             switch (request.Substring(0, separator))
@@ -394,6 +415,14 @@ namespace Advanced_Graphics
                 case "offsetX": s.RailGravelUvOffsetX = Clamp(value, 0, Setting.MaxTextureUvOffset); break;
                 case "offsetY": s.RailGravelUvOffsetY = Clamp(value, 0, Setting.MaxTextureUvOffset); break;
                 case "rotation": s.RailGravelUvRotation = Clamp(value, 0, 360); break;
+                case "crossingReset": s.ResetRailCrossing(); break;
+                case "crossingMode": s.RailCrossingMode = Clamp(value, Setting.CrossingThrough, Setting.CrossingCustom); break;
+                case "crossingDepth": s.RailCrossingDepth = Clamp(value, 0, Setting.MaxTextureDepthStrength); break;
+                case "crossingGloss": s.RailCrossingGloss = Clamp(value, 0, 100); break;
+                case "crossingUv": s.RailCrossingUv = Clamp(value, 10, Setting.MaxTextureUvSize); break;
+                case "crossingOffsetX": s.RailCrossingOffsetX = Clamp(value, 0, Setting.MaxTextureUvOffset); break;
+                case "crossingOffsetY": s.RailCrossingOffsetY = Clamp(value, 0, Setting.MaxTextureUvOffset); break;
+                case "crossingRotation": s.RailCrossingRotation = Clamp(value, 0, 360); break;
                 default: return;
             }
             s.ApplyToSystem();
@@ -631,9 +660,3 @@ namespace Advanced_Graphics
         private static int Clamp(int value, int min, int max) => Math.Max(min, Math.Min(max, value));
     }
 }
-
-
-
-
-
-
