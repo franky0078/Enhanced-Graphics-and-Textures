@@ -3,7 +3,7 @@ using Colossal;
 
 namespace Advanced_Graphics
 {
-    public sealed class GraphicsLocale : IDictionarySource
+    public sealed partial class GraphicsLocale : IDictionarySource
     {
         private readonly Setting m_Setting;
         private readonly string m_Language;
@@ -828,7 +828,39 @@ namespace Advanced_Graphics
             AddRailCrossingEntries(entries);
             AddLogOutputEntries(entries);
             AddModuleEntries(entries);
+            ApplyAdditionalTranslations(entries, detail, shadow, culling);
             return entries;
+        }
+
+        private void ApplyAdditionalTranslations(Dictionary<string, string> entries,
+            string detail, string shadow, string culling)
+        {
+            string tess = Mod.Graphics?.DefaultTessellation?.ToString() ?? "?";
+            string patch = Mod.Graphics?.DefaultPatchSize?.ToString() ?? "?";
+            switch (m_Language)
+            {
+                case "ru":
+                    AddRussianEntries(entries, detail, shadow, culling, tess, patch);
+                    break;
+                case "pl":
+                    AddPolishEntries(entries, detail, shadow, culling, tess, patch);
+                    break;
+                case "pt-BR":
+                    AddBrazilianPortugueseEntries(entries, detail, shadow, culling, tess, patch);
+                    break;
+                case "ja":
+                    AddJapaneseEntries(entries, detail, shadow, culling, tess, patch);
+                    break;
+                case "ko":
+                    AddKoreanEntries(entries, detail, shadow, culling, tess, patch);
+                    break;
+                case "zh-HANS":
+                    AddSimplifiedChineseEntries(entries, detail, shadow, culling, tess, patch);
+                    break;
+                case "zh-HANT":
+                    AddTraditionalChineseEntries(entries, detail, shadow, culling, tess, patch);
+                    break;
+            }
         }
 
         // Module switches (graphics / textures) and the "0 = game value" texts for terrain and shadow resolution.

@@ -118,7 +118,7 @@ export function RoadSlider({ control, label, description, value, displayValue, o
     const percent = 100 * (value - control.min) / (control.max - control.min);
     return <div className={styles.row}>
         <Tooltip tooltip={<><strong>{label}</strong><div>{description}</div></>}>
-            <span className={styles.rowLabel}>{label}</span>
+            <span className={label.length > 18 ? `${styles.rowLabel} ${styles.longLabel}` : styles.rowLabel}>{label}</span>
         </Tooltip>
         <div ref={track} className={styles.slider} role="slider" tabIndex={0}
             aria-label={label} aria-valuemin={control.min} aria-valuemax={control.max} aria-valuenow={value} aria-valuetext={displayValue}
@@ -318,7 +318,7 @@ export function RoadPanel({ panelClass }: { panelClass: string }) {
             <div className={styles.textureTabs}>
                 <div className={styles.surfaceTabs}>
                     {surfaces.filter(key => values[key].show).map(key => <div key={key} className={styles.tabGroup}>
-                        <button className={surface === key ? styles.selectedTab : ""} onClick={() => { flushPending(); setDraft(values[key]); setSurface(key); }}>{titles[key]}</button>
+                        <button className={[surface === key && styles.selectedTab, titles[key].length > 13 && styles.longLabel].filter(Boolean).join(" ")} onClick={() => { flushPending(); setDraft(values[key]); setSurface(key); }}>{titles[key]}</button>
                         <Tooltip tooltip={`${text("ColorFilter", "Color filter")} – ${titles[key]}`}>
                             <button className={styles.colorButton} aria-label={`${text("ChooseColor", "Choose color")} – ${titles[key]}`}
                                 onClick={() => {

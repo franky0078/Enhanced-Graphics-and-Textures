@@ -164,8 +164,12 @@ export function GraphicsPanel({ panelClass }: { panelClass: string }) {
             </div>
             <div className={styles.body}>
                 <div className={styles.surfaceTabs}>
-                    {tabs.map(key => <button key={key} className={tab === key ? styles.selectedTab : ""}
-                        onClick={() => { flush(); setTab(key); }}>{text(key, key)}</button>)}
+                    {tabs.map(key => {
+                        const label = text(key, key);
+                        const tabClass = [tab === key && styles.selectedTab, label.length > 9 && styles.longLabel].filter(Boolean).join(" ");
+                        return <button key={key} className={tabClass}
+                            onClick={() => { flush(); setTab(key); }}>{label}</button>;
+                    })}
                 </div>
                 {tab === "Terrain" && <p className={styles.textureHint}>
                     {text("TerrainGameValue", "0 = game value")}: {value.GameTessellation > 0 ? `${value.GameTessellation} / ${value.GamePatchSize}` : "–"}

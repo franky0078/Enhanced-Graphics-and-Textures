@@ -130,6 +130,13 @@ namespace Advanced_Graphics
             localization.AddSource("es-ES", new GraphicsLocale(m_Setting, "es"));
             localization.AddSource("fr-FR", new GraphicsLocale(m_Setting, "fr"));
             localization.AddSource("it-IT", new GraphicsLocale(m_Setting, "it"));
+            localization.AddSource("ru-RU", new GraphicsLocale(m_Setting, "ru"));
+            localization.AddSource("pl-PL", new GraphicsLocale(m_Setting, "pl"));
+            localization.AddSource("pt-BR", new GraphicsLocale(m_Setting, "pt-BR"));
+            localization.AddSource("ja-JP", new GraphicsLocale(m_Setting, "ja"));
+            localization.AddSource("ko-KR", new GraphicsLocale(m_Setting, "ko"));
+            localization.AddSource("zh-HANS", new GraphicsLocale(m_Setting, "zh-HANS"));
+            localization.AddSource("zh-HANT", new GraphicsLocale(m_Setting, "zh-HANT"));
 
             AssetDatabase.global.LoadSettings(nameof(Advanced_Graphics), m_Setting, new Setting(this));
             if (m_Setting.RoadTextureLayoutVersion < 2)
