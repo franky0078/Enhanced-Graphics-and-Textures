@@ -332,11 +332,11 @@ namespace Advanced_Graphics
                 m_TouchedTaa = true;
             }
 
-            // Do not change the game's AA method or take over DLSS/FSR2.
+            // Do not change the game's AA method or take over an active upscaler.
             var graphics = SharedSettings.instance?.graphics;
             if (!options.TaaStabilityEnabled ||
                 data.antialiasing != HDAdditionalCameraData.AntialiasingMode.TemporalAntialiasing ||
-                (graphics != null && (graphics.isDlssActive || graphics.isFsr2Active)))
+                (graphics != null && graphics.isUpscalerActive))
             {
                 RestoreTaaStability();
                 return;

@@ -106,7 +106,7 @@
 
 		**Language support**
 
-		English, German, Spanish, French and Italian are included. The interface follows the game's language setting.
+		All ingame languages are supported. The interface follows the game's language setting.
 
 
 		**Compatibility and limitations**
@@ -150,7 +150,7 @@
 	<AccessLevel Value="Public" />
 	<Tag Value="Code Mod" />
 	
-	<ModVersion Value="1.7.6" />
+	<ModVersion Value="1.7.8" />
 	
 	<!--Existing value retained. Set this to the game version tested locally before publishing.-->
 	<GameVersion Value="1.6.*" />
@@ -158,7 +158,8 @@
 	<ChangeLog>
 		Latest changes:
 
-		- added three rail crossing surface modes, selectable with a three-step slider in the Rail tab.
+		- compatibility with Cities: Skylines II 1.6.4F1
+		- added support for all ingame languages.
 
 	</ChangeLog>
 

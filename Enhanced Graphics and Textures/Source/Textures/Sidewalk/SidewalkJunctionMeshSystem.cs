@@ -289,7 +289,7 @@ namespace Advanced_Graphics
         private static string s_CurbEndWhy = "", s_CurbEndNumbers = "";
         private string m_LastReport;
 
-        private int m_Caps, m_CurbEnds, m_WrappedParts, m_SidewalkEnds, m_AlleyMeshes, m_CurbTriangles, m_CurbLogged, m_RampsReshaped, m_RampsFailed, m_RampLogged, m_MixedTriangles;
+        private int m_Caps, m_CurbEnds, m_WrappedParts, m_SidewalkEnds, m_AlleyMeshes, m_CurbTriangles, m_CurbLogged, m_RampsReshaped, m_RampsFailed, m_MixedTriangles;
         private Dictionary<Entity, MeshVertex[]> m_Reshaped;
         private const bool VerboseJunctionLog = false;
         private readonly HashSet<string> m_DumpedRamps = new HashSet<string>();
