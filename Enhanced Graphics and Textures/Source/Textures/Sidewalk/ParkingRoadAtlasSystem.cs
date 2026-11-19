@@ -7,7 +7,6 @@ using UnityEngine;
 
 namespace Advanced_Graphics
 {
-    // Parking roads (ParkingLane7 atlas): asphalt and sidewalk strips filled with the selected textures.
     public sealed partial class ParkingRoadAtlasSystem : SidewalkRoadAtlasSystem
     {
         private const string ParkingColorPrefix = "ParkingLane7_BaseColor_";
@@ -46,6 +45,7 @@ namespace Advanced_Graphics
         private readonly Dictionary<Texture, Texture2D> m_ParkingColors = new Dictionary<Texture, Texture2D>();
         private readonly Dictionary<(Texture, Texture), Texture2D> m_ParkingNormals = new Dictionary<(Texture, Texture), Texture2D>();
         private Texture2D m_AsphaltColor, m_AsphaltNormal, m_SidewalkColor, m_SidewalkNormal;
+        private int m_ParkingCurbRevision;
         private int m_ParkingFrames;
         private int m_CornerVersion = -1;
         private bool m_CornersChanged;
@@ -87,7 +87,7 @@ namespace Advanced_Graphics
             bool scaleChanged = RefreshEndcapScale();
             float sidewalkScaleU = settings?.ParkingSidewalkScaleU ?? 1f, sidewalkScaleV = settings?.ParkingSidewalkScaleV ?? 1f;
             bool sidewalkCustom = Mod.Sidewalk?.UsesCustomTexture == true;
-            bool changed = !Mathf.Approximately(sidewalkScaleU, m_SidewalkScaleU) || !Mathf.Approximately(sidewalkScaleV, m_SidewalkScaleV) ||
+            bool changed = m_ParkingCurbRevision != CurbTexture.Revision || !Mathf.Approximately(sidewalkScaleU, m_SidewalkScaleU) || !Mathf.Approximately(sidewalkScaleV, m_SidewalkScaleV) ||
                 sidewalkCustom != m_SidewalkCustom || m_AsphaltColor != asphaltColor || m_AsphaltNormal != asphaltNormal ||
                 m_SidewalkColor != sidewalkColor || m_SidewalkNormal != sidewalkNormal ||
                 (asphaltColor != null && (!Mathf.Approximately(m_ParkingScaleFactor, parkingScaleFactor) ||
@@ -107,6 +107,7 @@ namespace Advanced_Graphics
             if (changed)
             {
                 RestoreParkingNow(false);
+                m_ParkingCurbRevision = CurbTexture.Revision;
                 m_AsphaltColor = asphaltColor;
                 m_AsphaltNormal = asphaltNormal;
                 m_SidewalkColor = sidewalkColor;
@@ -117,7 +118,7 @@ namespace Advanced_Graphics
                 m_SidewalkScaleV = sidewalkScaleV;
                 m_SidewalkCustom = sidewalkCustom;
             }
-            if (asphaltColor == null && sidewalkColor == null)
+            if (asphaltColor == null && sidewalkColor == null && !CurbTexture.Active)
             {
                 RestoreParkingNow();
                 PassFinished(false);
@@ -183,7 +184,6 @@ namespace Advanced_Graphics
             }
         }
 
-        // GPU copy of the mask atlas with V repeat (tiled parking edges run past V 1).
         private Texture RepeatingMask(Texture mask)
         {
             if (mask == null || mask.wrapModeV == TextureWrapMode.Repeat || m_RepeatMaskFailed) return null;
@@ -256,6 +256,7 @@ namespace Advanced_Graphics
                         if (!linear) MeasureRepeatShifts(target, cached.width, cached.height);
                     }
                     else SidewalkRepeatShiftRight = SidewalkRepeatShiftLeft = 0f;
+                    CurbTexture.Paint(target, pixels.Pixels, cached.width, cached.height, ParkingEnd, SidewalkStart, ReferenceWidth, linear, ParkingVPerMetre);
                     if (!direct) result.SetPixels32(target.ToArray());
                 }
                 finally
@@ -317,7 +318,6 @@ namespace Advanced_Graphics
                     if (score > bestScore) { bestScore = score; best = shift; }
                 }
                 float measuredLeft = best / (float)width;
-                // Every parking material builds its own atlas: keep the value unless it really changed (corners rebuild on change).
                 SidewalkRepeatShiftRight = StableShift(SidewalkRepeatShiftRight, measuredRight);
                 SidewalkRepeatShiftLeft = StableShift(SidewalkRepeatShiftLeft, measuredLeft);
                 if (Mod.DebugBackendEnabled) Mod.LogLater("Parking sidewalk strip: repeat shift right " + (SidewalkRepeatShiftRight * width).ToString("0") +

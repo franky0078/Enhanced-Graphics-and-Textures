@@ -122,13 +122,16 @@ namespace Advanced_Graphics
             SidewalkConcretePresetApplied = true;
         }
 
+        private const int CurbSurface = 8;
+        [SettingsUIHidden] public string CurbModeProfiles { get; set; } = "";
+
         private bool m_TextureModeProfilesReady;
-        private readonly double[][][] m_TextureModeProfiles = new double[8][][];
+        private readonly double[][][] m_TextureModeProfiles = new double[CurbSurface + 1][][];
 
         // Called after LoadSettings and existing setting migrations.
         internal void InitializeTextureModeProfiles()
         {
-            for (int surface = 0; surface < 8; surface++) EnsureTextureModeProfiles(surface);
+            for (int surface = 0; surface < m_TextureModeProfiles.Length; surface++) EnsureTextureModeProfiles(surface);
             EnsureRoadCrackProfiles();
             m_TextureModeProfilesReady = true;
             InitializeSidewalkConcretePreset();
@@ -151,7 +154,7 @@ namespace Advanced_Graphics
             try
             {
                 if (ready) WriteTextureSliders(surface, m_TextureModeProfiles[surface][nextMode]);
-                RestoreFilterModeProfile(surface, nextMode);
+                if (surface != CurbSurface) RestoreFilterModeProfile(surface, nextMode);
                 if (surface == 1 && ready) InitializeSidewalkConcretePreset();
                 if (surface == 0 && ready)
                     WriteRoadCrackSliders(m_RoadCrackProfiles[nextMode * 2 + (m_UseCustomRoadCracks ? 1 : 0)]);
@@ -166,7 +169,7 @@ namespace Advanced_Graphics
             if (!m_TextureModeProfilesReady || m_RestoringTextureMode) return;
             CaptureFilterModeProfiles();
             CaptureRoadCrackProfile();
-            for (int surface = 0; surface < 8; surface++)
+            for (int surface = 0; surface < m_TextureModeProfiles.Length; surface++)
             {
                 EnsureTextureModeProfiles(surface);
                 m_TextureModeProfiles[surface][GetTextureMode(surface)] = ReadTextureSliders(surface);
@@ -187,7 +190,7 @@ namespace Advanced_Graphics
                 var values = encoded[mode].Split(',');
                 if (values.Length != profiles[mode].Length && !(surface == 0 && (values.Length == 11 || values.Length == 12)) &&
                     !(surface == 1 && (values.Length == 11 || values.Length == 13 || values.Length == 15)) &&
-                    !(surface == 2 && values.Length == 11)) continue;
+                    !(surface == 2 && values.Length == 11) && !(surface == CurbSurface && (values.Length == 8 || values.Length == 9))) continue;
                 var parsed = DefaultTextureSliders(surface, mode);
                 bool valid = true;
                 for (int i = 0; i < values.Length; i++)
@@ -213,12 +216,31 @@ namespace Advanced_Graphics
                 live[13] = SidewalkShiftU;
                 live[14] = SidewalkShiftV;
             }
+            if (surface == CurbSurface && string.IsNullOrEmpty(CurbModeProfiles))
+                for (int mode = 0; mode < 3; mode++) profiles[mode] = (double[])live.Clone();
             profiles[currentMode] = live;
             m_TextureModeProfiles[surface] = profiles;
         }
 
         private static bool IsValidTextureSlider(int surface, int index, double value)
         {
+            if (surface == CurbSurface)
+            {
+                if (value != Math.Truncate(value)) return false;
+                switch (index)
+                {
+                    case 0: return value >= 10 && value <= MaxTextureUvSize;
+                    case 1: return value >= 0 && value <= MaxTextureDepthStrength;
+                    case 2: case 3: return value >= -100 && value <= 100;
+                    case 4: return value >= 0 && value <= 360;
+                    case 5: return value >= 0 && value <= 0xffffff;
+                    case 6: return value >= 0 && value <= 100;
+                    case 7: return value == 0 || value == 1;
+                    case 8: return value >= 0 && value <= 500;
+                    case 9: return value >= 0 && value <= 100;
+                    default: return false;
+                }
+            }
             int crackStart = surface == 1 ? 15 : surface == 2 ? 11 : -1;
             if (crackStart >= 0 && index >= crackStart)
             {
@@ -244,7 +266,9 @@ namespace Advanced_Graphics
             }
         }
 
-        private static double[] DefaultTextureSliders(int surface, int mode) => surface == 5 && mode == 1
+        private static double[] DefaultTextureSliders(int surface, int mode) => surface == CurbSurface
+            ? new double[] { 100, 100, 0, 0, 0, 0xffffff, 100, 0, 0, 100 }
+            : surface == 5 && mode == 1
             ? new double[] { 150, 200, 0, 10, 53 }
             : surface == 1 && mode == 1
             ? new double[] { 100, 200, 0, 0, 40, 0, 100, 100, 100, 50, 1, 1, 1, 0, 0, 100, 0, 0, 0 }
@@ -271,7 +295,7 @@ namespace Advanced_Graphics
 
         private void ClearTextureModeProfiles(int surface)
         {
-            ClearFilterModeProfiles(surface);
+            if (surface != CurbSurface) ClearFilterModeProfiles(surface);
             if (surface == 1) SidewalkConcretePresetApplied = false;
             if (surface == 0)
             {
@@ -284,7 +308,7 @@ namespace Advanced_Graphics
 
         private void ClearAllTextureModeProfiles()
         {
-            for (int surface = 0; surface < 8; surface++) ClearTextureModeProfiles(surface);
+            for (int surface = 0; surface < m_TextureModeProfiles.Length; surface++) ClearTextureModeProfiles(surface);
         }
 
         private int GetTextureMode(int surface)
@@ -299,6 +323,7 @@ namespace Advanced_Graphics
                 case 5: return RailGravelDetail;
                 case 6: return GrassDetail;
                 case 7: return FootpathDetail;
+                case CurbSurface: return CurbMode;
                 default: throw new ArgumentOutOfRangeException(nameof(surface));
             }
         }
@@ -315,6 +340,7 @@ namespace Advanced_Graphics
                 case 5: return RailGravelModeProfiles;
                 case 6: return GrassModeProfiles;
                 case 7: return FootpathModeProfiles;
+                case CurbSurface: return CurbModeProfiles;
                 default: throw new ArgumentOutOfRangeException(nameof(surface));
             }
         }
@@ -331,6 +357,7 @@ namespace Advanced_Graphics
                 case 5: RailGravelModeProfiles = value; break;
                 case 6: GrassModeProfiles = value; break;
                 case 7: FootpathModeProfiles = value; break;
+                case CurbSurface: CurbModeProfiles = value; break;
                 default: throw new ArgumentOutOfRangeException(nameof(surface));
             }
         }
@@ -347,6 +374,7 @@ namespace Advanced_Graphics
                 case 5: return new double[] { RailGravelUvSizePercent, RailGravelDepthStrengthPercent, RailGravelUvOffsetX, RailGravelUvOffsetY, RailGravelUvRotation };
                 case 6: return new double[] { GrassUvSizePercent, GrassDepthStrengthPercent, GrassUvOffsetX, GrassUvOffsetY, GrassUvRotation };
                 case 7: return new double[] { FootpathUvSizePercent, FootpathDepthStrengthPercent, FootpathUvOffsetX, FootpathUvOffsetY, FootpathUvRotation };
+                case CurbSurface: return new double[] { CurbSize, CurbDepth, CurbOffsetX, CurbOffsetY, CurbRotation, CurbColor, CurbOpacity, UseCurbNormalMap ? 1 : 0, CurbJointSpacing, CurbJointOpacity };
                 default: throw new ArgumentOutOfRangeException(nameof(surface));
             }
         }
@@ -435,6 +463,18 @@ namespace Advanced_Graphics
                     GrassUvOffsetX = (int)values[2];
                     GrassUvOffsetY = (int)values[3];
                     GrassUvRotation = (int)values[4];
+                    break;
+                case CurbSurface:
+                    CurbSize = (int)values[0];
+                    CurbDepth = (int)values[1];
+                    CurbOffsetX = (int)values[2];
+                    CurbOffsetY = (int)values[3];
+                    CurbRotation = (int)values[4];
+                    CurbColor = (int)values[5];
+                    CurbOpacity = (int)values[6];
+                    UseCurbNormalMap = values[7] != 0;
+                    CurbJointSpacing = (int)values[8];
+                    CurbJointOpacity = (int)values[9];
                     break;
                 case 7:
                     FootpathUvSizePercent = (int)values[0];

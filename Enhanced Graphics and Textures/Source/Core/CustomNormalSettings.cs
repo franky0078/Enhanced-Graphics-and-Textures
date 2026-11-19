@@ -36,10 +36,13 @@ namespace Advanced_Graphics
         [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
         public bool UseFootpathNormalMap { get; set; } = false;
 
+        [SettingsUIHidden] public bool UseCurbNormalMap { get; set; }
+
         internal bool GetCustomNormalEnabled(string surface)
         {
             switch (surface)
             {
+                case "curb": return UseCurbNormalMap;
                 case "road": case "Road_BaseColor.png": return UseRoadNormalMap;
                 case "sidewalk": case "Sidewalk_BaseColor.png": return UseSidewalkNormalMap;
                 case "alley": case "AlleySidewalk_BaseColor.png": return UseAlleySidewalkNormalMap;
@@ -55,6 +58,7 @@ namespace Advanced_Graphics
         {
             switch (surface)
             {
+                case "curb": UseCurbNormalMap = enabled; break;
                 case "road": UseRoadNormalMap = enabled; break;
                 case "sidewalk": UseSidewalkNormalMap = enabled; break;
                 case "alley": UseAlleySidewalkNormalMap = enabled; break;

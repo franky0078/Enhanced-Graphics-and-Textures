@@ -10,8 +10,8 @@ namespace Advanced_Graphics
 {
     [FileLocation(nameof(Advanced_Graphics))]
     [SettingsUITabOrder(MainSection, RoadSection, SidewalkSection, FootpathSection, GrassSection, AlleySidewalkSection, GravelSection, GravelSidewalkSection, RailSection)]
-    [SettingsUIGroupOrder(LauncherGroup, TreeGroup, DetailGroup, CacheGroup, TerrainGroup, ShadowsGroup, SharpnessGroup, TextureGeneralGroup, BloomGroup, SkyGroup, RoadGroup, RoadUvGroup, RoadCrackGroup, RoadPanelGroup, SidewalkGroup, SidewalkUvGroup, SidewalkCrackGroup, FootpathGroup, GrassGroup, AlleySidewalkGroup, AlleySidewalkUvGroup, AlleySidewalkCrackGroup, GravelGroup, ShoulderGroup, RailGroup, RailUvGroup, ResetGroup, AboutGroup)]
-    [SettingsUIShowGroupName(LauncherGroup, TreeGroup, DetailGroup, CacheGroup, TerrainGroup, ShadowsGroup, SharpnessGroup, TextureGeneralGroup, BloomGroup, SkyGroup, RoadGroup, RoadUvGroup, RoadCrackGroup, RoadPanelGroup, SidewalkGroup, SidewalkUvGroup, SidewalkCrackGroup, FootpathGroup, GrassGroup, AlleySidewalkGroup, AlleySidewalkUvGroup, AlleySidewalkCrackGroup, GravelGroup, ShoulderGroup, RailGroup, RailUvGroup, ResetGroup, AboutGroup)]
+    [SettingsUIGroupOrder(LauncherGroup, TreeGroup, DetailGroup, CacheGroup, TerrainGroup, ShadowsGroup, SharpnessGroup, RoadWearGroup, TextureGeneralGroup, BloomGroup, SkyGroup, RoadGroup, RoadUvGroup, RoadCrackGroup, RoadPanelGroup, SidewalkGroup, SidewalkUvGroup, SidewalkCrackGroup, FootpathGroup, GrassGroup, AlleySidewalkGroup, AlleySidewalkUvGroup, AlleySidewalkCrackGroup, GravelGroup, ShoulderGroup, RailGroup, RailUvGroup, ResetGroup, AboutGroup)]
+    [SettingsUIShowGroupName(LauncherGroup, TreeGroup, DetailGroup, CacheGroup, TerrainGroup, ShadowsGroup, SharpnessGroup, RoadWearGroup, TextureGeneralGroup, BloomGroup, SkyGroup, RoadGroup, RoadUvGroup, RoadCrackGroup, RoadPanelGroup, SidewalkGroup, SidewalkUvGroup, SidewalkCrackGroup, FootpathGroup, GrassGroup, AlleySidewalkGroup, AlleySidewalkUvGroup, AlleySidewalkCrackGroup, GravelGroup, ShoulderGroup, RailGroup, RailUvGroup, ResetGroup, AboutGroup)]
     public sealed partial class Setting : ModSetting
     {
         public const int MaxTextureUvSize = 3000;
@@ -42,6 +42,7 @@ namespace Advanced_Graphics
             Mod.GravelShoulderSurface?.ReloadCustomTexture();
             Mod.RailGravel?.ReloadCustomTexture();
             Mod.RailCrossingSurface?.ReloadCustomTexture();
+            CurbTexture.Configure(CurbMode, TexturesEnabled ? this : null, true);
         }
 
         private float m_SurfaceTextureMipBias;
@@ -735,6 +736,53 @@ namespace Advanced_Graphics
         [SettingsUIHidden]
         public bool JunctionRecomputeTangents { get; set; }
 
+        private int m_CurbMode;
+        [SettingsUISection(SidewalkSection, SidewalkGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
+        [SettingsUISlider(min = 0, max = 2, step = 1, scalarMultiplier = 1)]
+        public int CurbMode
+        {
+            get => m_CurbMode;
+            set => SwitchTextureMode(CurbSurface, ref m_CurbMode, value);
+        }
+        [SettingsUIHidden] public int CurbSize { get; set; } = 100;
+        [SettingsUIHidden] public int CurbJointOpacity { get; set; } = 100;
+        [SettingsUIHidden] public int CurbJointSpacing { get; set; }
+        [SettingsUIHidden] public int CurbDepth { get; set; } = 100;
+        [SettingsUIHidden] public int CurbRotation { get; set; } = 0;
+        [SettingsUIHidden] public int CurbOffsetX { get; set; } = 0;
+        [SettingsUIHidden] public int CurbOffsetY { get; set; } = 0;
+        [SettingsUIHidden] public int CurbColor { get; set; } = 0xffffff;
+        [SettingsUIHidden] public int CurbOpacity { get; set; } = 100;
+
+        internal void ResetCurb()
+        {
+            ClearTextureModeProfiles(CurbSurface);
+            UseCurbNormalMap = false;
+            m_CurbMode = CurbJointSpacing = CurbRotation = CurbOffsetX = CurbOffsetY = 0;
+            CurbSize = CurbDepth = CurbOpacity = CurbJointOpacity = 100;
+            CurbColor = 0xffffff;
+            if (m_TextureModeProfilesReady) EnsureTextureModeProfiles(CurbSurface);
+        }
+
+
+        public const string RoadWearGroup = "Road wear";
+        [SettingsUIHidden] public bool WearEnabled { get; set; }
+        [SettingsUIHidden] public bool WearColorSelected { get; set; }
+        [SettingsUIHidden] public int WearColor { get; set; } = 0xffffff;
+        [SettingsUISection(MainSection, RoadWearGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(GraphicsDisabled))]
+        [SettingsUISlider(min = 0, max = 300, step = 1, scalarMultiplier = 1)]
+        public int WearOpacity { get; set; } = 100;
+        [SettingsUISection(MainSection, RoadWearGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(GraphicsDisabled))]
+        [SettingsUISlider(min = -1, max = 100, step = 1, scalarMultiplier = 1)]
+        public int WearGloss { get; set; } = -1;
+        [SettingsUISection(MainSection, RoadWearGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(GraphicsDisabled))]
+        [SettingsUISlider(min = 0, max = 1000, step = 1, scalarMultiplier = 1)]
+        public int WearDepth { get; set; } = 100;
+
         private int m_SidewalkDetail;
         [SettingsUISection(SidewalkSection, SidewalkGroup)]
         [SettingsUIDisableByCondition(typeof(Setting), nameof(TexturesDisabled))]
@@ -1169,6 +1217,11 @@ namespace Advanced_Graphics
         public override void SetDefaults()
         {
             ResetEndcapValues();
+            WearEnabled = false;
+            WearColorSelected = false;
+            WearColor = 0xffffff;
+            WearOpacity = WearDepth = 100;
+            WearGloss = -1;
             ResetRailCrossing();
             UseRoadNormalMap = UseSidewalkNormalMap = UseAlleySidewalkNormalMap = UseRoadGravelNormalMap = UseGravelShoulderNormalMap = UseRailNormalMap = UseGrassNormalMap = false;
             SurfaceTextureMipBias = 0f;
@@ -1217,6 +1270,7 @@ namespace Advanced_Graphics
             RoadUvOffsetX = RoadUvOffsetY = RoadUvRotation = 0;
             SidewalkJunctionOverlay = false;
             SidewalkJunctionParking = false;
+            ResetCurb();
             SetSidewalkDefaults();
             SetGrassDefaults();
             SetFootpathDefaults();
@@ -1235,6 +1289,7 @@ namespace Advanced_Graphics
 
         private void SetSidewalkDefaults()
         {
+
             ClearTextureModeProfiles(1); UseSidewalkNormalMap = false;
             SidewalkFilterColor = 0xffffff; SidewalkFilterOpacityPercent = 0;
             SidewalkEnabled = false;
@@ -1414,6 +1469,7 @@ namespace Advanced_Graphics
             CaptureTextureModeProfiles();
             ApplyGraphicsToSystem();
             bool textures = TexturesEnabled;
+            CurbTexture.Configure(CurbMode, textures ? this : null);
             Mod.RoadGravel?.Configure((textures && RoadGravelEnabled) && (RoadGravelDetail != 0 || RoadGravelUvSizePercent != 100 ||
                 RoadGravelDepthStrengthPercent != 0 || TextureColorFilter.IsActive(RoadGravelFilterColor, RoadGravelFilterOpacityPercent) || RoadGravelUvOffsetX != 0 || RoadGravelUvOffsetY != 0 || RoadGravelUvRotation != 0), RoadGravelDetail,
                 RoadGravelDetail == 2 ? RoadTextureSource.Custom : RoadTextureSource.Generated,

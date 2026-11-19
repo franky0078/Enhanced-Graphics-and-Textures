@@ -81,6 +81,18 @@ namespace Advanced_Graphics
                     if (openFolder) s.OpenRailTextureFolder = true;
                     else s.ReloadRailTexture = true;
                     break;
+                case "curb":
+                    if (openFolder)
+                    {
+                        try
+                        {
+                            System.IO.Directory.CreateDirectory(CurbTexture.Folder);
+                            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(CurbTexture.Folder) { UseShellExecute = true });
+                        }
+                        catch (Exception ex) { Mod.log.Error(ex, "Could not open curb texture folder."); }
+                    }
+                    else CurbTexture.Configure(s.CurbMode, s.TexturesEnabled ? s : null, true);
+                    break;
                 case "railCrossing":
                     if (openFolder) s.OpenRailCrossingFolder();
                     else Mod.RailCrossingSurface?.ReloadCustomTexture();
@@ -94,7 +106,7 @@ namespace Advanced_Graphics
             AddBinding(new TriggerBinding<string>(Group, "reloadSurfaceTexture", surface => TextureFileAction(surface, false)));
             AddBinding(new TriggerBinding<string>(Group, "openSurfaceTextureFolder", surface => TextureFileAction(surface, true)));
             AddUpdateBinding(new GetterValueBinding<string>(Group, "normalMapFlags", () =>
-                string.Join(",", new[] { "road", "sidewalk", "alley", "gravel", "shoulder", "rail", "grass", "footpath" }
+                string.Join(",", new[] { "road", "sidewalk", "alley", "gravel", "shoulder", "rail", "grass", "footpath", "curb" }
                     .Select(key => Mod.ActiveSetting?.GetCustomNormalEnabled(key) == true ? "1" : "0"))));
             AddBinding(new TriggerBinding<string>(Group, "setNormalMapEnabled", ChangeNormalMapEnabled));
             AddBinding(new TriggerBinding<string>(Group, "applyEndcap", ApplyEndcap));
@@ -183,7 +195,14 @@ namespace Advanced_Graphics
                 (parts.Length >= 3 && !int.TryParse(parts[2], out opacity)) || opacity < 0 || opacity > 100 ||
                 (parts.Length == 4 && (!int.TryParse(parts[3], out mode) || mode < 0 || mode > 2)) ||
                 color < 0 || color > 0xffffff) return;
-            if (parts[0] == "railCrossing")
+            if (parts[0] == "curb")
+            {
+                if (mode >= 0 && mode != s.CurbMode) return;
+                s.CurbColor = color;
+                s.CurbOpacity = opacity;
+                m_SidewalkState = BuildSidewalkState(s);
+            }
+            else if (parts[0] == "railCrossing")
             {
                 s.RailCrossingColor = color;
                 s.RailCrossingColorOpacity = opacity;
@@ -270,6 +289,16 @@ namespace Advanced_Graphics
             if (s == null) return "{}";
             return "{\"filterColor\":" + s.SidewalkFilterColor + ",\"filterOpacity\":" + s.SidewalkFilterOpacityPercent + ",\"show\":" + (s.ShowAppButton && s.TexturesEnabled ? "true" : "false") +
                 ",\"enabled\":" + (s.SidewalkEnabled ? "true" : "false") +
+                ",\"curbSize\":" + s.CurbSize +
+                ",\"curbDepth\":" + s.CurbDepth +
+                ",\"curbJointSpacing\":" + s.CurbJointSpacing +
+                ",\"curbJointOpacity\":" + s.CurbJointOpacity +
+                ",\"curbRotation\":" + s.CurbRotation +
+                ",\"curbOffsetX\":" + s.CurbOffsetX +
+                ",\"curbOffsetY\":" + s.CurbOffsetY +
+                ",\"curbColor\":" + s.CurbColor +
+                ",\"curbOpacity\":" + s.CurbOpacity +
+                ",\"curbMode\":" + s.CurbMode +
                 ",\"detail\":" + s.SidewalkDetail +
                 ",\"uv\":" + s.SidewalkUvSizePercent +
                 ",\"depth\":" + s.SidewalkDepthStrengthPercent +
@@ -530,6 +559,15 @@ namespace Advanced_Graphics
                     switch (key)
                     {
                         case "enabled": s.SidewalkEnabled = value != 0; break;
+                        case "curbReset": s.ResetCurb(); break;
+                        case "curbSize": s.CurbSize = Clamp(value, 10, 3000); break;
+                        case "curbDepth": s.CurbDepth = Clamp(value, 0, 3000); break;
+                        case "curbJointSpacing": s.CurbJointSpacing = Clamp(value, 0, 500); break;
+                        case "curbJointOpacity": s.CurbJointOpacity = Clamp(value, 0, 100); break;
+                        case "curbRotation": s.CurbRotation = Clamp(value, 0, 360); break;
+                        case "curbOffsetX": s.CurbOffsetX = Clamp(value, -100, 100); break;
+                        case "curbOffsetY": s.CurbOffsetY = Clamp(value, -100, 100); break;
+                        case "curbMode": s.CurbMode = Clamp(value, 0, 2); break;
                         case "detail": s.SidewalkDetail = Clamp(value, 0, 2); break;
                         case "uv": s.SidewalkUvSizePercent = Clamp(value, 10, Setting.MaxTextureUvSize); break;
                         case "depth": s.SidewalkDepthStrengthPercent = Clamp(value, 0, Setting.MaxTextureDepthStrength); break;

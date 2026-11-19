@@ -42,13 +42,13 @@ namespace Advanced_Graphics
         private bool UsesSidewalkShift => !IsAlleyAtlas && !(this is ParkingRoadAtlasSystem);
         private int CurrentShiftU => UsesSidewalkShift ? Mod.ActiveSetting?.SidewalkShiftU ?? 0 : 0;
         private int CurrentShiftV => UsesSidewalkShift ? Mod.ActiveSetting?.SidewalkShiftV ?? 0 : 0;
+        private int m_CurbRevision;
         private int m_Frames;
         private bool m_RoadEuAtlasChanged;
 
         internal bool IsEnabled => m_Enabled;
         internal void NotifyRoadEuAtlasChanged() => m_RoadEuAtlasChanged = true;
 
-        // Own atlases stay readable while endcaps or the Alley atlas read them again.
         protected bool KeepOwnAtlasReadable => TexturePerformance.KeepAtlasReadable &&
             (EndcapScaleActive || (!IsAlleyAtlas && !(this is ParkingRoadAtlasSystem) &&
                 Mod.AlleySidewalkAtlas != null && Mod.AlleySidewalkAtlas.IsEnabled));
@@ -111,8 +111,11 @@ namespace Advanced_Graphics
             TrackNetChanges();
             if (Mod.ActiveSetting?.HasPendingApply == true) return;
             bool scaleChanged = RefreshEndcapScale();
-            bool tileChanged = m_SourceColor != Surface?.ActiveColorTexture ||
-                m_SourceNormal != Surface?.ActiveNormalTexture ||
+            bool curb = UsesSidewalkShift && CurbTexture.Active;
+            bool curbChanged = UsesSidewalkShift && m_CurbRevision != CurbTexture.Revision;
+            var color = m_Enabled ? Surface?.ActiveColorTexture : null;
+            var normal = m_Enabled ? Surface?.ActiveNormalTexture : null;
+            bool tileChanged = curbChanged || m_SourceColor != color || m_SourceNormal != normal ||
                 m_BuiltShiftU != CurrentShiftU || m_BuiltShiftV != CurrentShiftV;
             bool roadEuChanged = IsAlleyAtlas && m_RoadEuAtlasChanged;
             if (!m_Dirty && !tileChanged && !scaleChanged && !roadEuChanged && ++m_Frames < 120) return;
@@ -120,19 +123,19 @@ namespace Advanced_Graphics
             if (!ShouldRunPass(m_Dirty || tileChanged || scaleChanged || roadEuChanged)) return;
             m_Dirty = false;
             m_RoadEuAtlasChanged = false;
-            if (!m_Enabled)
+            m_CurbRevision = CurbTexture.Revision;
+            if (!m_Enabled && !curb)
             {
                 RestoreNow();
                 PassFinished(false);
                 return;
             }
 
-            var color = Surface?.ActiveColorTexture;
-            var normal = Surface?.ActiveNormalTexture;
+
             bool customTexture = Surface?.UsesCustomTexture == true;
-            if (color == null)
+            if (color == null && !curb)
             {
-                if (m_SourceColor != null) RestoreNow();
+                if (m_Materials.Count > 0) RestoreNow();
                 PassFinished(false);
                 return;
             }
@@ -141,7 +144,7 @@ namespace Advanced_Graphics
             {
                 if (scaleChanged) RestoreIsolatedAlleyBatches();
                 int shiftU = CurrentShiftU, shiftV = CurrentShiftV;
-                if (m_SourceColor != color || m_SourceNormal != normal ||
+                if (curbChanged || m_SourceColor != color || m_SourceNormal != normal ||
                     m_BuiltDiagnostic != m_Diagnostic || m_BuiltCustom != customTexture ||
                     m_BuiltShiftU != shiftU || m_BuiltShiftV != shiftV || roadEuChanged)
                 {
@@ -202,7 +205,7 @@ namespace Advanced_Graphics
                         m_ColorCopies.Add(original.Color, colorCopy);
                     }
                     Texture2D normalCopy = null;
-                    if (!m_Diagnostic && normal != null && original.Normal != null)
+                    if (!m_Diagnostic && (normal != null || (curb && CurbTexture.NeedsNormal)) && original.Normal != null)
                     {
                         if (!m_NormalCopies.TryGetValue((original.Normal, original.Color), out normalCopy))
                         {
@@ -231,7 +234,7 @@ namespace Advanced_Graphics
                 string region = m_Diagnostic ? "color regions red/yellow/blue/cyan/magenta/green"
                     : (IsAlleyAtlas ? "ParkingLane7 atlas on isolated Alley batches" : "sidewalk region x=318..758");
                 if (added > 0) NotifyAlleyAtlas();
-                if (added > 0) Mod.LogLater($"{SurfaceLabel} atlas: {m_Materials.Count} matched materials ({added} new), {applied} applied, {virtualMaterials} switched from ENABLE_VT; {region}; source tile {color.width}x{color.height}.");
+                if (added > 0) Mod.LogLater($"{SurfaceLabel} atlas: {m_Materials.Count} matched materials ({added} new), {applied} applied, {virtualMaterials} switched from ENABLE_VT; {region}; source tile {color?.width ?? 0}x{color?.height ?? 0}.");
                 if (m_Materials.Count == 0 && !m_LoggedMissing)
                 {
                     m_LoggedMissing = true;
@@ -263,7 +266,7 @@ namespace Advanced_Graphics
             }
             var detail = diagnostic ? null : overlay as Texture2D;
             bool destroyDetail = false;
-            if (!diagnostic && (detail == null || !detail.isReadable))
+            if (overlay != null && !diagnostic && (detail == null || !detail.isReadable))
             {
                 detail = Readback(overlay, linear);
                 destroyDetail = true;
@@ -286,7 +289,7 @@ namespace Advanced_Graphics
                     verticalRepeats = Mathf.Max(1, Mathf.RoundToInt(verticalRepeats));
                 if (UsesSidewalkShift && !alleyShoulder && !linear)
                 {
-                    RoadPatternValid = !diagnostic;
+                    RoadPatternValid = !diagnostic && overlay != null;
                     RoadPatternRepeatsV = verticalRepeats;
                     RoadPatternShiftU = m_BuiltShiftU / 100f;
                     RoadPatternShiftV = m_BuiltShiftV / 100f;
@@ -303,7 +306,7 @@ namespace Advanced_Graphics
                         pixels = copy.Pixels;
                     }
                     pixels.CopyFrom(atlas.Pixels);
-                    TexturePerformance.Run(new SidewalkStripRowsJob
+                    if (diagnostic || detail != null) TexturePerformance.Run(new SidewalkStripRowsJob
                     {
                         Pixels = pixels,
                         Tile = tile.Pixels,
@@ -323,6 +326,8 @@ namespace Advanced_Graphics
                         StripFraction = stripFraction,
                         VerticalRepeats = verticalRepeats
                     }, Math.Max(0, top - bottom));
+                    if (UsesSidewalkShift && !diagnostic)
+                        CurbTexture.Paint(pixels, atlas.Pixels, width, height, 273, X0, 1024, linear, SidewalkJunctionMeshSystem.RoadVPerMetre);
                     if (!direct) original.SetPixels32(pixels.ToArray());
                 }
                 finally
@@ -353,7 +358,7 @@ namespace Advanced_Graphics
             }
         }
 
-        private static Texture2D Readback(Texture source, bool linear, int maximumSize = 4096)
+        internal static Texture2D Readback(Texture source, bool linear, int maximumSize = 4096)
         {
             float scale = Mathf.Min(1f, maximumSize / (float)Mathf.Max(source.width, source.height));
             int width = Mathf.Max(1, Mathf.RoundToInt(source.width * scale));

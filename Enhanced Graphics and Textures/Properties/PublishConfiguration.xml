@@ -20,6 +20,7 @@
 		- TAA sharpening strength
 		- Mipmap bias for all surfaces
 		- 16× anisotropic texture filtering for modified surface textures
+		- Roadwear color,depth and roughness adjustments
 
 		Higher settings can increase GPU load and memory use. Adjust one setting at a time and compare both image quality and frame rate.
 
@@ -30,6 +31,7 @@
 
 		- Road asphalt
 		- Sidewalks
+		- Sidewalks Curbs
 		- Footpaths
 		- Alley / one-way road sidewalks
 		- Sidewalk grass
@@ -79,6 +81,7 @@
 
 		- Road asphalt: Road/Road_BaseColor.png and Road/Road_Normal.png
 		- Sidewalk: Sidewalk/Sidewalk_BaseColor.png and Sidewalk/Sidewalk_Normal.png
+		- Sidewalk Curbs: Sidewalk/Curbs/Curbs_BaseColor.png and Curbs_Normal.png
 		- Footpath: Footpath/Footpath_BaseColor.png and Footpath/Footpath_Normal.png
 		- Alley / one-way sidewalk: AlleySidewalk/AlleySidewalk_BaseColor.png and AlleySidewalk/AlleySidewalk_Normal.png
 		- Sidewalk grass: SidewalkGrass/Grass_BaseColor.png and SidewalkGrass/Grass_Normal.png
@@ -150,7 +153,7 @@
 	<AccessLevel Value="Public" />
 	<Tag Value="Code Mod" />
 	
-	<ModVersion Value="1.7.8" />
+	<ModVersion Value="1.8.0" />
 	
 	<!--Existing value retained. Set this to the game version tested locally before publishing.-->
 	<GameVersion Value="1.6.*" />
@@ -158,8 +161,8 @@
 	<ChangeLog>
 		Latest changes:
 
-		- compatibility with Cities: Skylines II 1.6.4F1
-		- added support for all ingame languages.
+		- added roadwear color, depth and roughness adjustments.
+		- added curb texture override for sidewalks + curb length markings.
 
 	</ChangeLog>
 

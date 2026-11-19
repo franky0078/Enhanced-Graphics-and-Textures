@@ -60,6 +60,7 @@ namespace Advanced_Graphics
         internal static SidewalkRoadAtlasSystem SidewalkAtlas;
         internal static AlleySidewalkSurfaceSystem AlleySidewalk;
         internal static AlleySidewalkAtlasSystem AlleySidewalkAtlas;
+        internal static RoadWearSystem RoadWear;
         internal static ParkingRoadAtlasSystem ParkingRoadAtlas;
 
         public void OnLoad(UpdateSystem updateSystem)
@@ -71,6 +72,8 @@ namespace Advanced_Graphics
             // BatchManagerSystem builds the active groups; BatchDataSystem later reads their LOD thresholds. 
             updateSystem.UpdateAfter<TreeLodSystem, BatchManagerSystem>(SystemUpdatePhase.Rendering);
             updateSystem.UpdateAfter<GraphicsCameraSystem, Game.Rendering.LightingSystem>(SystemUpdatePhase.Rendering);
+            updateSystem.UpdateAt<RoadWearSystem>(SystemUpdatePhase.Rendering);
+            RoadWear = updateSystem.World.GetOrCreateSystemManaged<RoadWearSystem>();
             updateSystem.UpdateAt<GrassSurfaceSystem>(SystemUpdatePhase.Rendering);
             updateSystem.UpdateAt<FootpathSurfaceSystem>(SystemUpdatePhase.Rendering);
             updateSystem.UpdateAt<RoadMaterialInspector>(SystemUpdatePhase.Rendering);
@@ -193,6 +196,9 @@ namespace Advanced_Graphics
                 m_Setting.UnregisterInOptionsUI();
                 m_Setting = null;
             }
+            RoadWear?.Restore();
+            RoadWear = null;
+            CurbTexture.Configure(0);
             ActiveSetting = null;
             ParkingRoadAtlas?.RestoreParkingNow();
             ParkingRoadAtlas = null;

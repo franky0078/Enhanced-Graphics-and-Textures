@@ -506,7 +506,6 @@ namespace Advanced_Graphics
                 EntityManager.CompleteAllTrackedJobs();
                 m_SyncOnRestore = false;
             }
-            // SetComponentData below would wait for these jobs anyway; doing it explicitly separates the wait from the own work.
             EntityManager.CompleteDependencyBeforeRW<Composition>();
             long workStart = System.Diagnostics.Stopwatch.GetTimestamp();
             long wait = workStart - waitStart;
@@ -635,7 +634,6 @@ namespace Advanced_Graphics
             }
         }
 
-        // Finds the corners to rebuild (alley junctions, parking corners, roads at parking junctions, road ends).
         private void Scan()
         {
             m_ScanStart = System.Diagnostics.Stopwatch.GetTimestamp();
@@ -822,7 +820,6 @@ namespace Advanced_Graphics
             foreach (var pair in m_Runtimes)
             {
                 if (active.Contains(pair.Key)) continue;
-                // Incremental scan: only corners at the scanned nodes (or of removed roads) can be dropped.
                 if (m_ScanNodes != null)
                 {
                     var road = pair.Key.Item1;
@@ -846,7 +843,6 @@ namespace Advanced_Graphics
 
             ScanParkingEdges(ordered);
 
-            // Status report (debug only): walks every corner's batches, skipped in normal play.
             if (Mod.DebugBackendEnabled)
             {
                 int live = 0, withBatches = 0, batchGroups = 0;
@@ -1185,8 +1181,6 @@ namespace Advanced_Graphics
             return alleys >= 1 && alleys < edges.Length;
         }
 
-        // Per road: at 2-3 edges the node rule above. At crossings with 4 or more edges (alley crossing a road) only a road
-        // whose two neighbouring arms are both alleys; a corner between two roads with sidewalks keeps the game's look.
         private bool AtAlleyJunction(Entity road, Entity node, out int sides)
         {
             sides = 3;
@@ -1213,8 +1207,6 @@ namespace Advanced_Graphics
             return sides != 0;
         }
 
-        // Crossing with 4+ arms where only one neighbouring arm of this road is an alley: only the sidewalk on that side is
-        // straightened, the corner towards the other road keeps the game's look. Bit 1: clockwise neighbour, bit 2: counter-clockwise.
         private int m_SideMask = 3;
         private float2 m_SideNode, m_SideDirection;
 
@@ -1879,7 +1871,6 @@ namespace Advanced_Graphics
             runtime.Composition = Entity.Null;
         }
 
-        // Splits a piece into rest and sidewalk part; the sidewalk part gets UVs from a straight frame in world space.
         private bool TrySplit(NetCompositionPiece piece, NetCompositionMeshData data, EdgeNodeGeometry geometry,
             NetCompositionData compositionData, EdgeGeometry edgeGeometry, bool start, List<Entity> created,
             List<SourceFrame> external, List<SourceFrame> framesOut, bool nameFilter,
@@ -2335,7 +2326,6 @@ namespace Advanced_Graphics
             return true;
         }
 
-        // Side road at a T junction with a parking road running through: borrows its straight frames (L joint).
         private List<SourceFrame> BorrowParkingFrames(Entity road, bool start, Entity junction, out int signature)
         {
             signature = 0;
@@ -2486,7 +2476,6 @@ namespace Advanced_Graphics
             return true;
         }
 
-        // Clips the walk triangles of one slot at a line; returns per vertex whether it lies on the positive side.
         private static List<bool> SplitWalkAtLine(int indexBegin, int vertexBegin, List<float3> positions, List<float3> normals,
             List<float4> tangents, List<float2> uvs, List<int> indices, Func<float3, float> signedDistance)
         {
@@ -2742,7 +2731,6 @@ namespace Advanced_Graphics
             return vertex;
         }
 
-        // How a triangle's displayed U relates to its real U after WrapStrip (repeat: +1, mirror: -1, plus an offset).
         private static float2 UFold(WalkVertex[] tri)
         {
             var exact = s_ExactUv;
@@ -3020,7 +3008,6 @@ namespace Advanced_Graphics
             }
         }
 
-        // Atlas V per metre of the piece (game: sum |dV| / sum |dz| over its triangles), node half only.
         private static float RampVDensity(MeshVertex[] positions, MeshUV0[] uvs, MeshIndex[] indices)
         {
             float sumV = 0f, sumZ = 0f;
@@ -3053,9 +3040,8 @@ namespace Advanced_Graphics
         }
         private const int AnyMaterial = int.MinValue;
         private const float RoadUPerMetre = 64f / 1024f;
-        private const float RoadVPerMetre = 0.0313f;
+        internal const float RoadVPerMetre = 0.0313f;
 
-        // Parking frame converted to the RoadEU atlas with the same slab pattern.
         private static Frame ToRoadFrame(Frame parking)
         {
             float repeatsU = ParkingRoadAtlasSystem.SidewalkPatternRepeatsU, repeatsV = ParkingRoadAtlasSystem.SidewalkPatternRepeatsV;
@@ -3493,7 +3479,6 @@ namespace Advanced_Graphics
             return w => frame.Sample(w).x;
         }
 
-        // Template (x, z) of a world point (Newton on the node deformation).
         private static float2 InverseTemplate(Func<float3, float3> toWorld, float2 target, float2 guess)
         {
             var t = guess;
@@ -4262,7 +4247,6 @@ namespace Advanced_Graphics
             return max >= min ? (min + max) * 0.5f : float.NaN;
         }
 
-        // Approximates the game's node deformation: template position -> world position.
         private static float3 ProjectToWorld(float3 position, NetCompositionPiece piece, NetCompositionMeshData data,
             EdgeNodeGeometry geometry, NetCompositionData compositionData)
         {
@@ -4327,7 +4311,6 @@ namespace Advanced_Graphics
             return math.saturate(math.lerp(across, mapped, SyncWeight(math.saturate(t))));
         }
 
-        // Blend of the node sync targets along the node: t² for parking corners, 1-(1-t)² at the alley bend, else t.
         private static float SyncWeight(float t)
         {
             int mode = s_SyncBlendMode != 0 ? s_SyncBlendMode : s_BendSync ? 3 : s_SquareSync ? 2 : 0;

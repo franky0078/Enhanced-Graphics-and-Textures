@@ -86,6 +86,11 @@ namespace Advanced_Graphics
                 if (!TryNumber(input, out float value)) return;
                 switch (key)
                 {
+                    case "WearEnabled": s.WearEnabled = value != 0; break;
+                    case "WearOpacity": s.WearOpacity = ClampInt(value, 0, 300); break;
+                    case "WearDepth": s.WearDepth = ClampInt(value, 0, 1000); break;
+                    case "WearGloss": s.WearGloss = ClampInt(value, -1, 100); break;
+                    case "WearColor": s.WearColor = ClampInt(value, 0, 16777215); s.WearColorSelected = true; break;
                     case "TreeLodDistance": s.TreeLodDistance = ClampInt(value, 10, 500); break;
                     case "GlobalDetailScalePercent": s.GlobalDetailScalePercent = ClampInt(value, 10, 500); break;
                     case "TerrainTessellationLevel": s.TerrainTessellationLevel = value < 0.5f ? 0 : ClampInt(value, 1, 16); break;
@@ -103,7 +108,6 @@ namespace Advanced_Graphics
                     default: return;
                 }
             }
-            // Graphics edits do not reconfigure or regenerate any road textures.
             s.QueueGraphicsApply();
             m_State = BuildState(s);
             QueueSave();
@@ -112,6 +116,7 @@ namespace Advanced_Graphics
         private static readonly string[] ResetKeys = {
             "TreeLodDistance", "GlobalDetailScalePercent", "TerrainTessellationLevel", "TerrainPatchSizeUnits",
             "ShadowResolution", "ShadowDistanceMeters", "SmallShadowCasterThreshold", "TaaSharpenStrength", "TaaStabilityEnabled", "TaaStabilityStrength",
+            "WearEnabled", "WearOpacity", "WearDepth", "WearGloss", "WearColor",
             "BloomMode", "SunBloomStrength", "SkyExposure"
         };
 
@@ -119,6 +124,11 @@ namespace Advanced_Graphics
         {
             switch (key)
             {
+                case "WearEnabled": s.WearEnabled = false; break;
+                case "WearOpacity": s.WearOpacity = 100; break;
+                case "WearDepth": s.WearDepth = 100; break;
+                case "WearGloss": s.WearGloss = -1; break;
+                case "WearColor": s.WearColor = 16777215; s.WearColorSelected = false; break;
                 case "TreeLodDistance": s.TreeLodDistance = 100; break;
                 case "GlobalDetailScalePercent": s.GlobalDetailScalePercent = 100; break;
                 case "TerrainTessellationLevel": s.TerrainTessellationLevel = Setting.DefaultTerrainTessellation; break;
@@ -154,6 +164,12 @@ namespace Advanced_Graphics
             var json = new StringBuilder("{\"show\":").Append(s.ShowGraphicsAppButton && s.GraphicsEnabled ? "true" : "false");
             Add(json, "x", s.GraphicsWindowX);
             Add(json, "y", s.GraphicsWindowY);
+            Add(json, "WearEnabled", s.WearEnabled ? 1 : 0);
+            Add(json, "WearOpacity", s.WearOpacity);
+            Add(json, "WearDepth", s.WearDepth);
+            Add(json, "WearGloss", s.WearGloss);
+            Add(json, "WearMatches", Mod.RoadWear?.MatchCount ?? -1);
+            Add(json, "WearColor", s.WearColor);
             Add(json, "TreeLodDistance", s.TreeLodDistance);
             Add(json, "GlobalDetailScalePercent", s.GlobalDetailScalePercent);
             Add(json, "TerrainTessellationLevel", s.TerrainTessellationLevel);

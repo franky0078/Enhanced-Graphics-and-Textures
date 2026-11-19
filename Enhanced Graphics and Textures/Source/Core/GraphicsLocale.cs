@@ -14,6 +14,66 @@ namespace Advanced_Graphics
             m_Language = language;
         }
 
+        private void AddCurbAndWearEntries(Dictionary<string, string> entries)
+        {
+            string[] labels;
+            switch (m_Language)
+            {
+                case "de": labels = new[] { "Bordstein", "Betonbordstein", "Original", "Eigene Textur", "Fahrspuren", "Farbe", "Deckkraft", "Glätte", "Relieftiefe", "Erkannte Fahrspurmaterialien", "Fugenabstand (cm)", "Fahrspuren anzeigen", "Fugendeckkraft (%)" }; break;
+                case "es": labels = new[] { "Bordillo", "Bordillo de hormigón", "Original", "Textura personalizada", "Desgaste vial", "Color", "Opacidad", "Suavidad", "Profundidad del relieve", "Materiales de carril detectados", "Separación de juntas (cm)", "Mostrar desgaste vial", "Opacidad de las juntas (%)" }; break;
+                case "fr": labels = new[] { "Bordure", "Bordure en béton", "Original", "Texture personnalisée", "Usure routière", "Couleur", "Opacité", "Lissage", "Profondeur du relief", "Matériaux de voie détectés", "Espacement des joints (cm)", "Afficher l’usure routière", "Opacité des joints (%)" }; break;
+                case "it": labels = new[] { "Cordolo", "Cordolo in calcestruzzo", "Originale", "Texture personalizzata", "Usura stradale", "Colore", "Opacità", "Levigatezza", "Profondità del rilievo", "Materiali di corsia rilevati", "Distanza tra i giunti (cm)", "Mostra usura stradale", "Opacità dei giunti (%)" }; break;
+                case "pl": labels = new[] { "Krawężnik", "Krawężnik betonowy", "Oryginalna", "Własna tekstura", "Zużycie jezdni", "Kolor", "Krycie", "Gładkość", "Głębokość reliefu", "Wykryte materiały pasów", "Rozstaw spoin (cm)", "Pokaż zużycie jezdni", "Krycie spoin (%)" }; break;
+                case "ru": labels = new[] { "Бордюр", "Бетонный бордюр", "Оригинал", "Своя текстура", "Износ дороги", "Цвет", "Непрозрачность", "Гладкость", "Глубина рельефа", "Обнаружено материалов полос", "Шаг швов (cm)", "Показывать износ дороги", "Непрозрачность швов (%)" }; break;
+                case "pt-BR": labels = new[] { "Meio-fio", "Meio-fio de concreto", "Original", "Textura personalizada", "Desgaste viário", "Cor", "Opacidade", "Lisura", "Profundidade do relevo", "Materiais de faixa detectados", "Espaçamento das juntas (cm)", "Mostrar desgaste da pista", "Opacidade das juntas (%)" }; break;
+                case "ja": labels = new[] { "縁石", "コンクリート縁石", "オリジナル", "カスタムテクスチャ", "路面の摩耗", "色", "不透明度", "滑らかさ", "凹凸の強さ", "検出された車線マテリアル", "目地の間隔 (cm)", "路面の摩耗を表示", "目地の不透明度 (%)" }; break;
+                case "ko": labels = new[] { "경계석", "콘크리트 경계석", "원본", "사용자 텍스처", "노면 마모", "색상", "불투명도", "매끄러움", "요철 깊이", "감지된 차선 머티리얼", "줄눈 간격 (cm)", "노면 마모 표시", "줄눈 불투명도 (%)" }; break;
+                case "zh-HANS": labels = new[] { "路缘石", "混凝土路缘石", "原版", "自定义纹理", "路面磨损", "颜色", "不透明度", "光滑度", "凹凸深度", "检测到的车道材质", "接缝间距 (cm)", "显示路面磨损", "接缝不透明度 (%)" }; break;
+                case "zh-HANT": labels = new[] { "路緣石", "混凝土路緣石", "原版", "自訂紋理", "路面磨損", "顏色", "不透明度", "光滑度", "凹凸深度", "偵測到的車道材質", "接縫間距 (cm)", "顯示路面磨損", "接縫不透明度 (%)" }; break;
+                default: labels = new[] { "Curb", "Concrete curb", "Original", "Custom texture", "Road wear", "Color", "Opacity", "Smoothness", "Relief depth", "Matched lane materials", "Joint spacing (cm)", "Show road wear", "Joint opacity (%)" }; break;
+            }
+            const string ui = "AdvancedGraphics.UI.";
+            string modes = "0 = " + labels[2] + ", 1 = " + labels[1] + ", 2 = " + labels[3];
+            string files;
+            switch (m_Language)
+            {
+                case "de": files = "Curb_BaseColor.png und optional Curb_Normal.png im selben Ordner. Ohne gültige Farbtextur wird der Originalbordstein verwendet."; break;
+                case "es": files = "Curb_BaseColor.png y, opcionalmente, Curb_Normal.png en la misma carpeta. Sin una textura de color válida se usa el bordillo original."; break;
+                case "fr": files = "Curb_BaseColor.png et, en option, Curb_Normal.png dans le même dossier. Sans texture de couleur valide, la bordure d’origine est utilisée."; break;
+                case "it": files = "Curb_BaseColor.png e, facoltativamente, Curb_Normal.png nella stessa cartella. Senza una texture colore valida viene usato il cordolo originale."; break;
+                case "pt-BR": files = "Curb_BaseColor.png e, opcionalmente, Curb_Normal.png na mesma pasta. Sem uma textura de cor válida, o meio-fio original é usado."; break;
+                case "pl": files = "Curb_BaseColor.png i opcjonalnie Curb_Normal.png w tym samym folderze. Bez poprawnej tekstury koloru używany jest oryginalny krawężnik."; break;
+                case "ru": files = "Curb_BaseColor.png и необязательная Curb_Normal.png в одной папке. Без корректной цветовой текстуры используется исходный бордюр."; break;
+                case "ja": files = "同じフォルダーに Curb_BaseColor.png と任意の Curb_Normal.png を置きます。有効なカラーテクスチャがない場合は元の縁石を使用します。"; break;
+                case "ko": files = "Curb_BaseColor.png와 선택 사항인 Curb_Normal.png를 같은 폴더에 넣으세요. 유효한 색상 텍스처가 없으면 원본 경계석을 사용합니다."; break;
+                case "zh-HANS": files = "将 Curb_BaseColor.png 和可选的 Curb_Normal.png 放在同一文件夹中。如果颜色纹理无效，将使用原版路缘石。"; break;
+                case "zh-HANT": files = "將 Curb_BaseColor.png 和選用的 Curb_Normal.png 放在同一資料夾中。如果顏色紋理無效，將使用原版路緣石。"; break;
+                default: files = "Curb_BaseColor.png and optional Curb_Normal.png in the same folder. Without a valid color texture, the original curb is used."; break;
+            }
+            entries[ui + "CurbJointOpacity"] = labels[12];
+            entries[ui + "CurbJointSpacing"] = labels[10];
+            entries[ui + "CurbFiles"] = files;
+            entries[ui + "Curb"] = labels[0];
+            entries[ui + "ConcreteCurb"] = labels[1];
+            entries[ui + "CurbModes"] = modes;
+            entries[m_Setting.GetOptionLabelLocaleID(nameof(Setting.CurbMode))] = labels[0];
+            entries[m_Setting.GetOptionDescLocaleID(nameof(Setting.CurbMode))] = modes;
+            string[] keys = { "RoadWear", "WearColor", "WearOpacity", "WearGloss", "WearDepth" };
+            for (int i = 0; i < keys.Length; i++)
+                entries[ui + "Graphics." + keys[i]] = labels[i + 4];
+            entries[ui + "Graphics.TipWearOpacity"] = labels[6] + " (0–300 %)";
+            entries[ui + "Graphics.TipWearGloss"] = labels[7] + " (0–100 %)";
+            entries[ui + "Graphics.TipWearDepth"] = labels[8] + " (100 % = " + labels[2] + ")";
+            entries[ui + "Graphics.WearEnabled"] = labels[11];
+            entries[ui + "Graphics.WearMaterials"] = labels[9];
+            entries[m_Setting.GetOptionGroupLocaleID(Setting.RoadWearGroup)] = labels[4];
+            foreach (var name in new[] { nameof(Setting.WearOpacity), nameof(Setting.WearDepth), nameof(Setting.WearGloss) })
+            {
+                entries[m_Setting.GetOptionLabelLocaleID(name)] = entries[ui + "Graphics." + name];
+                entries[m_Setting.GetOptionDescLocaleID(name)] = entries[ui + "Graphics.Tip" + name];
+            }
+        }
+
         private void AddCustomNormalEntries(Dictionary<string, string> entries)
         {
             string[] actions;
@@ -829,6 +889,7 @@ namespace Advanced_Graphics
             AddLogOutputEntries(entries);
             AddModuleEntries(entries);
             ApplyAdditionalTranslations(entries, detail, shadow, culling);
+            AddCurbAndWearEntries(entries);
             return entries;
         }
 

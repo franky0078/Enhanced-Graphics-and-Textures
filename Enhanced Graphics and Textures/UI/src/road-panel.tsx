@@ -16,15 +16,15 @@ const gravelState$ = bindValue<string>(group, "gravelSettings", "{}");
 const colorWindowPosition$ = bindValue<string>(group, "colorWindowPosition", "{}");
 const textureGeneralWindowPosition$ = bindValue<string>(group, "textureGeneralWindowPosition", "{}");
 const shoulderState$ = bindValue<string>(group, "shoulderSettings", "{}");
-type Surface = "road" | "sidewalk" | "alley" | "rail" | "gravel" | "shoulder" | "grass" | "footpath";
-const triggers: Record<Surface, string> = { footpath: "setFootpathSetting", grass: "setGrassSetting", road: "setRoadSetting", sidewalk: "setSidewalkSetting", alley: "setAlleySidewalkSetting", rail: "setRailSetting", gravel: "setGravelSetting", shoulder: "setShoulderSetting" };
-const prefixes: Record<Surface, string> = { footpath: "Footpath", grass: "Grass", road: "", sidewalk: "Sidewalk", alley: "AlleySidewalk", rail: "RailGravel", gravel: "RoadGravel", shoulder: "GravelShoulder" };
+type Surface = "curb" | "road" | "sidewalk" | "alley" | "rail" | "gravel" | "shoulder" | "grass" | "footpath";
+const triggers: Record<Surface, string> = { curb: "setSidewalkSetting", footpath: "setFootpathSetting", grass: "setGrassSetting", road: "setRoadSetting", sidewalk: "setSidewalkSetting", alley: "setAlleySidewalkSetting", rail: "setRailSetting", gravel: "setGravelSetting", shoulder: "setShoulderSetting" };
+const prefixes: Record<Surface, string> = { curb: "Curb", footpath: "Footpath", grass: "Grass", road: "", sidewalk: "Sidewalk", alley: "AlleySidewalk", rail: "RailGravel", gravel: "RoadGravel", shoulder: "GravelShoulder" };
 type Key = "largeEndcapU" | "largeEndcapV" | "roadEndU" | "roadEndV" | "alleyEndcapU" | "alleyEndcapV" | "parkingEndcapU" | "parkingEndcapV" | "endcapU" | "endcapV" | "detail" | "uv" | "depth" | "tiling" | "parkingScale" | "parkingDepth" | "parkingSidewalkU" | "parkingSidewalkV" | "shiftU" | "shiftV" | "mipBias" | "offsetX" | "offsetY" |
     "rotation" | "cracks" | "crackSize" | "crackWidth" | "crackOpacity" | "crackDepth" | "crackRotation" | "crackOffsetX" | "crackOffsetY" | "randomness" |
-    "crossingMode" | "crossingDepth" | "crossingGloss" | "crossingUv" | "crossingOffsetX" | "crossingOffsetY" | "crossingRotation";
-type State = Record<Key, number> & { show: boolean; enabled: boolean; filterColor: number; filterOpacity: number; crossingColor: number; crossingOpacity: number; probe?: boolean; customCracks?: boolean; crackStatus?: number };
+    "curbJointOpacity" | "curbJointSpacing" | "curbSize" | "curbDepth" | "curbRotation" | "curbOffsetX" | "curbOffsetY" | "curbMode" | "crossingMode" | "crossingDepth" | "crossingGloss" | "crossingUv" | "crossingOffsetX" | "crossingOffsetY" | "crossingRotation";
+type State = Record<Key, number> & { show: boolean; enabled: boolean; filterColor: number; filterOpacity: number; curbColor: number; curbOpacity: number; crossingColor: number; crossingOpacity: number; probe?: boolean; customCracks?: boolean; crackStatus?: number };
 const initial: State = { show: true, enabled: false, filterColor: 0xffffff, filterOpacity: 100, detail: 0, uv: 100, depth: 0,
-    crossingMode: 1, crossingDepth: 100, crossingGloss: 10, crossingUv: 100, crossingOffsetX: 0, crossingOffsetY: 0, crossingRotation: 0, crossingColor: 0xffffff, crossingOpacity: 100,
+    curbJointSpacing: 0, curbJointOpacity: 100, curbSize: 100, curbDepth: 100, curbRotation: 0, curbOffsetX: 0, curbOffsetY: 0, curbColor: 0xffffff, curbOpacity: 100, curbMode: 0, crossingMode: 1, crossingDepth: 100, crossingGloss: 10, crossingUv: 100, crossingOffsetX: 0, crossingOffsetY: 0, crossingRotation: 0, crossingColor: 0xffffff, crossingOpacity: 100,
     largeEndcapU: 1, largeEndcapV: 1, roadEndU: 1, roadEndV: 1, alleyEndcapU: 1, alleyEndcapV: 1, parkingEndcapU: 1, parkingEndcapV: 1, endcapU: 1, endcapV: 1, tiling: 1, parkingScale: 1, parkingDepth: 1, parkingSidewalkU: 1, parkingSidewalkV: 1, shiftU: 0, shiftV: 0, mipBias: 0, offsetX: 0, offsetY: 0, rotation: 0, cracks: 0, crackSize: 100, crackWidth: 100, crackOpacity: 100, crackDepth: 100, crackRotation: 0, crackOffsetX: 0, crackOffsetY: 0, randomness: 50 };
 
 const controls: { key: Key; label: string; min: number; max: number; step: number }[] = [
@@ -50,6 +50,16 @@ const controls: { key: Key; label: string; min: number; max: number; step: numbe
     { key: "parkingSidewalkV", label: "ParkingSidewalkV", min: 0.1, max: 8, step: 0.05 },
     { key: "shiftU", label: "ShiftU", min: 0, max: 100, step: 1 },
     { key: "shiftV", label: "ShiftV", min: 0, max: 100, step: 1 },
+];
+
+const curbControls: { key: Key; label: string; min: number; max: number; step: number }[] = [
+    { key: "curbSize", label: "Uv", min: 10, max: 3000, step: 5 },
+    { key: "curbJointSpacing", label: "CurbJointSpacing", min: 0, max: 500, step: 10 },
+    { key: "curbJointOpacity", label: "CurbJointOpacity", min: 0, max: 100, step: 1 },
+    { key: "curbDepth", label: "Depth", min: 0, max: 3000, step: 25 },
+    { key: "curbRotation", label: "Rotation", min: 0, max: 360, step: 1 },
+    { key: "curbOffsetX", label: "OffsetX", min: -100, max: 100, step: 1 },
+    { key: "curbOffsetY", label: "OffsetY", min: -100, max: 100, step: 1 },
 ];
 
 const crossingControls: { key: Key; label: string; min: number; max: number; step: number }[] = [
@@ -227,9 +237,11 @@ export function RoadPanel({ panelClass }: { panelClass: string }) {
         try { return { ...initial, ...JSON.parse(footpathRaw) } as State; }
         catch { return initial; }
     }, [footpathRaw]);
+    const curbValue = React.useMemo(() => ({ ...sidewalkValue, detail: sidewalkValue.curbMode,
+        filterColor: sidewalkValue.curbColor, filterOpacity: sidewalkValue.curbOpacity }), [sidewalkValue]);
     const railVisible = railValue.show;
-    const values: Record<Surface, State> = { footpath: footpathValue, grass: grassValue, road: roadValue, sidewalk: sidewalkValue, alley: alleyValue, rail: railValue, gravel: gravelValue, shoulder: shoulderValue };
-    const surfaces: Surface[] = ["road", "sidewalk", "footpath", "grass", "alley", "gravel", "shoulder", "rail"];
+    const values: Record<Surface, State> = { curb: curbValue, footpath: footpathValue, grass: grassValue, road: roadValue, sidewalk: sidewalkValue, alley: alleyValue, rail: railValue, gravel: gravelValue, shoulder: shoulderValue };
+    const surfaces: Surface[] = ["road", "sidewalk", "footpath", "grass", "alley", "gravel", "shoulder", "rail", "curb"];
     const value = values[surface];
     React.useEffect(() => {
         if (!values[surface].show) setSurface(surfaces.find(key => values[key].show) ?? "road");
@@ -276,7 +288,7 @@ export function RoadPanel({ panelClass }: { panelClass: string }) {
         pendingTimer.current = dragging ? null : setTimeout(flushPending, 120);
     };
     if (!surfaces.some(key => values[key].show)) return null;
-    const titles: Record<Surface, string> = { footpath: text("FootpathTitle", "Footpath"), grass: text("GrassTitle", "Sidewalk grass"), road: text("Title", "Road"), sidewalk: text("Sidewalk", "Sidewalk"), alley: text("AlleySidewalk", "Small-road sidewalk"), rail: text("Rail", "Rail"), gravel: text("RoadGravelTitle", "Gravel road"), shoulder: text("GravelShoulderTitle", "Gravel sidewalk") };
+    const titles: Record<Surface, string> = { curb: text("Curb", "Curb"), footpath: text("FootpathTitle", "Footpath"), grass: text("GrassTitle", "Sidewalk grass"), road: text("Title", "Road"), sidewalk: text("Sidewalk", "Sidewalk"), alley: text("AlleySidewalk", "Small-road sidewalk"), rail: text("Rail", "Rail"), gravel: text("RoadGravelTitle", "Gravel road"), shoulder: text("GravelShoulderTitle", "Gravel sidewalk") };
     const tabTitle = titles[surface];
     const crossingModes = [text("RailCrossingThrough", "Road and sidewalk"), text("RailCrossingCover", "Cover"), text("Custom", "Custom texture")];
     const launcherTitle = text("OpenTextureEditor", "Enhanced Graphics and Textures – open texture editor");
@@ -335,6 +347,7 @@ export function RoadPanel({ panelClass }: { panelClass: string }) {
             </div>
             <Scrollable key={surface} className={styles.textureScroll} vertical horizontal={false} trackVisibility="scrollable">
                 <div className={styles.textureContent}>
+                {surface !== "curb" && <>
                 <button type="button" className={styles.moduleToggle} role="checkbox" aria-checked={draft.enabled}
                     title={text(`${prefix}TipEnabled`, "Enable surface adjustments")}
                     onClick={() => {
@@ -386,6 +399,38 @@ export function RoadPanel({ panelClass }: { panelClass: string }) {
                 {surface === "shoulder" && <p className={styles.textureHint}>{text("GravelShoulderHint", "Adjusts the original gravel road edge atlas.")}</p>}
                 <Tooltip tooltip={text(`${prefix}TipReset`, "Restore surface defaults.")}><button className={styles.reset}
                     onClick={() => { flushPending(); edits.current[surface] = {}; trigger(group, triggers[surface], "reset"); }}>{text("Reset", "Reset")}</button></Tooltip>
+                </>}
+                {surface === "curb" && <>
+                    <RoadSlider control={{ key: "curbMode", label: "Curb", min: 0, max: 2, step: 1 }}
+                        label={text("Curb", "Curb")} description={text("CurbModes", "Original / Concrete / Custom")}
+                        value={draft.curbMode} displayValue={[text("Original", "Original"), text("ConcreteCurb", "Concrete curb"), text("Custom", "Custom texture")][draft.curbMode]}
+                        onChange={(next, dragging) => {
+                            if (next !== draft.curbMode) {
+                                flushPending();
+                                edits.current.curb = {};
+                                setColorOpen(null);
+                            }
+                            set("curbMode", next, dragging);
+                        }} onCommit={flushPending} />
+                    {curbControls.map(control => <RoadSlider key={control.key} control={control}
+                        label={text(control.label, control.label)} description={text(control.label, control.label)}
+                        value={draft[control.key]} onChange={(next, dragging) => set(control.key, next, dragging)}
+                        onCommit={flushPending} />)}
+                    <div className={styles.textureActions}>
+                        <button className={styles.reset} onClick={() => {
+                            flushPending();
+                            for (const key of [...curbControls.map(c => c.key), "curbMode"] as Key[]) delete edits.current.curb?.[key];
+                            trigger(group, "setSidewalkSetting", "curbReset:1");
+                        }}>{text("Reset", "Reset")} · {text("Curb", "Curb")}</button>
+                    </div>
+                    {draft.curbMode === 2 && <>
+                        <p className={styles.textureHint}>{text("CurbFiles", "Curb_BaseColor.png and optional Curb_Normal.png. Without a valid color texture, the original curb is used.")}</p>
+                        <div className={styles.colorActions}>
+                            <button className={styles.reset} onClick={() => { flushPending(); trigger(group, "reloadSurfaceTexture", "curb"); }}>{text("ReloadSurfaceTexture", "Reload texture")}</button>
+                            <button className={styles.reset} onClick={() => trigger(group, "openSurfaceTextureFolder", "curb")}>{text("OpenSurfaceTextureFolder", "Open folder")}</button>
+                        </div>
+                    </>}
+                </>}
                 {surface === "rail" && <>
                     <div className={styles.separator} />
                     <RoadSlider control={{ key: "crossingMode", label: "RailCrossing", min: 0, max: 2, step: 1 }}
@@ -427,13 +472,13 @@ export function RoadPanel({ panelClass }: { panelClass: string }) {
                 </div>
             </Scrollable>
         </div>}
-        {open && generalOpen && <TextureGeneralWindow endcapValues={roadValue} endcapKind={surface === "alley" ? "alley" : surface === "road" ? "parking" : "sidewalk"} normalEnabled={normalFlags[["road", "sidewalk", "alley", "gravel", "shoulder", "rail", "grass", "footpath"].indexOf(surface)] === "1"} surfaceTitle={titles[surface]}
+        {open && generalOpen && <TextureGeneralWindow endcapValues={roadValue} endcapKind={surface === "alley" ? "alley" : surface === "road" ? "parking" : "sidewalk"} normalEnabled={surface === "curb" && draft.curbMode !== 2 ? undefined : normalFlags[["road", "sidewalk", "alley", "gravel", "shoulder", "rail", "grass", "footpath", "curb"].indexOf(surface)] === "1"} surfaceTitle={titles[surface]}
             onNormalChange={enabled => { flushPending(); trigger(group, "setNormalMapEnabled", `${surface}:${enabled ? 1 : 0}`); }} mipBias={roadValue.mipBias} text={text} panelClass={panelClass}
             savedPosition={generalWindowPosition} initialPosition={generalStart}
             onSavePosition={next => trigger(group, "setTextureGeneralWindowPosition", `${next.x.toFixed(1)}:${next.y.toFixed(1)}`)}
             onClose={() => setGeneralOpen(false)}
             onApply={next => { flushPending(); trigger(group, "setRoadSetting", `mipBias:${next}`); }} />}
-        {open && colorOpen && values[surface].show && (colorOpen === "surface" || (surface === "rail" && draft.crossingMode !== 0)) &&
+        {open && colorOpen && values[surface].show && (colorOpen === "surface" || (colorOpen === "crossing" && surface === "rail" && draft.crossingMode !== 0)) &&
             <ColorFilterWindow surface={surface} mode={colorOpen === "crossing" ? draft.crossingMode : values[surface].detail}
             title={colorOpen === "crossing" ? text("RailCrossing", "Level crossing") : titles[surface]}
             color={colorOpen === "crossing" ? railValue.crossingColor : values[surface].filterColor}
@@ -452,7 +497,7 @@ export function RoadPanel({ panelClass }: { panelClass: string }) {
 
 function TextureGeneralWindow({ endcapValues, endcapKind, normalEnabled, surfaceTitle, onNormalChange, mipBias, text, panelClass, savedPosition, initialPosition, onSavePosition, onClose, onApply }: {
     endcapValues: State; endcapKind: EndcapKind;
-    normalEnabled: boolean; surfaceTitle: string; onNormalChange: (enabled: boolean) => void;
+    normalEnabled?: boolean; surfaceTitle: string; onNormalChange: (enabled: boolean) => void;
     mipBias: number; text: (key: string, fallback: string) => string; panelClass: string;
     savedPosition: { x?: number; y?: number }; initialPosition: { x: number; y: number };
     onSavePosition: (position: { x: number; y: number }) => void;
@@ -519,12 +564,12 @@ function TextureGeneralWindow({ endcapValues, endcapKind, normalEnabled, surface
             <button className={styles.close} onClick={() => { commit(); onClose(); }} title={text("Close", "Close")}>×</button>
         </div>
         <div className={styles.body}>
-            <button type="button" className={styles.moduleToggle} role="checkbox" aria-checked={normalEnabled}
+            {normalEnabled !== undefined && <button type="button" className={styles.moduleToggle} role="checkbox" aria-checked={normalEnabled}
                 title={text("UseCustomNormalHint", "Off: automatic relief. On: use optional custom normals when available.")}
                 onClick={() => onNormalChange(!normalEnabled)}>
                 <span className={`${styles.toggleBox} ${normalEnabled ? styles.toggleOn : ""}`} aria-hidden="true">{normalEnabled ? "✓" : ""}</span>
                 <span>{text("UseCustomNormal", "Use custom normal map")} – {surfaceTitle}</span>
-            </button>
+            </button>}
             <EndcapSliders values={endcapValues} initialKind={endcapKind} text={text} />
             <p className={styles.textureHint}>{text("TextureGeneralHint", "Applies to all surfaces edited by this mod.")}</p>
             <RoadSlider control={{ key: "mipBias", label: "SurfaceMipBias", min: -1, max: 1, step: 0.1 }}
