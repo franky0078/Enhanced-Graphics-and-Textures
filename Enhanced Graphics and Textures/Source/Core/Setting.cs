@@ -767,19 +767,25 @@ namespace Advanced_Graphics
 
 
         public const string RoadWearGroup = "Road wear";
-        [SettingsUIHidden] public bool WearEnabled { get; set; }
+        [SettingsUISection(MainSection, RoadWearGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(GraphicsDisabled))]
+        public bool WearEnabled { get; set; }
+        public bool WearOverrideDisabled => GraphicsDisabled || !WearEnabled;
+        [SettingsUISection(MainSection, RoadWearGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(WearOverrideDisabled))]
+        public bool WearHidden { get; set; }
         [SettingsUIHidden] public bool WearColorSelected { get; set; }
         [SettingsUIHidden] public int WearColor { get; set; } = 0xffffff;
         [SettingsUISection(MainSection, RoadWearGroup)]
-        [SettingsUIDisableByCondition(typeof(Setting), nameof(GraphicsDisabled))]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(WearOverrideDisabled))]
         [SettingsUISlider(min = 0, max = 300, step = 1, scalarMultiplier = 1)]
         public int WearOpacity { get; set; } = 100;
         [SettingsUISection(MainSection, RoadWearGroup)]
-        [SettingsUIDisableByCondition(typeof(Setting), nameof(GraphicsDisabled))]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(WearOverrideDisabled))]
         [SettingsUISlider(min = -1, max = 100, step = 1, scalarMultiplier = 1)]
         public int WearGloss { get; set; } = -1;
         [SettingsUISection(MainSection, RoadWearGroup)]
-        [SettingsUIDisableByCondition(typeof(Setting), nameof(GraphicsDisabled))]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(WearOverrideDisabled))]
         [SettingsUISlider(min = 0, max = 1000, step = 1, scalarMultiplier = 1)]
         public int WearDepth { get; set; } = 100;
 
@@ -1217,7 +1223,7 @@ namespace Advanced_Graphics
         public override void SetDefaults()
         {
             ResetEndcapValues();
-            WearEnabled = false;
+            WearEnabled = WearHidden = false;
             WearColorSelected = false;
             WearColor = 0xffffff;
             WearOpacity = WearDepth = 100;

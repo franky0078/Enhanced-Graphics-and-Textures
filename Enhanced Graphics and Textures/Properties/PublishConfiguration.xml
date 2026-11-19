@@ -153,7 +153,7 @@
 	<AccessLevel Value="Public" />
 	<Tag Value="Code Mod" />
 	
-	<ModVersion Value="1.8.0" />
+	<ModVersion Value="1.8.1" />
 	
 	<!--Existing value retained. Set this to the game version tested locally before publishing.-->
 	<GameVersion Value="1.6.*" />
@@ -163,6 +163,7 @@
 
 		- added roadwear color, depth and roughness adjustments.
 		- added curb texture override for sidewalks + curb length markings.
+		- fix roadwear button not working in some cases.
 
 	</ChangeLog>
 

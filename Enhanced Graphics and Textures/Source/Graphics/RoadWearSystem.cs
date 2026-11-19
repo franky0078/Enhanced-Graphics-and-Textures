@@ -29,11 +29,11 @@ namespace Advanced_Graphics
         {
             var s = Mod.ActiveSetting;
             if (s == null || s.HasPendingApply) return;
-            int selected = s.WearEnabled && (s.WearColorSelected || s.WearColor != 0xffffff) ? s.WearColor : -1;
-            int nextOpacity = s.WearEnabled ? s.WearOpacity : 0;
-            int nextGloss = s.WearEnabled ? s.WearGloss : -1;
-            int nextDepth = s.WearEnabled ? s.WearDepth : 0;
-            if (!s.GraphicsEnabled || (selected < 0 && nextOpacity == 100 && nextGloss < 0 && nextDepth == 100))
+            int selected = !s.WearHidden && (s.WearColorSelected || s.WearColor != 0xffffff) ? s.WearColor : -1;
+            int nextOpacity = s.WearHidden ? 0 : s.WearOpacity;
+            int nextGloss = s.WearHidden ? -1 : s.WearGloss;
+            int nextDepth = s.WearHidden ? 0 : s.WearDepth;
+            if (!s.GraphicsEnabled || !s.WearEnabled || (selected < 0 && nextOpacity == 100 && nextGloss < 0 && nextDepth == 100))
             {
                 if (active) Restore();
                 return;

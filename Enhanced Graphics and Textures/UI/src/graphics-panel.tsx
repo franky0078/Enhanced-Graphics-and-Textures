@@ -7,13 +7,13 @@ import styles from "./road-panel.module.scss";
 
 const group = "Advanced_Graphics";
 const state$ = bindValue<string>(group, "graphicsSettings", "{}");
-type GraphicKey = "WearEnabled" | "WearOpacity" | "WearDepth" | "WearGloss" | "WearColor" | "TreeLodDistance" | "GlobalDetailScalePercent" | "TerrainTessellationLevel" |
+type GraphicKey = "WearHidden" | "WearEnabled" | "WearOpacity" | "WearDepth" | "WearGloss" | "WearColor" | "TreeLodDistance" | "GlobalDetailScalePercent" | "TerrainTessellationLevel" |
     "TerrainPatchSizeUnits" | "ShadowResolution" | "ShadowDistanceMeters" | "SmallShadowCasterThreshold" |
     "TaaSharpenStrength" | "TaaStabilityEnabled" | "TaaStabilityStrength" | "BloomMode" | "BloomIntensity" | "SunBloomStrength" | "SkyExposure";
 type State = Record<GraphicKey, number> & { WearMatches: number; show: boolean; x: number; y: number; DefaultShadowResolution: number; GameTessellation: number; GamePatchSize: number };
 type Tab = "RoadWear" | "Details" | "Terrain" | "Shadows" | "Lighting" | "AntiAliasing";
 const tabs: Tab[] = ["Details", "Terrain", "Shadows", "AntiAliasing", "Lighting", "RoadWear"];
-const initial: State = { WearEnabled: 0, WearMatches: -1, WearOpacity: 100, WearDepth: 100, WearGloss: -1, WearColor: 16777215, show: false, x: -1, y: -1, TreeLodDistance: 100, GlobalDetailScalePercent: 100,
+const initial: State = { WearHidden: 0, WearEnabled: 0, WearMatches: -1, WearOpacity: 100, WearDepth: 100, WearGloss: -1, WearColor: 16777215, show: false, x: -1, y: -1, TreeLodDistance: 100, GlobalDetailScalePercent: 100,
     TerrainTessellationLevel: 0, TerrainPatchSizeUnits: 0, ShadowResolution: 0, DefaultShadowResolution: 0, GameTessellation: 0, GamePatchSize: 0, ShadowDistanceMeters: 0,
     SmallShadowCasterThreshold: 0, TaaSharpenStrength: 0, TaaStabilityEnabled: 0, TaaStabilityStrength: 0.5, BloomMode: 0, BloomIntensity: 0.2,
     SunBloomStrength: 1, SkyExposure: 0 };
@@ -179,12 +179,21 @@ export function GraphicsPanel({ panelClass }: { panelClass: string }) {
                 </div>
                 {tab === "RoadWear" && <>
                     <div className={styles.source}>
-                        <button type="button" className={styles.moduleToggle} role="checkbox" aria-checked={draft.WearEnabled !== 0}
-                            onClick={() => { set("WearEnabled", draft.WearEnabled ? 0 : 1); flush(); }}>
-                            <span aria-hidden="true" className={`${styles.toggleBox} ${draft.WearEnabled ? styles.toggleOn : ""}`}>
-                                {draft.WearEnabled ? "✓" : ""}
+                        {["GameDefault", "WearEnabled"].map((key, mode) =>
+                            <button type="button" key={key} aria-pressed={draft.WearEnabled === mode}
+                                className={draft.WearEnabled === mode ? styles.selected : ""}
+                                onClick={() => { set("WearEnabled", mode); flush(); }}>
+                                {text(key, mode === 0 ? "Game default" : "Custom settings")}
+                            </button>)}
+                    </div>
+                    {draft.WearEnabled !== 0 && <>
+                    <div className={styles.source}>
+                        <button type="button" className={styles.moduleToggle} role="checkbox" aria-checked={draft.WearHidden !== 0}
+                            onClick={() => { set("WearHidden", draft.WearHidden ? 0 : 1); flush(); }}>
+                            <span aria-hidden="true" className={`${styles.toggleBox} ${draft.WearHidden ? styles.toggleOn : ""}`}>
+                                {draft.WearHidden ? "✓" : ""}
                             </span>
-                            {text("WearEnabled", "Show road wear")}
+                            {text("WearHidden", "Hide road wear")}
                         </button>
                     </div>
                     <div className={styles.source}>
@@ -214,6 +223,7 @@ export function GraphicsPanel({ panelClass }: { panelClass: string }) {
                         </div>
                     </>}
                     {value.WearMatches >= 0 && <p className={styles.textureHint}>{text("WearMaterials", "Matched lane materials")} · {value.WearMatches}</p>}
+                    </>}
                 </>}
                 {tab === "Terrain" && <p className={styles.textureHint}>
                     {text("TerrainGameValue", "0 = game value")}: {value.GameTessellation > 0 ? `${value.GameTessellation} / ${value.GamePatchSize}` : "–"}
@@ -246,7 +256,7 @@ export function GraphicsPanel({ panelClass }: { panelClass: string }) {
                         aria-label={`${text("Reset", "Reset")} ${text("BloomMode", "Bloom")}`}
                         onClick={() => reset("BloomMode")}>↺</button></Tooltip>
                 </div>}
-                {controls.filter(control => control.tab === tab).map(control => <div key={control.key} className={styles.graphicsControl}>
+                {controls.filter(control => control.tab === tab && (tab !== "RoadWear" || draft.WearEnabled !== 0)).map(control => <div key={control.key} className={styles.graphicsControl}>
                     <RoadSlider control={control} label={text(control.key, control.label) + (tab === "RoadWear" ? " (%)" : "")}
                         description={text(`Tip${control.key}`, control.label) + (control.key === "WearGloss" ? " (−1 = " + text("GameDefault", "Game default") + ")" : "")} value={draft[control.key]}
                         onChange={next => set(control.key, next)} onCommit={flush} />

@@ -87,6 +87,7 @@ namespace Advanced_Graphics
                 switch (key)
                 {
                     case "WearEnabled": s.WearEnabled = value != 0; break;
+                    case "WearHidden": s.WearHidden = value != 0; break;
                     case "WearOpacity": s.WearOpacity = ClampInt(value, 0, 300); break;
                     case "WearDepth": s.WearDepth = ClampInt(value, 0, 1000); break;
                     case "WearGloss": s.WearGloss = ClampInt(value, -1, 100); break;
@@ -108,6 +109,7 @@ namespace Advanced_Graphics
                     default: return;
                 }
             }
+            // Graphics edits do not reconfigure or regenerate any road textures.
             s.QueueGraphicsApply();
             m_State = BuildState(s);
             QueueSave();
@@ -116,7 +118,7 @@ namespace Advanced_Graphics
         private static readonly string[] ResetKeys = {
             "TreeLodDistance", "GlobalDetailScalePercent", "TerrainTessellationLevel", "TerrainPatchSizeUnits",
             "ShadowResolution", "ShadowDistanceMeters", "SmallShadowCasterThreshold", "TaaSharpenStrength", "TaaStabilityEnabled", "TaaStabilityStrength",
-            "WearEnabled", "WearOpacity", "WearDepth", "WearGloss", "WearColor",
+            "WearEnabled", "WearHidden", "WearOpacity", "WearDepth", "WearGloss", "WearColor",
             "BloomMode", "SunBloomStrength", "SkyExposure"
         };
 
@@ -125,6 +127,7 @@ namespace Advanced_Graphics
             switch (key)
             {
                 case "WearEnabled": s.WearEnabled = false; break;
+                case "WearHidden": s.WearHidden = false; break;
                 case "WearOpacity": s.WearOpacity = 100; break;
                 case "WearDepth": s.WearDepth = 100; break;
                 case "WearGloss": s.WearGloss = -1; break;
@@ -165,6 +168,7 @@ namespace Advanced_Graphics
             Add(json, "x", s.GraphicsWindowX);
             Add(json, "y", s.GraphicsWindowY);
             Add(json, "WearEnabled", s.WearEnabled ? 1 : 0);
+            Add(json, "WearHidden", s.WearHidden ? 1 : 0);
             Add(json, "WearOpacity", s.WearOpacity);
             Add(json, "WearDepth", s.WearDepth);
             Add(json, "WearGloss", s.WearGloss);
