@@ -97,7 +97,7 @@ namespace Advanced_Graphics
                     case "TerrainTessellationLevel": s.TerrainTessellationLevel = value < 0.5f ? 0 : ClampInt(value, 1, 16); break;
                     case "TerrainPatchSizeUnits": s.TerrainPatchSizeUnits = value < 0.5f ? 0 : ClampInt(value, 4, 128); break;
                     case "ShadowResolution": s.ShadowResolution = ClampInt(value, 0, 8192); break;
-                    case "ShadowDistanceMeters": s.ShadowDistanceMeters = ClampInt(value, 0, 2000); break;
+                    case "ShadowDistancePercent": s.ShadowDistancePercent = ClampInt(value, 25, 200); break;
                     case "SmallShadowCasterThreshold": s.SmallShadowCasterThreshold = ClampInt(value, 0, 10); break;
                     case "TaaSharpenStrength": s.TaaSharpenStrength = ClampFloat(value, 0, 2); break;
                     case "TaaStabilityEnabled": s.TaaStabilityEnabled = value != 0; break;
@@ -106,6 +106,16 @@ namespace Advanced_Graphics
                     case "BloomIntensity": s.BloomIntensity = ClampFloat(value, 0, 1); break;
                     case "SunBloomStrength": s.SunBloomStrength = ClampFloat(value, 0, 5); break;
                     case "SkyExposure": s.SkyExposure = ClampFloat(value, -5, 5); break;
+                    case "ContactShadowsEnabled": s.ContactShadowsEnabled = value != 0; break;
+                    case "ContactShadowLength": s.ContactShadowLength = ClampFloat(value, 0.01f, 1); break;
+                    case "ContactShadowOpacityPercent": s.ContactShadowOpacityPercent = ClampInt(value, 0, 100); break;
+                    case "ContactShadowDistance": s.ContactShadowDistance = ClampInt(value, 10, 2000); break;
+                    case "AmbientOcclusionStrengthPercent": s.AmbientOcclusionStrengthPercent = ClampInt(value, 0, 400); break;
+                    case "AmbientOcclusionRadiusPercent": s.AmbientOcclusionRadiusPercent = ClampInt(value, 25, 400); break;
+                    case "ShadowCascadeFocus": s.ShadowCascadeFocus = ClampInt(value, 0, 100); break;
+                    case "ExposureCompensation": s.ExposureCompensation = ClampFloat(value, -3, 3); break;
+                    case "ExposureAdaptationPercent": s.ExposureAdaptationPercent = ClampInt(value, 10, 500); break;
+                    case "FogDensityPercent": s.FogDensityPercent = ClampInt(value, 0, 400); break;
                     default: return;
                 }
             }
@@ -117,9 +127,12 @@ namespace Advanced_Graphics
 
         private static readonly string[] ResetKeys = {
             "TreeLodDistance", "GlobalDetailScalePercent", "TerrainTessellationLevel", "TerrainPatchSizeUnits",
-            "ShadowResolution", "ShadowDistanceMeters", "SmallShadowCasterThreshold", "TaaSharpenStrength", "TaaStabilityEnabled", "TaaStabilityStrength",
+            "ShadowResolution", "ShadowDistancePercent", "SmallShadowCasterThreshold", "TaaSharpenStrength", "TaaStabilityEnabled", "TaaStabilityStrength",
             "WearEnabled", "WearHidden", "WearOpacity", "WearDepth", "WearGloss", "WearColor",
-            "BloomMode", "SunBloomStrength", "SkyExposure"
+            "BloomMode", "SunBloomStrength", "SkyExposure",
+            "ContactShadowsEnabled", "ContactShadowLength", "ContactShadowOpacityPercent", "ContactShadowDistance",
+            "AmbientOcclusionStrengthPercent", "AmbientOcclusionRadiusPercent", "ShadowCascadeFocus",
+            "ExposureCompensation", "ExposureAdaptationPercent", "FogDensityPercent"
         };
 
         private static bool ResetValue(Setting s, string key)
@@ -137,7 +150,7 @@ namespace Advanced_Graphics
                 case "TerrainTessellationLevel": s.TerrainTessellationLevel = Setting.DefaultTerrainTessellation; break;
                 case "TerrainPatchSizeUnits": s.TerrainPatchSizeUnits = Setting.DefaultTerrainPatchSize; break;
                 case "ShadowResolution": s.ShadowResolution = 0; break;
-                case "ShadowDistanceMeters": s.ShadowDistanceMeters = 0; break;
+                case "ShadowDistancePercent": s.ShadowDistancePercent = 100; break;
                 case "SmallShadowCasterThreshold": s.SmallShadowCasterThreshold = 0; break;
                 case "TaaSharpenStrength": s.TaaSharpenStrength = 0; break;
                 case "TaaStabilityEnabled": s.TaaStabilityEnabled = false; break;
@@ -146,6 +159,16 @@ namespace Advanced_Graphics
                 case "BloomIntensity": s.BloomMode = Setting.BloomControl.GameDefault; s.BloomIntensity = 0.2f; break;
                 case "SunBloomStrength": s.SunBloomStrength = 1f; break;
                 case "SkyExposure": s.SkyExposure = 0; break;
+                case "ContactShadowsEnabled": s.ContactShadowsEnabled = false; break;
+                case "ContactShadowLength": s.ContactShadowLength = 0.3f; break;
+                case "ContactShadowOpacityPercent": s.ContactShadowOpacityPercent = 100; break;
+                case "ContactShadowDistance": s.ContactShadowDistance = 300; break;
+                case "AmbientOcclusionStrengthPercent": s.AmbientOcclusionStrengthPercent = 100; break;
+                case "AmbientOcclusionRadiusPercent": s.AmbientOcclusionRadiusPercent = 100; break;
+                case "ShadowCascadeFocus": s.ShadowCascadeFocus = 0; break;
+                case "ExposureCompensation": s.ExposureCompensation = 0; break;
+                case "ExposureAdaptationPercent": s.ExposureAdaptationPercent = 100; break;
+                case "FogDensityPercent": s.FogDensityPercent = 100; break;
                 default: return false;
             }
             return true;
@@ -179,7 +202,7 @@ namespace Advanced_Graphics
             Add(json, "TerrainTessellationLevel", s.TerrainTessellationLevel);
             Add(json, "TerrainPatchSizeUnits", s.TerrainPatchSizeUnits);
             Add(json, "ShadowResolution", s.ShadowResolution);
-            Add(json, "ShadowDistanceMeters", s.ShadowDistanceMeters);
+            Add(json, "ShadowDistancePercent", s.ShadowDistancePercent);
             Add(json, "SmallShadowCasterThreshold", s.SmallShadowCasterThreshold);
             Add(json, "TaaSharpenStrength", s.TaaSharpenStrength);
             Add(json, "TaaStabilityEnabled", s.TaaStabilityEnabled ? 1 : 0);
@@ -191,6 +214,22 @@ namespace Advanced_Graphics
             Add(json, "BloomIntensity", s.BloomIntensity);
             Add(json, "SunBloomStrength", s.SunBloomStrength);
             Add(json, "SkyExposure", s.SkyExposure);
+            Add(json, "ContactShadowsEnabled", s.ContactShadowsEnabled ? 1 : 0);
+            Add(json, "ContactShadowLength", s.ContactShadowLength);
+            Add(json, "ContactShadowOpacityPercent", s.ContactShadowOpacityPercent);
+            Add(json, "ContactShadowDistance", s.ContactShadowDistance);
+            Add(json, "AmbientOcclusionStrengthPercent", s.AmbientOcclusionStrengthPercent);
+            Add(json, "AmbientOcclusionRadiusPercent", s.AmbientOcclusionRadiusPercent);
+            Add(json, "ShadowCascadeFocus", s.ShadowCascadeFocus);
+            Add(json, "ExposureCompensation", s.ExposureCompensation);
+            Add(json, "ExposureAdaptationPercent", s.ExposureAdaptationPercent);
+            Add(json, "FogDensityPercent", s.FogDensityPercent);
+            var effects = Mod.Graphics?.Effects;
+            Add(json, "GameAoIntensity", effects?.GameAoIntensity ?? -1f);
+            Add(json, "GameFogDistance", effects?.GameFogDistance ?? -1f);
+            Add(json, "GameFirstCascade", effects?.GameFirstCascade ?? -1f);
+            Add(json, "GameShadowDistance", effects?.GameShadowDistance ?? -1f);
+            Add(json, "ShadowResolutionCap", effects?.ShadowResolutionCap ?? -1);
             return json.Append('}').ToString();
         }
 

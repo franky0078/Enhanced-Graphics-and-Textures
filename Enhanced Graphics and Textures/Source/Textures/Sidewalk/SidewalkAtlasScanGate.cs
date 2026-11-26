@@ -28,7 +28,6 @@ namespace Advanced_Graphics
             if (!m_NetChanged && !m_NetChanges.IsEmptyIgnoreFilter) m_NetChanged = true;
         }
 
-        // At a poll tick: true when the expensive pass should run now. forced: the owner's own reasons.
         protected bool ShouldRunPass(bool forced)
         {
             bool run = m_ScanGate.ShouldScan(World, forced || m_NetChanged);
@@ -36,7 +35,17 @@ namespace Advanced_Graphics
             return run;
         }
 
-        protected void PassFinished(bool waiting) => m_ScanGate.Passed(World, waiting);
+        // Finished atlas passes with a measured pattern: junction corners wait for them after loading.
+        internal static int RoadPatternPasses, ParkingPatternPasses;
+        protected virtual bool HasPatternMaterials => m_Materials.Count > 0;
+
+        protected void PassFinished(bool waiting)
+        {
+            m_ScanGate.Passed(World, waiting);
+            if (waiting && !HasPatternMaterials) return;
+            if (this is ParkingRoadAtlasSystem) ParkingPatternPasses++;
+            else if (!IsAlleyAtlas) RoadPatternPasses++;
+        }
 
         protected void ResetScanGate()
         {

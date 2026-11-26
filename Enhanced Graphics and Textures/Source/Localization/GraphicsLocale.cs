@@ -894,6 +894,7 @@ namespace Advanced_Graphics
             AddLogOutputEntries(entries);
             AddModuleEntries(entries);
             ApplyAdditionalTranslations(entries, detail, shadow, culling);
+            AddEffectEntries(entries);
             AddCurbAndWearEntries(entries);
             return entries;
         }

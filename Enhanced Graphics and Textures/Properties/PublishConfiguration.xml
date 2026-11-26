@@ -21,6 +21,7 @@
 		- Mipmap bias for all surfaces
 		- 16× anisotropic texture filtering for modified surface textures
 		- Roadwear color,depth and roughness adjustments
+		- Exposure compensation and exposure adaptation speed
 
 		Higher settings can increase GPU load and memory use. Adjust one setting at a time and compare both image quality and frame rate.
 
@@ -153,7 +154,7 @@
 	<AccessLevel Value="Public" />
 	<Tag Value="Code Mod" />
 	
-	<ModVersion Value="1.8.1" />
+	<ModVersion Value="1.9.0" />
 	
 	<!--Existing value retained. Set this to the game version tested locally before publishing.-->
 	<GameVersion Value="1.6.*" />
@@ -161,9 +162,11 @@
 	<ChangeLog>
 		Latest changes:
 
-		- added roadwear color, depth and roughness adjustments.
-		- added curb texture override for sidewalks + curb length markings.
-		- fix roadwear button not working in some cases.
+		- added contact shadow and ssao settings
+		- added fog density
+		- added exposure compensation and exposure adaptation speed.
+		- optimizing code, texture reloads and memory usage
+		- fix shadow resolution and distance settings
 
 	</ChangeLog>
 

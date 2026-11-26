@@ -4,8 +4,7 @@ namespace Advanced_Graphics
 {
     internal static class RoadNormalEncoding
     {
-        // Leave room for RGBA32 quantization and filtering. Near-tangent normals can
-        // otherwise decode outside the unit disk (or with an effectively zero Z).
+        // Headroom for RGBA32 quantization: near-tangent normals would otherwise decode outside the unit disk.
         private const float MinimumZ = 0.15f;
         private const float MaximumXY2 = 1f - MinimumZ * MinimumZ;
 

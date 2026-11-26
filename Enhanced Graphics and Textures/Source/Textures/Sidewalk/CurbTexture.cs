@@ -176,8 +176,7 @@ namespace Advanced_Graphics
                         continue;
                     }
 
-                    // Road atlases store tangent X in alpha and tangent Y in green.
-                    // Preserve the independent red and blue channels of the destination.
+                    // Road atlases: tangent X in alpha, Y in green; red and blue of the destination stay.
                     float nx, ny, nz;
                     if (original)
                     {

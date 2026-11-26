@@ -71,7 +71,7 @@ namespace Advanced_Graphics
 
             // BatchManagerSystem builds the active groups; BatchDataSystem later reads their LOD thresholds. 
             updateSystem.UpdateAfter<TreeLodSystem, BatchManagerSystem>(SystemUpdatePhase.Rendering);
-            updateSystem.UpdateAfter<GraphicsCameraSystem, Game.Rendering.LightingSystem>(SystemUpdatePhase.Rendering);
+            updateSystem.UpdateAfter<GraphicsCameraSystem, Game.Rendering.LightingSystem>(SystemUpdatePhase.PreCulling);
             updateSystem.UpdateAt<RoadWearSystem>(SystemUpdatePhase.Rendering);
             RoadWear = updateSystem.World.GetOrCreateSystemManaged<RoadWearSystem>();
             updateSystem.UpdateAt<GrassSurfaceSystem>(SystemUpdatePhase.Rendering);
@@ -89,9 +89,7 @@ namespace Advanced_Graphics
             updateSystem.UpdateBefore<SidewalkJunctionRestoreSystem, EndFrameBarrier>(SystemUpdatePhase.MainLoop);
             updateSystem.UpdateBefore<SidewalkJunctionRestoreSystem>(SystemUpdatePhase.PreTool);
             updateSystem.UpdateBefore<SidewalkJunctionRestoreSystem>(SystemUpdatePhase.ApplyTool);
-            // Restoring right after Rendering made the main thread wait for the game's render jobs that still read Composition
-            // (job wait up to ~13 ms, own work 0.1-0.3 ms). At CompleteRendering those jobs are done; the restores before
-            // tools, simulation, end of frame and saving stay. Set JunctionRestoreAfterRendering = true to go back.
+            // Restore after CompleteRendering: right after Rendering it waited up to 13 ms for render jobs (true = old behaviour).
             if (JunctionRestoreAfterRendering) updateSystem.UpdateAfter<SidewalkJunctionRestoreSystem>(SystemUpdatePhase.Rendering);
             updateSystem.UpdateBefore<SidewalkJunctionRestoreSystem, SimulationSystem>(SystemUpdatePhase.LateUpdate);
             updateSystem.UpdateAfter<SidewalkJunctionRestoreSystem>(SystemUpdatePhase.CompleteRendering);
@@ -167,8 +165,7 @@ namespace Advanced_Graphics
             }
             if (m_Setting.GraphicsSettingsVersion < 1)
             {
-                // Earlier versions always applied terrain 5 / 64 (the old defaults) and overwrote the game's terrain quality.
-                // Those values now mean "keep the game's value"; deliberately changed values stay.
+                // Old versions forced terrain 5 / 64; these values now mean "keep the game's value".
                 if (m_Setting.TerrainTessellationLevel == 5) m_Setting.TerrainTessellationLevel = 0;
                 if (m_Setting.TerrainPatchSizeUnits == 64) m_Setting.TerrainPatchSizeUnits = 0;
                 m_Setting.GraphicsSettingsVersion = 1;

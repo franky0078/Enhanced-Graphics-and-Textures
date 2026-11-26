@@ -49,8 +49,6 @@ namespace Advanced_Graphics
             m_Bloom.intensity.Override(options.BloomMode == Setting.BloomControl.Disabled ?
                 0f : FiniteClamp(options.BloomIntensity, 0f, 1f, 0.2f));
 
-            // Read the game's current exposure after LightingSystem updates it, so
-            // the correction follows the original day/night lighting instead of freezing it.
             m_Sky.active = false;
             if (sky)
             {
@@ -85,7 +83,6 @@ namespace Advanced_Graphics
                 }
             }
             if (sun == null || options == null) return;
-            // Adopt externally changed values, rather than multiplying our previous result.
             if (!m_TouchedSun || sun.flareTint != m_LastFlareTint)
                 m_BaseFlareTint = sun.flareTint;
             if (!m_TouchedSun || !Mathf.Approximately(sun.flareSize, m_LastFlareSize))

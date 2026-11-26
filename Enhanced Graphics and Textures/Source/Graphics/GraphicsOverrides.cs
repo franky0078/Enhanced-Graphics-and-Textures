@@ -10,6 +10,8 @@ namespace Advanced_Graphics
     internal sealed class GraphicsOverrides
     {
         private readonly GraphicsLightingOverrides m_Lighting = new GraphicsLightingOverrides();
+        private readonly GraphicsEffectOverrides m_Effects = new GraphicsEffectOverrides();
+        private bool m_EffectsFailed;
         private float m_BaseDetail;
         private int m_BaseCache;
         private int m_BaseTessellation;
@@ -29,11 +31,6 @@ namespace Advanced_Graphics
         private float m_LastTaaAntiFlicker;
         private bool m_TouchedTaaStability;
         private bool m_TouchedTaa;
-        private GameObject m_ShadowHolder;
-        private Volume m_ShadowVolume;
-        private VolumeProfile m_ShadowProfile;
-        private HDShadowSettings m_ShadowSettings;
-        private int m_LastShadowDistance;
         private int m_LastTessellation, m_LastPatch, m_LastShadowResolution;
         private bool m_Disabled;
 
@@ -72,13 +69,11 @@ namespace Advanced_Graphics
                 $"terrain {m_BaseTessellation}/{m_BasePatchSize}, shadow resolution {m_BaseShadowResolution}");
         }
 
-        // Graphics module switched off: restore everything the mod changed and leave the game's values alone afterwards.
         public void Disable()
         {
             if (m_Disabled) return;
             Restore();
             m_TouchedDetail = m_TouchedCache = m_TouchedTessellation = m_TouchedPatch = m_TouchedShadowResolution = m_TouchedShadowCulling = false;
-            m_LastShadowDistance = 0;
             if (m_Captured) ObserveGameValues();
             m_Disabled = true;
             Mod.log.Info("Graphics module off: game graphics settings restored and left unchanged.");
@@ -199,7 +194,6 @@ namespace Advanced_Graphics
                 {
                     shadows.directionalShadowResolution = resolution;
                     shadows.Apply();
-                    // Some older builds did not pass resolution through Apply().
                     var sun = GameObject.FindGameObjectWithTag("SunLight");
                     var light = sun != null ? sun.GetComponent<HDAdditionalLightData>() : null;
                     if (light != null && resolution > 0)
@@ -213,7 +207,6 @@ namespace Advanced_Graphics
                 m_TouchedShadowResolution = options.ShadowResolution > 0;
             }
 
-            ApplyShadowDistance(options.ShadowDistanceMeters);
             ApplyCamera(options);
             ObserveGameValues();
         }
@@ -332,7 +325,6 @@ namespace Advanced_Graphics
                 m_TouchedTaa = true;
             }
 
-            // Do not change the game's AA method or take over an active upscaler.
             var graphics = SharedSettings.instance?.graphics;
             if (!options.TaaStabilityEnabled ||
                 data.antialiasing != HDAdditionalCameraData.AntialiasingMode.TemporalAntialiasing ||
@@ -346,8 +338,7 @@ namespace Advanced_Graphics
             {
                 if (!Mathf.Approximately(data.taaAntiFlicker, m_LastTaaAntiFlicker)) m_BaseTaaAntiFlicker = data.taaAntiFlicker;
             }
-            // Use the actual HDRP value; leave quality, history sharpening and
-            // ringing protection at the game's values so the slider isolates one parameter.
+            // Only anti-flicker changes; quality, history sharpening and ringing protection stay at the game's values.
             var value = options.TaaStabilityStrength;
             data.taaAntiFlicker = float.IsNaN(value) || float.IsInfinity(value) ? 0.5f : Mathf.Clamp01(value);
             m_LastTaaAntiFlicker = data.taaAntiFlicker;
@@ -382,54 +373,34 @@ namespace Advanced_Graphics
             RestoreTaaStability();
         }
 
-        private void ApplyShadowDistance(int meters)
-        {
-            if (meters <= 0)
-            {
-                if (m_ShadowVolume != null) m_ShadowVolume.enabled = false;
-                m_LastShadowDistance = 0;
-                return;
-            }
-            if (m_ShadowVolume == null)
-            {
-                m_ShadowHolder = new GameObject("Advanced Graphics shadow reach") { hideFlags = HideFlags.HideAndDontSave };
-                UnityEngine.Object.DontDestroyOnLoad(m_ShadowHolder);
-                m_ShadowVolume = m_ShadowHolder.AddComponent<Volume>();
-                m_ShadowVolume.isGlobal = true;
-                m_ShadowVolume.priority = 10000f;
-                m_ShadowVolume.weight = 1f;
-                m_ShadowProfile = ScriptableObject.CreateInstance<VolumeProfile>();
-                m_ShadowProfile.hideFlags = HideFlags.HideAndDontSave;
-                m_ShadowVolume.sharedProfile = m_ShadowProfile;
-                m_ShadowSettings = m_ShadowProfile.Add<HDShadowSettings>();
-            }
-            var distance = Math.Max(50, Math.Min(2000, meters));
-            if (m_LastShadowDistance != distance)
-            {
-                m_ShadowSettings.maxShadowDistance.Override(distance);
-                Mod.log.Info($"Graphics shadow distance {distance} m");
-                m_LastShadowDistance = distance;
-            }
-            m_ShadowVolume.enabled = true;
-        }
-
         public void ApplyLighting(Setting options, HDAdditionalLightData sun)
         {
             m_Lighting.ApplyVolume(options);
             m_Lighting.ApplySun(options, sun);
         }
 
+        public GraphicsEffectOverrides Effects => m_Effects;
+
+        // Per frame; also applies the shadow distance (GraphicsEffectOverrides.Shadows.cs).
+        public void ApplyEffects(Setting options, HDAdditionalLightData sun, Game.Rendering.CameraUpdateSystem cameraUpdate)
+        {
+            if (m_EffectsFailed) return;
+            try { m_Effects.Apply(options, sun, m_TaaCamera, cameraUpdate); }
+            catch (Exception ex)
+            {
+                // One error is enough: the effects stay off until the next game start.
+                m_EffectsFailed = true;
+                try { m_Effects.Restore(); } catch (Exception) { }
+                Mod.ErrorLater(ex, "Graphics effects could not be applied and were switched off.");
+            }
+        }
+
         public void Restore()
         {
             m_Lighting.Restore();
+            m_Effects.Restore();
             RestoreTaa();
             m_TaaCamera = null;
-            if (m_ShadowHolder != null) UnityEngine.Object.Destroy(m_ShadowHolder);
-            if (m_ShadowProfile != null) UnityEngine.Object.Destroy(m_ShadowProfile);
-            m_ShadowHolder = null;
-            m_ShadowVolume = null;
-            m_ShadowProfile = null;
-            m_ShadowSettings = null;
             if (!m_Captured) return;
             var graphics = SharedSettings.instance?.graphics;
             var lod = graphics?.GetQualitySetting<LevelOfDetailQualitySettings>();

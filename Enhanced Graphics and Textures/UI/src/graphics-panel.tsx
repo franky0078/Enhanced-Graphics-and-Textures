@@ -8,15 +8,22 @@ import styles from "./road-panel.module.scss";
 const group = "Advanced_Graphics";
 const state$ = bindValue<string>(group, "graphicsSettings", "{}");
 type GraphicKey = "WearHidden" | "WearEnabled" | "WearOpacity" | "WearDepth" | "WearGloss" | "WearColor" | "TreeLodDistance" | "GlobalDetailScalePercent" | "TerrainTessellationLevel" |
-    "TerrainPatchSizeUnits" | "ShadowResolution" | "ShadowDistanceMeters" | "SmallShadowCasterThreshold" |
-    "TaaSharpenStrength" | "TaaStabilityEnabled" | "TaaStabilityStrength" | "BloomMode" | "BloomIntensity" | "SunBloomStrength" | "SkyExposure";
-type State = Record<GraphicKey, number> & { WearMatches: number; show: boolean; x: number; y: number; DefaultShadowResolution: number; GameTessellation: number; GamePatchSize: number };
-type Tab = "RoadWear" | "Details" | "Terrain" | "Shadows" | "Lighting" | "AntiAliasing";
-const tabs: Tab[] = ["Details", "Terrain", "Shadows", "AntiAliasing", "Lighting", "RoadWear"];
+    "TerrainPatchSizeUnits" | "ShadowResolution" | "ShadowDistancePercent" | "SmallShadowCasterThreshold" |
+    "TaaSharpenStrength" | "TaaStabilityEnabled" | "TaaStabilityStrength" | "BloomMode" | "BloomIntensity" | "SunBloomStrength" | "SkyExposure" |
+    "ContactShadowsEnabled" | "ContactShadowLength" | "ContactShadowOpacityPercent" | "ContactShadowDistance" |
+    "AmbientOcclusionStrengthPercent" | "AmbientOcclusionRadiusPercent" | "ShadowCascadeFocus" |
+    "ExposureCompensation" | "ExposureAdaptationPercent" | "FogDensityPercent";
+type State = Record<GraphicKey, number> & { WearMatches: number; show: boolean; x: number; y: number; DefaultShadowResolution: number; GameTessellation: number; GamePatchSize: number;
+    GameAoIntensity: number; GameFogDistance: number; GameFirstCascade: number; GameShadowDistance: number; ShadowResolutionCap: number };
+type Tab = "RoadWear" | "Details" | "Terrain" | "Shadows" | "Lighting" | "AntiAliasing" | "Effects";
+const tabs: Tab[] = ["Details", "Terrain", "Shadows", "Effects", "AntiAliasing", "Lighting", "RoadWear"];
 const initial: State = { WearHidden: 0, WearEnabled: 0, WearMatches: -1, WearOpacity: 100, WearDepth: 100, WearGloss: -1, WearColor: 16777215, show: false, x: -1, y: -1, TreeLodDistance: 100, GlobalDetailScalePercent: 100,
-    TerrainTessellationLevel: 0, TerrainPatchSizeUnits: 0, ShadowResolution: 0, DefaultShadowResolution: 0, GameTessellation: 0, GamePatchSize: 0, ShadowDistanceMeters: 0,
+    TerrainTessellationLevel: 0, TerrainPatchSizeUnits: 0, ShadowResolution: 0, DefaultShadowResolution: 0, GameTessellation: 0, GamePatchSize: 0, ShadowDistancePercent: 100,
     SmallShadowCasterThreshold: 0, TaaSharpenStrength: 0, TaaStabilityEnabled: 0, TaaStabilityStrength: 0.5, BloomMode: 0, BloomIntensity: 0.2,
-    SunBloomStrength: 1, SkyExposure: 0 };
+    SunBloomStrength: 1, SkyExposure: 0, ContactShadowsEnabled: 0, ContactShadowLength: 0.3, ContactShadowOpacityPercent: 100,
+    ContactShadowDistance: 300, AmbientOcclusionStrengthPercent: 100, AmbientOcclusionRadiusPercent: 100, ShadowCascadeFocus: 0,
+    ExposureCompensation: 0, ExposureAdaptationPercent: 100, FogDensityPercent: 100, GameAoIntensity: -1, GameFogDistance: -1, GameFirstCascade: -1, GameShadowDistance: -1, ShadowResolutionCap: -1 };
+const contactKeys: GraphicKey[] = ["ContactShadowLength", "ContactShadowOpacityPercent", "ContactShadowDistance"];
 const controls: (SliderControl & { key: GraphicKey; tab: Tab })[] = [
     { key: "WearOpacity", label: "WearOpacity", tab: "RoadWear", min: 0, max: 300, step: 1 },
     { key: "WearDepth", label: "WearDepth", tab: "RoadWear", min: 0, max: 1000, step: 1 },
@@ -28,11 +35,20 @@ const controls: (SliderControl & { key: GraphicKey; tab: Tab })[] = [
     { key: "TerrainTessellationLevel", label: "TerrainTessellationLevel", tab: "Terrain", min: 0, max: 16, step: 1 },
     { key: "TerrainPatchSizeUnits", label: "TerrainPatchSizeUnits", tab: "Terrain", min: 0, max: 128, step: 1 },
     { key: "ShadowResolution", label: "ShadowResolution", tab: "Shadows", min: 0, max: 8192, step: 512 },
-    { key: "ShadowDistanceMeters", label: "ShadowDistanceMeters", tab: "Shadows", min: 0, max: 2000, step: 50 },
+    { key: "ShadowDistancePercent", label: "ShadowDistancePercent", tab: "Shadows", min: 25, max: 200, step: 5 },
     { key: "SmallShadowCasterThreshold", label: "SmallShadowCasterThreshold", tab: "Shadows", min: 0, max: 10, step: 1 },
     { key: "BloomIntensity", label: "BloomIntensity", tab: "Lighting", min: 0, max: 1, step: 0.01 },
     { key: "SunBloomStrength", label: "SunBloomStrength", tab: "Lighting", min: 0, max: 5, step: 0.05 },
     { key: "SkyExposure", label: "SkyExposure", tab: "Lighting", min: -5, max: 5, step: 0.05 },
+    { key: "ExposureCompensation", label: "ExposureCompensation", tab: "Lighting", min: -3, max: 3, step: 0.05 },
+    { key: "ExposureAdaptationPercent", label: "ExposureAdaptationPercent", tab: "Lighting", min: 10, max: 500, step: 10 },
+    { key: "ShadowCascadeFocus", label: "ShadowCascadeFocus", tab: "Shadows", min: 0, max: 100, step: 5 },
+    { key: "ContactShadowLength", label: "ContactShadowLength", tab: "Effects", min: 0.05, max: 1, step: 0.05 },
+    { key: "ContactShadowOpacityPercent", label: "ContactShadowOpacityPercent", tab: "Effects", min: 0, max: 100, step: 5 },
+    { key: "ContactShadowDistance", label: "ContactShadowDistance", tab: "Effects", min: 10, max: 2000, step: 10 },
+    { key: "AmbientOcclusionStrengthPercent", label: "AmbientOcclusionStrengthPercent", tab: "Effects", min: 0, max: 400, step: 10 },
+    { key: "AmbientOcclusionRadiusPercent", label: "AmbientOcclusionRadiusPercent", tab: "Effects", min: 25, max: 400, step: 5 },
+    { key: "FogDensityPercent", label: "FogDensityPercent", tab: "Effects", min: 0, max: 400, step: 10 },
 ];
 
 export function GraphicsPanel({ panelClass }: { panelClass: string }) {
@@ -231,6 +247,8 @@ export function GraphicsPanel({ panelClass }: { panelClass: string }) {
                 {tab === "Shadows" && <p className={styles.textureHint}>
                     {text("ShadowGameValue", "Default for shadow quality")}: {value.DefaultShadowResolution > 0 ? value.DefaultShadowResolution : "–"}
                     {draft.ShadowResolution === 0 ? ` (${text("GameDefault", "Game default")})` : ""}
+                    {value.ShadowResolutionCap > 0 ? `, max. ${value.ShadowResolutionCap}` : ""}
+                    {value.GameShadowDistance > 0 ? ` · ${text("ShadowRangeNow", "Game shadow range now")}: ${Math.round(value.GameShadowDistance)} m` + (draft.ShadowDistancePercent !== 100 ? ` → ${Math.round(Math.max(50, value.GameShadowDistance * draft.ShadowDistancePercent / 100))} m` : "") : ""}
                 </p>}
                 {tab === "AntiAliasing" && <div className={styles.source}>
                     <Tooltip tooltip={text("TipTaaStabilityEnabled", "Enable TAA anti-flicker override")}>
@@ -247,6 +265,27 @@ export function GraphicsPanel({ panelClass }: { panelClass: string }) {
                         aria-label={`${text("Reset", "Reset")} ${text("TaaStabilityEnabled", "Adjust TAA stability")}`}
                         onClick={() => reset("TaaStabilityEnabled")}>↺</button></Tooltip>
                 </div>}
+                {tab === "Effects" && <>
+                    <div className={styles.source}>
+                        <Tooltip tooltip={text("TipContactShadowsEnabled", "Contact shadows")}>
+                            <button className={styles.moduleToggle} role="checkbox" aria-checked={draft.ContactShadowsEnabled !== 0}
+                                aria-label={text("ContactShadowsEnabled", "Contact shadows")}
+                                onClick={() => { set("ContactShadowsEnabled", draft.ContactShadowsEnabled ? 0 : 1); flush(); }}>
+                                <span aria-hidden="true" className={`${styles.toggleBox} ${draft.ContactShadowsEnabled ? styles.toggleOn : ""}`}>
+                                    {draft.ContactShadowsEnabled ? "✓" : ""}
+                                </span>
+                                {text("ContactShadowsEnabled", "Contact shadows")}
+                            </button>
+                        </Tooltip>
+                        <Tooltip tooltip={text("Reset", "Reset")}><button className={`${styles.reset} ${styles.graphicsReset}`}
+                            aria-label={`${text("Reset", "Reset")} ${text("ContactShadowsEnabled", "Contact shadows")}`}
+                            onClick={() => reset("ContactShadowsEnabled")}>↺</button></Tooltip>
+                    </div>
+                    <p className={styles.textureHint}>
+                        {text("EffectsGameValues", "Game values")}: AO {value.GameAoIntensity >= 0 ? value.GameAoIntensity.toFixed(2) : "–"}
+                        {" · "}{text("FogDistance", "Fog")} {value.GameFogDistance > 0 ? `${Math.round(value.GameFogDistance)} m` : "–"}
+                    </p>
+                </>}
                 {tab === "Lighting" && <div className={styles.source}>
                     <Tooltip tooltip={text("TipBloomMode", "Control Bloom")}><span>{text("BloomMode", "Bloom")}</span></Tooltip>
                     {["GameDefault", "On", "Off"].map((key, index) => <button key={key}
@@ -256,7 +295,8 @@ export function GraphicsPanel({ panelClass }: { panelClass: string }) {
                         aria-label={`${text("Reset", "Reset")} ${text("BloomMode", "Bloom")}`}
                         onClick={() => reset("BloomMode")}>↺</button></Tooltip>
                 </div>}
-                {controls.filter(control => control.tab === tab && (tab !== "RoadWear" || draft.WearEnabled !== 0)).map(control => <div key={control.key} className={styles.graphicsControl}>
+                {controls.filter(control => control.tab === tab && (tab !== "RoadWear" || draft.WearEnabled !== 0) &&
+                    (draft.ContactShadowsEnabled !== 0 || !contactKeys.includes(control.key))).map(control => <div key={control.key} className={styles.graphicsControl}>
                     <RoadSlider control={control} label={text(control.key, control.label) + (tab === "RoadWear" ? " (%)" : "")}
                         description={text(`Tip${control.key}`, control.label) + (control.key === "WearGloss" ? " (−1 = " + text("GameDefault", "Game default") + ")" : "")} value={draft[control.key]}
                         onChange={next => set(control.key, next)} onCommit={flush} />

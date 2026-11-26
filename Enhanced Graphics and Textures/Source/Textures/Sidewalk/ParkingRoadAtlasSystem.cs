@@ -28,9 +28,7 @@ namespace Advanced_Graphics
         private const float SidewalkRepeatsV = 1f / (SidewalkTileMetres * ParkingVPerMetre);
         private float m_SidewalkScaleU = 1f, m_SidewalkScaleV = 1f;
         private bool m_SidewalkCustom;
-        // Slab pattern of the parking sidewalk strip (repeats per atlas U and V), used by the junction meshes.
         internal static float SidewalkPatternRepeatsU, SidewalkPatternRepeatsV;
-        // Pattern repeat shift at both ends of the sidewalk strip (atlas U), used instead of mirroring in corners.
         internal static float SidewalkRepeatShiftRight, SidewalkRepeatShiftLeft;
 
         private sealed class ParkingMaterial
@@ -68,6 +66,8 @@ namespace Advanced_Graphics
             foreach (var texture in m_ParkingColors.Values) SurfaceTextureSampling.Apply(texture);
             foreach (var texture in m_ParkingNormals.Values) SurfaceTextureSampling.Apply(texture);
         }
+
+        protected override bool HasPatternMaterials => m_ParkingMaterials.Count > 0;
 
         protected override void OnUpdate()
         {
